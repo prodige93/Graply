@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
 import CguModal from './CguModal';
+import { supabase } from '@/shared/infrastructure/supabase';
 
 const glass = {
   background: 'rgba(255,255,255,0.04)',
@@ -142,12 +144,15 @@ function BirthDropdown({
 }
 
 export default function CreatorSignupForm({ onBack }: Props) {
+  const navigate = useNavigate();
   const [focused, setFocused] = useState<string | null>(null);
   const [birthDay, setBirthDay] = useState<number | null>(null);
   const [birthMonth, setBirthMonth] = useState<number | null>(null);
   const [birthYear, setBirthYear] = useState<number | null>(null);
   const [cguAccepted, setCguAccepted] = useState(false);
   const [cguOpen, setCguOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [form, setForm] = useState({
     username: '',
     firstName: '',
@@ -155,6 +160,66 @@ export default function CreatorSignupForm({ onBack }: Props) {
     phoneOrEmail: '',
     password: '',
   });
+
+  async function handleSignup() {
+    setError('');
+    if (!form.username.trim() || !form.firstName.trim() || !form.lastName.trim() || !form.phoneOrEmail.trim() || !form.password.trim()) {
+      setError('Tous les champs sont requis.');
+      return;
+    }
+    if (!cguAccepted) {
+      setError('Tu dois accepter les CGU pour continuer.');
+      return;
+    }
+    if (birthDay === null || birthMonth === null || birthYear === null) {
+      setError('La date de naissance est requise.');
+      return;
+    }
+
+    setLoading(true);
+    const email = form.phoneOrEmail.trim();
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password: form.password,
+      options: {
+        data: {
+          username: form.username.trim(),
+          first_name: form.firstName.trim(),
+          last_name: form.lastName.trim(),
+          role: 'creator',
+          birth_date: `${birthYear}-${String((birthMonth ?? 0) + 1).padStart(2, '0')}-${String(birthDay).padStart(2, '0')}`,
+        },
+      },
+    });
+
+    if (signUpError) {
+      setLoading(false);
+      if (signUpError.message.includes('already registered')) {
+        setError('Cette adresse e-mail est déjà utilisée.');
+      } else {
+        setError(signUpError.message);
+      }
+      return;
+    }
+
+    if (data.user) {
+      await supabase.from('profiles').upsert({
+        id: data.user.id,
+        username: form.username.trim(),
+        display_name: `${form.firstName.trim()} ${form.lastName.trim()}`,
+        role: 'creator',
+        is_public: true,
+      }, { onConflict: 'id' });
+    }
+
+    setLoading(false);
+
+    if (data.session) {
+      navigate('/home');
+    } else {
+      setError('Un e-mail de confirmation t\'a été envoyé. Vérifie ta boîte mail.');
+    }
+  }
 
   const update = (field: string, value: string) =>
     setForm(prev => ({ ...prev, [field]: value }));
@@ -344,21 +409,29 @@ export default function CreatorSignupForm({ onBack }: Props) {
         </div>
       </div>
 
-      <button style={{
-        width: '100%',
-        padding: '15px 18px',
-        borderRadius: 14,
-        marginTop: 20,
-        fontSize: 15,
-        fontWeight: 600,
-        color: '#000',
-        background: '#fff',
-        border: 'none',
-        cursor: 'pointer',
-        boxShadow: '0 4px 24px rgba(255,255,255,0.15)',
-        transition: 'all 0.2s ease',
-      }}>
-        S'inscrire
+      {error && (
+        <p style={{ color: '#ef4444', fontSize: 13, marginTop: 8, textAlign: 'center' }}>{error}</p>
+      )}
+
+      <button
+        onClick={handleSignup}
+        disabled={loading}
+        style={{
+          width: '100%',
+          padding: '15px 18px',
+          borderRadius: 14,
+          marginTop: 20,
+          fontSize: 15,
+          fontWeight: 600,
+          color: '#000',
+          background: '#fff',
+          border: 'none',
+          cursor: loading ? 'not-allowed' : 'pointer',
+          opacity: loading ? 0.7 : 1,
+          boxShadow: '0 4px 24px rgba(255,255,255,0.15)',
+          transition: 'all 0.2s ease',
+        }}>
+        {loading ? 'Inscription...' : "S'inscrire"}
       </button>
 
       <CguModal open={cguOpen} onClose={() => setCguOpen(false)} />
