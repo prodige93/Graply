@@ -5,7 +5,7 @@ import GrapeLoader from '../components/GrapeLoader';
 import Sidebar from '../components/Sidebar';
 import { campaigns, sponsoredCampaigns } from '@/shared/data/campaignsData';
 import { supabase } from '@/shared/infrastructure/supabase';
-import { mapSupabaseCampaign } from '@/shared/lib/mapSupabaseCampaign';
+import { mapSupabaseCampaign, enrichCampaignsWithProfiles } from '@/shared/lib/mapSupabaseCampaign';
 import { addSubmittedVideo } from '@/shared/lib/useCreatorCampaigns';
 import verifiedIcon from '@/shared/assets/badge-enterprise-verified.png';
 import chCircleIcon from '@/shared/assets/creator-hub-mark.svg';
@@ -34,12 +34,13 @@ export default function VideoVerificationPage() {
     setLoading(true);
     supabase
       .from('campaigns')
-      .select('*, profiles(username, display_name, avatar_url)')
+      .select('*')
       .eq('id', id)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(async ({ data }) => {
         if (data) {
-          setCampaign(mapSupabaseCampaign(data));
+          const [enriched] = await enrichCampaignsWithProfiles([data]);
+          setCampaign(mapSupabaseCampaign(enriched));
         }
         setLoading(false);
       });

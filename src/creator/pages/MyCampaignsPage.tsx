@@ -15,7 +15,7 @@ import { useCampaignTab, type CampaignTab } from '@/creator/contexts/CampaignTab
 import { useMyCampaigns } from '@/creator/contexts/MyCampaignsContext';
 import { campaigns as staticCampaigns, sponsoredCampaigns } from '@/shared/data/campaignsData';
 import { supabase } from '@/shared/infrastructure/supabase';
-import { mapSupabaseCampaign } from '@/shared/lib/mapSupabaseCampaign';
+import { mapSupabaseCampaign, enrichCampaignsWithProfiles } from '@/shared/lib/mapSupabaseCampaign';
 
 const allCampaignsPool = [...staticCampaigns, ...sponsoredCampaigns];
 
@@ -95,9 +95,10 @@ export default function MyCampaignsPage() {
     const fetchSaved = async () => {
       const { data } = await supabase
         .from('campaigns')
-        .select('*, profiles(username, display_name, avatar_url)')
+        .select('*')
         .in('id', savedIds);
-      const dbMapped = (data ?? []).map(mapSupabaseCampaign);
+      const enriched = await enrichCampaignsWithProfiles(data ?? []);
+      const dbMapped = enriched.map(mapSupabaseCampaign);
       const staticMapped = allCampaignsPool.filter((c) => savedIds.includes(c.id));
       const allIds = new Set(dbMapped.map((c) => c.id));
       const combined = [...dbMapped, ...staticMapped.filter((c) => !allIds.has(c.id))];

@@ -1,6 +1,7 @@
 import type { CampaignData } from '@/creator/components/CampaignCard';
+import { supabase } from '@/shared/infrastructure/supabase';
 
-interface SupabaseCampaign {
+export interface SupabaseCampaign {
   id: string;
   name: string;
   description: string;
@@ -14,7 +15,29 @@ interface SupabaseCampaign {
   rules: string[] | null;
   status: string;
   created_at: string;
+  user_id?: string | null;
   profiles?: { username: string | null; display_name: string | null; avatar_url: string | null } | null;
+}
+
+export async function enrichCampaignsWithProfiles<T extends { user_id?: string | null }>(
+  campaigns: T[],
+): Promise<(T & { profiles?: { username: string | null; display_name: string | null; avatar_url: string | null } | null })[]> {
+  const userIds = [...new Set(campaigns.map((c) => c.user_id).filter(Boolean))] as string[];
+  if (userIds.length === 0) return campaigns;
+
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, username, display_name, avatar_url')
+    .in('id', userIds);
+
+  const profileMap = new Map(
+    (profiles ?? []).map((p: { id: string; username: string | null; display_name: string | null; avatar_url: string | null }) => [p.id, p]),
+  );
+
+  return campaigns.map((c) => ({
+    ...c,
+    profiles: c.user_id ? profileMap.get(c.user_id) ?? null : null,
+  }));
 }
 
 function getTimeAgo(dateStr: string): string {

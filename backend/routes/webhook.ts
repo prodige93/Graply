@@ -20,7 +20,7 @@ const router = Router();
  * 4. Répond { received: true } en 200 si la requête à été authentifiée par Stripe (retente sinon)
  */
 router.post(
-  "/webhook",
+  "/",
   // express.raw() est appliqué dans server.ts uniquement pour cette route
   async (req: Request, res: Response) => {
     const sig = req.headers["stripe-signature"] as string;

@@ -5,7 +5,7 @@ import bookmarkIcon from '@/shared/assets/bookmark-filled.svg';
 import { useSavedCampaigns } from '@/creator/contexts/SavedCampaignsContext';
 import { campaigns, sponsoredCampaigns, enterprises } from '@/shared/data/campaignsData';
 import { supabase } from '@/shared/infrastructure/supabase';
-import { mapSupabaseCampaign } from '@/shared/lib/mapSupabaseCampaign';
+import { mapSupabaseCampaign, enrichCampaignsWithProfiles } from '@/shared/lib/mapSupabaseCampaign';
 import verifiedIcon from '@/shared/assets/badge-enterprise-verified.png';
 import instagramIcon from '@/shared/assets/instagram-card.svg';
 import tiktokIcon from '@/shared/assets/tiktok.svg';
@@ -83,12 +83,13 @@ export default function CampaignDetailPage() {
     setLoading(true);
     supabase
       .from('campaigns')
-      .select('*, profiles(username, display_name, avatar_url)')
+      .select('*')
       .eq('id', id)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(async ({ data }) => {
         if (data) {
-          setCampaign(mapSupabaseCampaign(data));
+          const [enriched] = await enrichCampaignsWithProfiles([data]);
+          setCampaign(mapSupabaseCampaign(enriched));
         }
         setLoading(false);
       });

@@ -10,7 +10,7 @@ import { useCampaignTab, type CampaignTab } from '@/creator/contexts/CampaignTab
 import { getPendingApplications, type CreatorCampaign, type PendingApplication } from '@/shared/lib/useCreatorCampaigns';
 import { useMyCampaigns } from '@/creator/contexts/MyCampaignsContext';
 import { campaigns as allCampaignsData, sponsoredCampaigns } from '@/shared/data/campaignsData';
-import { mapSupabaseCampaign } from '@/shared/lib/mapSupabaseCampaign';
+import { mapSupabaseCampaign, enrichCampaignsWithProfiles } from '@/shared/lib/mapSupabaseCampaign';
 import type { CampaignData } from '../components/CampaignCard';
 import CampaignCard from '../components/CampaignCard';
 import SavedCampaignCard from '../components/campaign-cards/SavedCampaignCard';
@@ -144,8 +144,9 @@ export default function ProfilePage() {
     if (savedIds.length === 0) { setDbSavedCampaigns([]); return; }
     const allPool = [...allCampaignsData, ...sponsoredCampaigns];
     const fetchSaved = async () => {
-      const { data } = await supabase.from('campaigns').select('*, profiles(username, display_name, avatar_url)').in('id', savedIds);
-      const dbMapped = (data ?? []).map(mapSupabaseCampaign);
+      const { data } = await supabase.from('campaigns').select('*').in('id', savedIds);
+      const enriched = await enrichCampaignsWithProfiles(data ?? []);
+      const dbMapped = enriched.map(mapSupabaseCampaign);
       const staticMapped = allPool.filter((c) => savedIds.includes(c.id));
       const allIds = new Set(dbMapped.map((c) => c.id));
       setDbSavedCampaigns([...dbMapped, ...staticMapped.filter((c) => !allIds.has(c.id))]);

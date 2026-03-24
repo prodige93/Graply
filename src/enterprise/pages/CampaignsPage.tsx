@@ -11,7 +11,7 @@ import type { CampaignData } from '../components/CampaignCard';
 import { campaigns as staticCampaigns, sponsoredCampaigns, enterprises } from '@/shared/data/campaignsData';
 import jentrepriseIcon from '@/shared/assets/badge-enterprise-verified.png';
 import { supabase } from '@/shared/infrastructure/supabase';
-import { mapSupabaseCampaign } from '@/shared/lib/mapSupabaseCampaign';
+import { mapSupabaseCampaign, enrichCampaignsWithProfiles } from '@/shared/lib/mapSupabaseCampaign';
 
 const slides = [
   {
@@ -373,11 +373,12 @@ export default function CampaignsPage() {
     const fetchPublished = async () => {
       const { data } = await supabase
         .from('campaigns')
-        .select('*, profiles(username, display_name, avatar_url)')
+        .select('*')
         .eq('status', 'published')
         .order('created_at', { ascending: false });
       if (data) {
-        setDbCampaigns(data.map(mapSupabaseCampaign));
+        const enriched = await enrichCampaignsWithProfiles(data);
+        setDbCampaigns(enriched.map(mapSupabaseCampaign));
       }
     };
     fetchPublished();
