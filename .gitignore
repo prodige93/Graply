@@ -1,3 +1,4 @@
+# Logs
 logs
 *.log
 npm-debug.log*
@@ -6,18 +7,52 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+
+# Build
 dist
 dist-ssr
+build
 *.local
 
+# Vite / tooling caches
+.vite
+.cache
+.turbo
+*.tsbuildinfo
+
+# Tests & coverage
+coverage
+.nyc_output
+
+# Environment (ne pas versionner les secrets — garder .env.example)
+.env
+.env.*
+!.env.example
+
+# Supabase CLI (secrets locaux)
+.branches
+.temp
+
+# Deploy / hosting
+.vercel
+.netlify
+
+# IDE
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Debug & misc
+*.pem
+*.orig
