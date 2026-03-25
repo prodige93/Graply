@@ -30,6 +30,8 @@ import LoginPage from '@/creator/pages/LoginPage.tsx';
 import LandingPage from '@/creator/pages/LandingPage.tsx';
 import EnterpriseAppPage from '@/app/EnterpriseAppPage.tsx';
 import AuthGuard from '@/creator/components/AuthGuard.tsx';
+import StripeCallbackPage from '@/shared/pages/StripeCallbackPage.tsx';
+import SocialCallbackPage from '@/shared/pages/SocialCallbackPage.tsx';
 import { prefetchProfile } from '@/shared/lib/useProfile';
 import { SavedCampaignsProvider } from '@/creator/contexts/SavedCampaignsContext';
 import { MyCampaignsProvider } from '@/creator/contexts/MyCampaignsContext';
@@ -49,6 +51,8 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/connexion" element={<LoginPage />} />
               <Route path="/lp" element={<Navigate to="/" replace />} />
               <Route element={<AuthGuard />}>
+                <Route path="/stripe-callback" element={<StripeCallbackPage />} />
+                <Route path="/social-callback" element={<SocialCallbackPage />} />
                 <Route path="/app-entreprise/*" element={<EnterpriseAppPage />} />
                 <Route element={<MobileLayout />}>
                   <Route path="/home" element={<CreatorHomePage />} />

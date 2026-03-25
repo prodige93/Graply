@@ -50,6 +50,18 @@ const platformHandleKeys: Record<string, 'instagram_handle' | 'tiktok_handle' | 
   youtube: 'youtube_handle',
 };
 
+const platformBaseUrls: Record<string, string> = {
+  instagram: 'https://instagram.com/',
+  tiktok: 'https://tiktok.com/@',
+  youtube: 'https://youtube.com/@',
+};
+
+function getSocialUrl(platform: string, handle: string): string | null {
+  if (!handle) return null;
+  const clean = handle.replace(/^@/, '');
+  return `${platformBaseUrls[platform]}${clean}`;
+}
+
 
 const CATEGORY_OPTIONS = ['UGC', 'Clipping'];
 const CATEGORY_COLORS: Record<string, string> = {
@@ -609,15 +621,32 @@ export default function ProfilePage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 mb-2">
-            {brandSocials.map((s) => (
-              <button
-                key={s}
-                className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 hover:brightness-125"
-                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
-              >
-                <img src={platformIcons[s]} alt={s} className="w-5 h-5" />
-              </button>
-            ))}
+            {brandSocials.map((s) => {
+              const handle = profile?.[platformHandleKeys[s]] || '';
+              const url = getSocialUrl(s, handle);
+              return url ? (
+                <a
+                  key={s}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 hover:brightness-125 hover:scale-105"
+                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  title={`${platformLabels[s]}: ${handle}`}
+                >
+                  <img src={platformIcons[s]} alt={s} className="w-5 h-5" />
+                </a>
+              ) : (
+                <div
+                  key={s}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center opacity-30"
+                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  title={`${platformLabels[s]}: Non connecté`}
+                >
+                  <img src={platformIcons[s]} alt={s} className="w-5 h-5" />
+                </div>
+              );
+            })}
             <button
               onClick={() => navigate('/mon-compte')}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 hover:bg-white/10 active:scale-95"
@@ -907,34 +936,48 @@ export default function ProfilePage() {
                   {brandSocials.map((s) => {
                     const isHidden = hiddenStats.includes(`platform_${s}`);
                     const handle = profile?.[platformHandleKeys[s]] || '';
+                    const url = getSocialUrl(s, handle);
                     return (
-                      <button
+                      <div
                         key={s}
-                        onClick={() => toggleHiddenStat(`platform_${s}`)}
-                        className={`relative group rounded-2xl flex items-center gap-3.5 px-4 py-3 cursor-pointer transition-all duration-300 hover:brightness-125 active:scale-[0.98] ${isHidden ? 'opacity-30' : ''}`}
+                        className={`relative group rounded-2xl flex items-center gap-3.5 px-4 py-3 transition-all duration-300 ${isHidden ? 'opacity-30' : ''}`}
                         style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${isHidden ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.08)'}` }}
-                        title={isHidden ? 'Afficher' : 'Masquer'}
                       >
-                        <div className="relative w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                          <img src={platformIcons[s]} alt={s} className={`w-6 h-6 transition-all duration-300 ${isHidden ? 'grayscale' : ''}`} />
-                          {isHidden && (
-                            <div className="absolute inset-0 rounded-xl flex items-center justify-center" style={{ background: 'rgba(5,4,4,0.5)' }}>
-                              <EyeOff className="w-3.5 h-3.5 text-white/40" />
-                            </div>
-                          )}
-                        </div>
+                        {url && !isHidden ? (
+                          <a href={url} target="_blank" rel="noopener noreferrer" className="relative w-10 h-10 rounded-xl flex items-center justify-center shrink-0 hover:scale-110 transition-transform" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                            <img src={platformIcons[s]} alt={s} className="w-6 h-6" />
+                          </a>
+                        ) : (
+                          <div className="relative w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                            <img src={platformIcons[s]} alt={s} className={`w-6 h-6 transition-all duration-300 ${isHidden ? 'grayscale' : ''}`} />
+                            {isHidden && (
+                              <div className="absolute inset-0 rounded-xl flex items-center justify-center" style={{ background: 'rgba(5,4,4,0.5)' }}>
+                                <EyeOff className="w-3.5 h-3.5 text-white/40" />
+                              </div>
+                            )}
+                          </div>
+                        )}
                         <div className="flex-1 min-w-0 text-left">
                           <p className="text-sm font-semibold text-white">{platformLabels[s]}</p>
                           {handle ? (
-                            <p className="text-xs text-white/40 mt-0.5 truncate">{handle}</p>
+                            url && !isHidden ? (
+                              <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-white/40 mt-0.5 truncate block hover:text-white/60 transition-colors">{handle}</a>
+                            ) : (
+                              <p className="text-xs text-white/40 mt-0.5 truncate">{handle}</p>
+                            )
                           ) : (
                             <p className="text-xs text-white/20 mt-0.5 italic">Non connecté</p>
                           )}
                         </div>
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <button
+                          onClick={() => toggleHiddenStat(`platform_${s}`)}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 cursor-pointer hover:bg-white/10"
+                          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+                          title={isHidden ? 'Afficher' : 'Masquer'}
+                        >
                           {isHidden ? <Eye className="w-3 h-3 text-white/50" /> : <EyeOff className="w-3 h-3 text-white/50" />}
-                        </div>
-                      </button>
+                        </button>
+                      </div>
                     );
                   })}
                 </div>

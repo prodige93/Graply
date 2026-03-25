@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Pencil, Check, Shield, ChevronLeft, ChevronRight, Unlink } from 'lucide-react';
+import { Camera, Pencil, Check, Shield, ChevronLeft, ChevronRight, Unlink, Loader2 } from 'lucide-react';
 import GrapeLoader from '../components/GrapeLoader';
 import rectangleGradient from '@/shared/assets/account-banner-gradient.svg';
 import { supabase } from '@/shared/infrastructure/supabase';
@@ -13,14 +13,15 @@ import Sidebar from '../components/Sidebar';
 import instagramIcon from '@/shared/assets/instagram-logo.svg';
 import youtubeIcon from '@/shared/assets/youtube-symbol.svg';
 import tiktokIcon from '@/shared/assets/tiktok.svg';
+import { type SocialPlatform, getSocialOAuthUrl } from '@/shared/lib/socialOAuth';
 
 const SOCIAL_PLATFORMS = [
-  { key: 'instagram', label: 'Instagram', icon: instagramIcon, placeholder: '@tonpseudo' },
-  { key: 'tiktok', label: 'TikTok', icon: tiktokIcon, placeholder: '@tonpseudo' },
-  { key: 'youtube', label: 'YouTube', icon: youtubeIcon, placeholder: '@tachaîne' },
+  { key: 'instagram' as SocialPlatform, label: 'Instagram', icon: instagramIcon },
+  { key: 'tiktok' as SocialPlatform, label: 'TikTok', icon: tiktokIcon },
+  { key: 'youtube' as SocialPlatform, label: 'YouTube', icon: youtubeIcon },
 ] as const;
 
-type SocialKey = typeof SOCIAL_PLATFORMS[number]['key'];
+type SocialKey = SocialPlatform;
 
 const DEFAULT_BANNER = 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=1200';
 
@@ -61,9 +62,7 @@ export default function MyAccountPage() {
   const [savingBio, setSavingBio] = useState(false);
 
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [editingSocial, setEditingSocial] = useState<SocialKey | null>(null);
-  const [tempHandle, setTempHandle] = useState('');
-  const [savingSocial, setSavingSocial] = useState(false);
+  const [disconnectingPlatform, setDisconnectingPlatform] = useState<SocialKey | null>(null);
 
   const socialHandles: Record<SocialKey, string> = {
     instagram: profile?.instagram_handle || '',
@@ -76,25 +75,21 @@ export default function MyAccountPage() {
     youtube: !!socialHandles.youtube,
   };
 
-  function startConnectSocial(key: SocialKey) {
-    setTempHandle(socialHandles[key]);
-    setEditingSocial(key);
-  }
-
-  async function saveSocialHandle(key: SocialKey) {
-    setSavingSocial(true);
-    const col = `${key}_handle` as const;
-    const value = tempHandle.trim();
-    await supabase.from('profiles').update({ [col]: value, updated_at: new Date().toISOString() }).eq('id', PROFILE_ID);
-    updateProfile({ [col]: value } as Partial<import('@/shared/lib/useProfile').Profile>);
-    setSavingSocial(false);
-    setEditingSocial(null);
+  function connectSocial(key: SocialKey) {
+    try {
+      const url = getSocialOAuthUrl(key);
+      window.location.href = url;
+    } catch (e: any) {
+      alert(e.message);
+    }
   }
 
   async function disconnectSocial(key: SocialKey) {
+    setDisconnectingPlatform(key);
+    await supabase.rpc('disconnect_social', { p_platform: key });
     const col = `${key}_handle` as const;
-    await supabase.from('profiles').update({ [col]: '', updated_at: new Date().toISOString() }).eq('id', PROFILE_ID);
     updateProfile({ [col]: '' } as Partial<import('@/shared/lib/useProfile').Profile>);
+    setDisconnectingPlatform(null);
   }
 
   useEffect(() => {
@@ -365,8 +360,8 @@ export default function MyAccountPage() {
               {SOCIAL_PLATFORMS.map((platform) => {
                 const key = platform.key;
                 const isConnected = connectedSocials[key];
-                const isEditing = editingSocial === key;
                 const handle = socialHandles[key];
+                const isDisconnecting = disconnectingPlatform === key;
 
                 return (
                   <div
@@ -379,66 +374,33 @@ export default function MyAccountPage() {
                   >
                     <img src={platform.icon} alt={platform.label} className="w-9 h-9 shrink-0" />
 
-                    {isEditing ? (
-                      <div className="flex-1 flex items-center gap-2 min-w-0">
-                        <input
-                          type="text"
-                          value={tempHandle}
-                          onChange={(e) => setTempHandle(e.target.value)}
-                          placeholder={platform.placeholder}
-                          className="flex-1 bg-transparent text-sm text-white placeholder-white/25 outline-none border-b border-white/20 focus:border-white/50 transition-colors pb-0.5"
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') saveSocialHandle(key);
-                            if (e.key === 'Escape') setEditingSocial(null);
-                          }}
-                        />
-                        <button
-                          onClick={() => saveSocialHandle(key)}
-                          disabled={savingSocial}
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all active:scale-95"
-                          style={{ background: '#fff', color: '#000' }}
-                        >
-                          {savingSocial ? <GrapeLoader size="sm" /> : <Check className="w-3 h-3" />}
-                          OK
-                        </button>
-                        <button
-                          onClick={() => setEditingSocial(null)}
-                          className="text-xs text-white/40 hover:text-white/70 transition-colors shrink-0"
-                        >
-                          Annuler
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-white">{platform.label}</p>
-                          {isConnected && handle ? (
-                            <p className="text-xs mt-0.5" style={{ color: 'rgba(16,185,129,0.8)' }}>{handle}</p>
-                          ) : (
-                            <p className="text-xs text-white/30 mt-0.5">Non connecté</p>
-                          )}
-                        </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-white">{platform.label}</p>
+                      {isConnected && handle ? (
+                        <p className="text-xs mt-0.5" style={{ color: 'rgba(16,185,129,0.8)' }}>{handle}</p>
+                      ) : (
+                        <p className="text-xs text-white/30 mt-0.5">Non connecté</p>
+                      )}
+                    </div>
 
-                        {isConnected ? (
-                          <button
-                            onClick={() => disconnectSocial(key)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all duration-200 hover:bg-red-500/10 active:scale-95"
-                            style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}
-                          >
-                            <Unlink className="w-3 h-3" />
-                            Déconnecter
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => startConnectSocial(key)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all duration-200 hover:bg-white/10 active:scale-95"
-                            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' }}
-                          >
-                            Connecter
-                          </button>
-                        )}
-                      </>
+                    {isConnected ? (
+                      <button
+                        onClick={() => disconnectSocial(key)}
+                        disabled={isDisconnecting}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all duration-200 hover:bg-red-500/10 active:scale-95"
+                        style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}
+                      >
+                        {isDisconnecting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Unlink className="w-3 h-3" />}
+                        Déconnecter
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => connectSocial(key)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all duration-200 hover:bg-white/10 active:scale-95"
+                        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' }}
+                      >
+                        Connecter
+                      </button>
                     )}
                   </div>
                 );

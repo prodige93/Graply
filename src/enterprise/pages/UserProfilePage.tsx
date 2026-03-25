@@ -18,6 +18,12 @@ const platformIcons: Record<string, string> = {
   tiktok: tiktokIcon,
 };
 
+const platformBaseUrls: Record<string, string> = {
+  instagram: 'https://instagram.com/',
+  tiktok: 'https://tiktok.com/@',
+  youtube: 'https://youtube.com/@',
+};
+
 interface UserProfile {
   id: string;
   username: string;
@@ -28,6 +34,9 @@ interface UserProfile {
   content_tags: string[];
   website: string;
   created_at: string;
+  instagram_handle: string;
+  tiktok_handle: string;
+  youtube_handle: string;
 }
 
 export default function UserProfilePage() {
@@ -58,7 +67,7 @@ export default function UserProfilePage() {
     setLoading(true);
     supabase
       .from('profiles')
-      .select('id, username, display_name, bio, avatar_url, banner_url, content_tags, website, created_at')
+      .select('id, username, display_name, bio, avatar_url, banner_url, content_tags, website, created_at, instagram_handle, tiktok_handle, youtube_handle')
       .eq('username', username)
       .eq('is_public', true)
       .maybeSingle()
@@ -194,17 +203,33 @@ export default function UserProfilePage() {
           <p className="text-sm text-white leading-relaxed max-w-2xl mb-6">{profile.bio}</p>
         )}
 
-        <div className="flex items-center gap-2.5 mb-5">
-          {socialPlatformKeys.map((key) => (
-            <div
-              key={key}
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
-            >
-              <img src={platformIcons[key]} alt={key} className="w-8 h-8 object-contain" />
-            </div>
-          ))}
-        </div>
+        {socialPlatformKeys.some((key) => {
+          const handleKey = `${key}_handle` as keyof UserProfile;
+          return !!(profile[handleKey]);
+        }) && (
+          <div className="flex items-center gap-2.5 mb-5">
+            {socialPlatformKeys.map((key) => {
+              const handleKey = `${key}_handle` as keyof UserProfile;
+              const handle = (profile[handleKey] as string) || '';
+              if (!handle) return null;
+              const clean = handle.replace(/^@/, '');
+              const url = `${platformBaseUrls[key]}${clean}`;
+              return (
+                <a
+                  key={key}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 hover:brightness-125 hover:scale-105"
+                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  title={`${key.charAt(0).toUpperCase() + key.slice(1)}: ${handle}`}
+                >
+                  <img src={platformIcons[key]} alt={key} className="w-8 h-8 object-contain" />
+                </a>
+              );
+            })}
+          </div>
+        )}
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div className="flex flex-wrap gap-2">

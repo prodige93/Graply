@@ -5,8 +5,17 @@ import Sidebar from '../components/Sidebar';
 import { supabase } from '@/shared/infrastructure/supabase';
 import GrapeLoader from '../components/GrapeLoader';
 import verifiedIcon from '@/shared/assets/badge-creator-verified.png';
+import instagramIcon from '@/shared/assets/instagram-logo.svg';
+import youtubeIcon from '@/shared/assets/youtube-color.svg';
+import tiktokIcon from '@/shared/assets/tiktok.svg';
 
 const DEFAULT_BANNER = 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=1200';
+
+const socialPlatforms = [
+  { key: 'instagram', icon: instagramIcon, label: 'Instagram', baseUrl: 'https://instagram.com/' },
+  { key: 'tiktok', icon: tiktokIcon, label: 'TikTok', baseUrl: 'https://tiktok.com/@' },
+  { key: 'youtube', icon: youtubeIcon, label: 'YouTube', baseUrl: 'https://youtube.com/@' },
+] as const;
 
 interface UserProfile {
   id: string;
@@ -18,6 +27,9 @@ interface UserProfile {
   content_tags: string[];
   website: string;
   created_at: string;
+  instagram_handle: string;
+  tiktok_handle: string;
+  youtube_handle: string;
 }
 
 export default function UserProfilePage() {
@@ -52,7 +64,7 @@ export default function UserProfilePage() {
     setLoading(true);
     supabase
       .from('profiles')
-      .select('id, username, display_name, bio, avatar_url, banner_url, content_tags, website, created_at')
+      .select('id, username, display_name, bio, avatar_url, banner_url, content_tags, website, created_at, instagram_handle, tiktok_handle, youtube_handle')
       .eq('username', username)
       .eq('is_public', true)
       .maybeSingle()
@@ -218,6 +230,30 @@ export default function UserProfilePage() {
             </span>
           ))}
         </div>
+
+        {socialPlatforms.some((p) => profile[`${p.key}_handle` as keyof UserProfile]) && (
+          <div className="flex items-center gap-2.5 mb-6">
+            {socialPlatforms.map((p) => {
+              const handle = (profile[`${p.key}_handle` as keyof UserProfile] as string) || '';
+              if (!handle) return null;
+              const clean = handle.replace(/^@/, '');
+              const url = `${p.baseUrl}${clean}`;
+              return (
+                <a
+                  key={p.key}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 hover:brightness-125 hover:scale-105"
+                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  title={`${p.label}: ${handle}`}
+                >
+                  <img src={p.icon} alt={p.label} className="w-5 h-5" />
+                </a>
+              );
+            })}
+          </div>
+        )}
 
         <div className="flex items-center gap-3 mb-6">
           <div

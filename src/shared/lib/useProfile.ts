@@ -20,6 +20,7 @@ export interface Profile {
   instagram_handle: string;
   tiktok_handle: string;
   youtube_handle: string;
+  stripe_account_id: string;
 }
 
 let cachedProfile: Profile | null = null;

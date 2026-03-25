@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Check, Mail, Phone, Lock, ChevronLeft, LogOut } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Eye, EyeOff, Check, Mail, Phone, Lock, ChevronLeft, LogOut, ExternalLink, Unlink } from 'lucide-react';
 import stripeIcon from '@/shared/assets/stripe-settings-icon.jpeg';
 import Sidebar from '../components/Sidebar';
 import { supabase } from '@/shared/infrastructure/supabase';
@@ -15,12 +15,13 @@ const glassCard = {
 
 export default function SettingsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
-  const [email, setEmail] = useState('contact@monentreprise.com');
+  const [email, setEmail] = useState('');
   const [editingEmail, setEditingEmail] = useState(false);
   const [newEmail, setNewEmail] = useState('');
 
@@ -35,7 +36,53 @@ export default function SettingsPage() {
   const [showCurrentPw, setShowCurrentPw] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
 
-  const [stripeConnected, setStripeConnected] = useState(false);
+  const [stripeAccountId, setStripeAccountId] = useState('');
+  const [stripeLoading, setStripeLoading] = useState(true);
+  const [disconnectingStripe, setDisconnectingStripe] = useState(false);
+
+  useEffect(() => {
+    async function loadStripeStatus() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      setEmail(user.email || '');
+      const { data } = await supabase
+        .from('profiles')
+        .select('stripe_account_id')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (data?.stripe_account_id) {
+        setStripeAccountId(data.stripe_account_id);
+      }
+      setStripeLoading(false);
+    }
+    loadStripeStatus();
+
+    const state = location.state as { stripeConnected?: boolean; stripeAccountId?: string } | null;
+    if (state?.stripeConnected && state?.stripeAccountId) {
+      setStripeAccountId(state.stripeAccountId);
+    }
+  }, [location.state]);
+
+  function handleConnectStripe() {
+    const clientId = import.meta.env.VITE_STRIPE_CONNECT_CLIENT_ID;
+    if (!clientId) {
+      alert('VITE_STRIPE_CONNECT_CLIENT_ID non configuré dans .env');
+      return;
+    }
+    const redirectUri = `${window.location.origin}/stripe-callback`;
+    const url = `https://connect.stripe.com/oauth/authorize?response_type=code&client_id=${clientId}&scope=read_write&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    window.location.href = url;
+  }
+
+  async function handleDisconnectStripe() {
+    setDisconnectingStripe(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from('profiles').update({ stripe_account_id: '', updated_at: new Date().toISOString() }).eq('id', user.id);
+    }
+    setStripeAccountId('');
+    setDisconnectingStripe(false);
+  }
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -251,21 +298,51 @@ export default function SettingsPage() {
                 <img src={stripeIcon} alt="Stripe" className="w-9 h-9 rounded-lg object-cover" />
                 <div>
                   <p className="text-xs font-bold text-white/40 uppercase tracking-wider">Compte Stripe</p>
-                  <p className="text-sm text-white/50 mt-0.5">
-                    {stripeConnected ? 'Connecté' : 'Non connecté'}
-                  </p>
+                  {stripeLoading ? (
+                    <p className="text-sm text-white/30 mt-0.5">Chargement...</p>
+                  ) : stripeAccountId ? (
+                    <p className="text-sm mt-0.5" style={{ color: 'rgba(34,197,94,0.9)' }}>
+                      Connecté <span className="text-white/30 text-xs ml-1">({stripeAccountId})</span>
+                    </p>
+                  ) : (
+                    <p className="text-sm text-white/50 mt-0.5">Non connecté</p>
+                  )}
                 </div>
               </div>
-              <button
-                onClick={() => setStripeConnected(!stripeConnected)}
-                className="px-4 py-2 rounded-full text-xs font-bold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                style={stripeConnected
-                  ? { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' }
-                  : { background: '#ffffff', color: '#000' }
-                }
-              >
-                {stripeConnected ? 'Changer le compte' : 'Connecter Stripe'}
-              </button>
+              <div className="flex items-center gap-2">
+                {stripeAccountId ? (
+                  <>
+                    <a
+                      href={`https://dashboard.stripe.com/${stripeAccountId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 hover:bg-white/10 active:scale-95"
+                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' }}
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      Dashboard
+                    </a>
+                    <button
+                      onClick={handleDisconnectStripe}
+                      disabled={disconnectingStripe}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 hover:bg-red-500/10 active:scale-95"
+                      style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}
+                    >
+                      <Unlink className="w-3 h-3" />
+                      {disconnectingStripe ? '...' : 'Déconnecter'}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={handleConnectStripe}
+                    disabled={stripeLoading}
+                    className="px-4 py-2 rounded-full text-xs font-bold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                    style={{ background: '#ffffff', color: '#000' }}
+                  >
+                    Connecter Stripe
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
