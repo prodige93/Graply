@@ -1,9 +1,8 @@
 export type SocialPlatform = 'instagram' | 'tiktok' | 'youtube';
 
-const CALLBACK_PATH = '/social-callback';
-
 function getRedirectUri(): string {
-  return `${window.location.origin}${CALLBACK_PATH}`;
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  return `${supabaseUrl}/storage/v1/object/public/oauth/redirect.html`;
 }
 
 export function buildInstagramOAuthUrl(): string {

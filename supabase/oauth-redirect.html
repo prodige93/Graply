@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Graply - Redirection...</title></head>
+<body style="background:#050404;color:#fff;font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
+<p style="opacity:.5">Redirection en cours...</p>
+<script>
+var p = new URLSearchParams(location.search);
+var u = new URL('/social-callback', 'http://localhost:5173');
+p.forEach(function(v, k) { u.searchParams.set(k, v); });
+location.replace(u.toString());
+</script>
+</body></html>

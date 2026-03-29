@@ -1,15 +1,15 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from "react";
 
 const brands = [
-  { thumb: '/betclic.png', title: 'Betclic', color: '220, 38, 38' },
-  { thumb: '/pumpfun.png', title: 'Pump Fun', color: '52, 211, 153' },
-  { thumb: '/phantom.png', title: 'Phantom', color: '171, 154, 255' },
-  { thumb: '/stakee.png', title: 'Stake', color: '180, 180, 190' },
-  { thumb: '/polymarket.png', title: 'Polymarket', color: '59, 130, 246' },
-  { thumb: '/fanta.png', title: 'Fanta', color: '249, 115, 22' },
-  { thumb: '/cod.png', title: 'Call of Duty', color: '40, 40, 40', dark: true },
-  { thumb: '/whoop.png', title: 'Whoop', color: '180, 180, 190' },
-  { thumb: '/bose.png', title: 'Bose', color: '180, 180, 190' },
+  { thumb: "/betclic.png", title: "Betclic", color: "220, 38, 38" },
+  { thumb: "/pumpfun.png", title: "Pump Fun", color: "52, 211, 153" },
+  { thumb: "/phantom.png", title: "Phantom", color: "171, 154, 255" },
+  { thumb: "/stakee.png", title: "Stake", color: "180, 180, 190" },
+  { thumb: "/polymarket.png", title: "Polymarket", color: "59, 130, 246" },
+  { thumb: "/fanta.png", title: "Fanta", color: "249, 115, 22" },
+  { thumb: "/cod.png", title: "Call of Duty", color: "40, 40, 40", dark: true },
+  { thumb: "/whoop.png", title: "Whoop", color: "180, 180, 190" },
+  { thumb: "/bose.png", title: "Bose", color: "180, 180, 190" },
 ];
 
 interface BrandCardProps {
@@ -70,7 +70,8 @@ export default function CreatorMarquee() {
       for (let i = 0; i < cards.length; i++) {
         const card = cards[i] as HTMLElement;
         const cardRect = card.getBoundingClientRect();
-        const cardCenter = cardRect.left - containerRect.left + cardRect.width / 2;
+        const cardCenter =
+          cardRect.left - containerRect.left + cardRect.width / 2;
         const normalizedPos = (cardCenter - containerCenter) / containerCenter;
         const clampedPos = Math.max(-1, Math.min(1, normalizedPos));
         const offset = maxDip * (1 - clampedPos * clampedPos);
@@ -94,12 +95,14 @@ export default function CreatorMarquee() {
       <div className="absolute left-0 top-0 bottom-0 w-20 sm:w-32 z-10 bg-gradient-to-r from-black to-transparent pointer-events-none" />
       <div className="absolute right-0 top-0 bottom-0 w-20 sm:w-32 z-10 bg-gradient-to-l from-black to-transparent pointer-events-none" />
 
-      <div ref={trackRef} className="marquee-track flex gap-2 sm:gap-5 md:gap-6 items-start">
+      <div
+        ref={trackRef}
+        className="marquee-track flex gap-2 sm:gap-5 md:gap-6 items-start"
+      >
         {doubled.map((brand, i) => (
           <BrandCard key={i} {...brand} />
         ))}
       </div>
-
     </div>
   );
 }
