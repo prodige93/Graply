@@ -13,6 +13,7 @@ export interface SupabaseCampaign {
   platform_budgets: Record<string, { amount?: string; per1000?: string; min?: string; max?: string }> | null;
   information: string;
   rules: string[] | null;
+  require_application?: boolean;
   status: string;
   created_at: string;
   user_id?: string | null;
@@ -104,6 +105,7 @@ export function mapSupabaseCampaign(c: SupabaseCampaign): CampaignData {
     platformStats: socials.map((p) => ({ platform: p, views: '0', earned: '$0.00' })),
     chartData: [],
     isPublic: true,
+    requireApplication: c.require_application ?? false,
     rules: c.rules ?? undefined,
   };
 }

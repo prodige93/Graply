@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useEnterpriseNavigate } from '@/enterprise/lib/useEnterpriseNavigate';
-import { ArrowLeft, Check, X, ExternalLink, Eye, Megaphone, CheckCircle2, UserCheck } from 'lucide-react';
+import { ArrowLeft, Check, X, ExternalLink, Eye, Megaphone, CheckCircle2, UserCheck, ChevronDown, FileDown } from 'lucide-react';
 import { supabase } from '@/shared/infrastructure/supabase';
 import instagramIcon from '@/shared/assets/instagram-card.svg';
 import tiktokIcon from '@/shared/assets/tiktok.svg';
 import youtubeIcon from '@/shared/assets/youtube.svg';
+import instagramColorIcon from '@/shared/assets/instagram-logo.svg';
+import tiktokColorIcon from '@/shared/assets/tiktok.svg';
+import youtubeColorIcon from '@/shared/assets/youtube-symbol.svg';
 import bcreateur from '@/shared/assets/badge-creator-verified.png';
 
 interface Campaign {
@@ -36,6 +39,12 @@ const platformIcons: Record<string, string> = {
   instagram: instagramIcon,
   tiktok: tiktokIcon,
   youtube: youtubeIcon,
+};
+
+const platformColorIcons: Record<string, string> = {
+  instagram: instagramColorIcon,
+  tiktok: tiktokColorIcon,
+  youtube: youtubeColorIcon,
 };
 
 const platformLabels: Record<string, string> = {
@@ -70,6 +79,20 @@ const mockRequests: CreatorRequest[] = [
       { platform: 'youtube', handle: '@JordanTech', views: '6,450,000' },
       { platform: 'instagram', handle: '@jordan_tech', views: '920,000' },
       { platform: 'tiktok', handle: '@jordantech', views: '2,100,000' },
+    ],
+  },
+  {
+    id: 'r3',
+    username: 'sarah.clips',
+    avatar: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=200',
+    platform: 'tiktok',
+    verified: true,
+    bio: 'Clippeuse pro gaming & esports. +50M de vues sur TikTok. Specialisee dans les montages courts et percutants.',
+    motivation: 'Bonjour, je suis tres interessee par cette campagne. J\'ai deja realise plusieurs collaborations similaires avec des marques comme Red Bull et Logitech. Mon style de montage correspond parfaitement a ce que vous recherchez. Je vous ai joint mon portfolio en PDF avec mes meilleures realisations et mes statistiques detaillees.',
+    socials: [
+      { platform: 'tiktok', handle: '@sarah.clips', views: '52,300,000' },
+      { platform: 'youtube', handle: '@SarahClips', views: '8,100,000' },
+      { platform: 'instagram', handle: '@sarah.clips', views: '1,450,000' },
     ],
   },
 ];
@@ -371,6 +394,44 @@ export default function CreatorAccessValidationPage() {
   );
 }
 
+function CandidatureSection({ motivation }: { motivation: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
+          className="flex items-center gap-1.5 flex-1 transition-colors hover:opacity-80"
+        >
+          <span className="text-[10px] uppercase tracking-widest text-white font-semibold">
+            Candidature
+          </span>
+          <ChevronDown
+            className="w-3 h-3 text-white transition-transform duration-200"
+            style={{ transform: open ? 'rotate(0deg)' : 'rotate(-90deg)' }}
+          />
+        </button>
+        <button
+          onClick={(e) => e.stopPropagation()}
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-white hover:bg-white/[0.04] transition-colors"
+          style={{ border: '1px solid rgba(255,255,255,0.08)' }}
+        >
+          <FileDown className="w-3 h-3" />
+          <span>Fichier</span>
+        </button>
+      </div>
+      <div
+        className="overflow-hidden transition-all duration-200"
+        style={{ maxHeight: open ? '200px' : '0px', opacity: open ? 1 : 0, marginTop: open ? 8 : 0 }}
+      >
+        <p className="text-xs text-white/40 leading-relaxed">
+          {motivation || 'Aucun message de candidature.'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 interface RequestCardProps {
   creator: CreatorRequest;
   isSelected: boolean;
@@ -453,15 +514,7 @@ function RequestCard({
         </div>
 
         <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-          <div className="flex items-center gap-1.5 mb-2">
-            <UserCheck className="w-3 h-3 text-white/25" />
-            <span className="text-[10px] uppercase tracking-widest text-white/25 font-semibold">
-              Motivation
-            </span>
-          </div>
-          <p className="text-xs text-white/40 leading-relaxed line-clamp-2">
-            {creator.motivation}
-          </p>
+          <CandidatureSection motivation={creator.motivation} />
         </div>
       </button>
 
@@ -542,11 +595,6 @@ function CreatorPreview({ creator }: { creator: CreatorRequest }) {
 
         <p className="text-xs text-white/35 mt-2 leading-relaxed">{creator.bio}</p>
 
-        <div className="mt-4 p-3 rounded-xl" style={{ backgroundColor: 'rgba(255,180,50,0.04)', border: '1px solid rgba(255,180,50,0.1)' }}>
-          <p className="text-[10px] uppercase tracking-widest font-semibold mb-1.5" style={{ color: '#FFB432' }}>Motivation</p>
-          <p className="text-xs text-white/50 leading-relaxed">{creator.motivation}</p>
-        </div>
-
         {creator.socials.length > 0 && (
           <div className="mt-5">
             <p className="text-[10px] uppercase tracking-widest text-white/25 font-semibold mb-3">Reseaux sociaux</p>
@@ -561,9 +609,9 @@ function CreatorPreview({ creator }: { creator: CreatorRequest }) {
                   }}
                 >
                   <img
-                    src={platformIcons[social.platform]}
+                    src={platformColorIcons[social.platform] || platformIcons[social.platform]}
                     alt={social.platform}
-                    className="w-5 h-5 shrink-0 social-icon"
+                    className="w-5 h-5 shrink-0"
                   />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-white truncate">{social.handle}</p>

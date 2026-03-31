@@ -81,6 +81,11 @@ export default function StepFive({
           </div>
           <Toggle enabled={requireApplication} onToggle={() => setRequireApplication(!requireApplication)} />
         </div>
+        {requireApplication && (
+          <p className="text-[11px] text-white/30 mt-2 leading-relaxed" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '8px 12px' }}>
+            Les candidatures sont uniquement disponibles pour les campagnes privees. Les createurs devront soumettre une candidature avec un message et un document avant de pouvoir participer.
+          </p>
+        )}
       </div>
 
       <div
