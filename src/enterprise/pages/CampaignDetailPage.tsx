@@ -242,47 +242,87 @@ export default function CampaignDetailPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 mb-2 lg:mb-8">
-          <div
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)' }}
-          >
-            <Users className="w-3.5 h-3.5 text-white/50" />
-            <span className="text-xs font-bold text-white">{campaign.applicants.toLocaleString()}</span>
-          </div>
-          {campaign.tags.map((tag) => {
+        <div className="flex items-center mb-2 lg:mb-8" style={{ gap: 0 }}>
+          {campaign.tags.map((tag, i, arr) => {
             const lower = tag.toLowerCase();
             let tagStyle: React.CSSProperties;
+            const outline = '2px solid rgba(10,10,15,1)';
             if (lower === 'clipping') {
-              tagStyle = { background: 'rgba(57,31,154,0.15)', border: '1px solid rgba(57,31,154,0.35)', color: '#a78bfa' };
+              tagStyle = { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)', outline };
             } else if (lower === 'ugc') {
-              tagStyle = { background: 'rgba(255,0,217,0.15)', border: '1px solid rgba(255,0,217,0.35)', color: '#FF00D9' };
+              tagStyle = { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)', outline };
             } else {
-              tagStyle = { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#ffffff' };
+              tagStyle = { background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.15)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 8px rgba(0,0,0,0.2)', outline };
             }
             return (
-              <span key={tag} className="px-3 py-1 rounded-full text-xs font-semibold" style={tagStyle}>
+              <span key={tag} className="px-3 py-1 rounded-full text-xs font-semibold" style={{
+                ...tagStyle,
+                marginLeft: i === 0 ? 0 : -6,
+                zIndex: arr.length + 3 - i,
+                position: 'relative',
+              }}>
                 {tag}
               </span>
             );
           })}
           <div
             className="flex items-center gap-1 px-3 py-1 rounded-full"
-            style={{ background: 'rgba(255,120,42,0.1)', border: '1px solid rgba(255,120,42,0.25)' }}
+            style={{
+              background: 'rgba(255,255,255,0.08)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 8px rgba(0,0,0,0.2)',
+              outline: '2px solid rgba(10,10,15,1)',
+              marginLeft: -6,
+              zIndex: 2,
+              position: 'relative',
+            }}
+          >
+            <Users className="w-3 h-3 text-white/50" />
+            <span className="text-xs font-semibold text-white">{campaign.applicants.toLocaleString()}</span>
+          </div>
+          <div
+            className="flex items-center gap-0.5 px-3 py-1 rounded-full"
+            style={{
+              background: 'linear-gradient(145deg, rgba(177,188,255,0.22) 0%, rgba(177,188,255,0.08) 50%, rgba(120,133,255,0.18) 100%)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              border: '1px solid rgba(177,188,255,0.45)',
+              boxShadow: '0 1px 0 rgba(255,255,255,0.35) inset, 0 -1px 0 rgba(120,133,255,0.2) inset, 0 2px 8px rgba(177,188,255,0.15)',
+              outline: '2px solid rgba(10,10,15,1)',
+              marginLeft: -6,
+              zIndex: 1,
+              position: 'relative',
+            }}
           >
             <span className="text-xs font-bold text-white">{campaign.ratePerView}</span>
-            <span className="text-[10px] font-medium text-white/40">/K</span>
+            <span className="text-[10px] font-medium text-white/50">/1K</span>
           </div>
-          <div className="hidden lg:flex items-center gap-2 ml-auto">
-            {campaign.socials.map((s) => (
-              <span key={s} className="text-white">{socialIcons[s]()}</span>
+          <div className="hidden lg:flex items-center ml-auto" style={{ gap: 0 }}>
+            {campaign.socials.filter((s) => socialIcons[s]).map((s, i, arr) => (
+              <div key={s} className="flex items-center justify-center text-white" style={{
+                width: 26, height: 26, borderRadius: '50%',
+                background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                marginLeft: i === 0 ? 0 : -8, zIndex: arr.length - i, position: 'relative',
+              }}>
+                {socialIcons[s]('w-3.5 h-3.5')}
+              </div>
             ))}
           </div>
         </div>
 
-        <div className="flex items-center gap-2 mb-6 lg:hidden">
-          {campaign.socials.map((s) => (
-            <span key={s} className="text-white">{socialIcons[s]()}</span>
+        <div className="flex items-center mb-6 lg:hidden" style={{ gap: 0 }}>
+          {campaign.socials.filter((s) => socialIcons[s]).map((s, i, arr) => (
+            <div key={s} className="flex items-center justify-center text-white" style={{
+              width: 24, height: 24, borderRadius: '50%',
+              background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+              marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative',
+            }}>
+              {socialIcons[s]('w-3.5 h-3.5')}
+            </div>
           ))}
         </div>
 
@@ -957,15 +997,15 @@ function SupabaseCampaignDetail({
                 className="px-3 py-1 rounded-full text-xs font-semibold"
                 style={
                   c.content_type.toLowerCase() === 'ugc'
-                    ? { background: 'rgba(255,0,217,0.15)', border: '1px solid rgba(255,0,217,0.35)', color: '#FF00D9' }
-                    : { background: 'rgba(57,31,154,0.15)', border: '1px solid rgba(57,31,154,0.35)', color: '#a78bfa' }
+                    ? { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)', outline: '2px solid rgba(10,10,15,1)' }
+                    : { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)', outline: '2px solid rgba(10,10,15,1)' }
                 }
               >
                 {c.content_type}
               </span>
             )}
             {(c.categories ?? []).map((cat) => (
-              <span key={cat} className="px-3 py-1 rounded-full text-xs font-semibold" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff' }}>
+              <span key={cat} className="px-3 py-1 rounded-full text-xs font-semibold" style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 8px rgba(0,0,0,0.2)', outline: '2px solid rgba(10,10,15,1)' }}>
                 {cat}
               </span>
             ))}

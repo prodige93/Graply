@@ -366,18 +366,17 @@ export default function CreatorValidationsPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="text-[13px] sm:text-sm font-semibold text-white truncate">{app.name}</p>
-                        <div className="flex items-center gap-1 shrink-0">
-                          {app.platforms.map((p) =>
-                            platformIconMap[p] ? (
-                              <div
-                                key={p}
-                                className="w-5 h-5 rounded-md flex items-center justify-center"
-                                style={{ background: 'rgba(255,255,255,0.06)' }}
-                              >
-                                <img src={platformIconMap[p]} alt={p} className="w-3 h-3 social-icon" />
-                              </div>
-                            ) : null
-                          )}
+                        <div className="flex items-center shrink-0" style={{ gap: 0 }}>
+                          {app.platforms.filter((p) => platformIconMap[p]).map((p, i, arr) => (
+                            <div key={p} style={{
+                              width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                              border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                              marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+                            }}>
+                              <img src={platformIconMap[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+                            </div>
+                          ))}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 sm:gap-2.5 mt-1">

@@ -320,14 +320,35 @@ function DbActiveCampaignCard({ campaign, onNavigate, onWithdraw }: { campaign: 
           <img src={campaign.image} alt={campaign.title} className="w-full h-full object-cover" />
           <div className="absolute inset-0 lg:hidden" style={{ background: 'linear-gradient(90deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
           <div className="absolute inset-0 hidden lg:block" style={{ background: 'linear-gradient(180deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
-          <div className="hidden lg:flex absolute top-2.5 right-2.5 items-center gap-1.5">
-            {campaign.socials.map((p) =>
-              platformIcons[p] ? (
-                <span key={p} className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}>
-                  <img src={platformIcons[p]} alt={p} className="w-3.5 h-3.5 brightness-0 invert opacity-80" />
-                </span>
-              ) : null
-            )}
+          <div className="hidden lg:flex absolute top-2.5 right-2.5 items-center" style={{ gap: 0 }}>
+            {campaign.socials.filter((p) => platformIcons[p]).map((p, i, arr) => (
+              <div
+                key={p}
+                style={{
+                  width: 26, height: 26, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)',
+                  marginLeft: i === 0 ? 0 : -8, zIndex: arr.length - i, position: 'relative',
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease', cursor: 'default',
+                }}
+                onMouseEnter={(e) => {
+                  const el = e.currentTarget as HTMLDivElement;
+                  el.style.transform = 'translateY(-3px) scale(1.15)';
+                  el.style.boxShadow = '0 6px 20px rgba(255,255,255,0.15), 0 2px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15)';
+                  el.style.zIndex = '99';
+                  el.style.background = 'rgba(40,40,55,0.88)';
+                }}
+                onMouseLeave={(e) => {
+                  const el = e.currentTarget as HTMLDivElement;
+                  el.style.transform = 'translateY(0) scale(1)';
+                  el.style.boxShadow = '0 2px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)';
+                  el.style.zIndex = String(arr.length - i);
+                  el.style.background = 'rgba(20,20,28,0.72)';
+                }}
+              >
+                <img src={platformIcons[p]} alt={p} style={{ width: 11, height: 11, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.9 }} />
+              </div>
+            ))}
           </div>
         </div>
 
@@ -341,15 +362,24 @@ function DbActiveCampaignCard({ campaign, onNavigate, onWithdraw }: { campaign: 
           </div>
 
           <div className="flex items-center gap-2 lg:hidden">
-            {campaign.socials.map((p) =>
-              platformIcons[p] ? <img key={p} src={platformIcons[p]} alt={p} className="w-3.5 h-3.5 brightness-0 invert opacity-50" /> : null
-            )}
+            <div className="flex items-center" style={{ gap: 0 }}>
+              {campaign.socials.filter((p) => platformIcons[p]).map((p, i, arr) => (
+                <div key={p} style={{
+                  width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                  marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative',
+                }}>
+                  <img src={platformIcons[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+                </div>
+              ))}
+            </div>
             <span
               className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
               style={
-                campaign.contentType === 'UGC'
-                  ? { background: 'rgba(255,0,217,0.1)', border: '1px solid rgba(255,0,217,0.25)', color: '#FF00D9' }
-                  : { background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.25)', color: '#a78bfa' }
+                campaign.contentType?.toLowerCase() === 'ugc'
+                  ? { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)' }
+                  : { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)' }
               }
             >
               {campaign.contentType}
@@ -361,9 +391,9 @@ function DbActiveCampaignCard({ campaign, onNavigate, onWithdraw }: { campaign: 
             <span
               className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
               style={
-                campaign.contentType === 'UGC'
-                  ? { background: 'rgba(255,0,217,0.1)', border: '1px solid rgba(255,0,217,0.25)', color: '#FF00D9' }
-                  : { background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.25)', color: '#a78bfa' }
+                campaign.contentType?.toLowerCase() === 'ugc'
+                  ? { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)' }
+                  : { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)' }
               }
             >
               {campaign.contentType}
@@ -775,14 +805,21 @@ function PendingCard({ application }: { application: PendingApplication }) {
           <img src={application.photo} alt={application.name} className="w-full h-full object-cover opacity-60" />
           <div className="absolute inset-0 lg:hidden" style={{ background: 'linear-gradient(90deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
           <div className="absolute inset-0 hidden lg:block" style={{ background: 'linear-gradient(180deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
-          <div className="hidden lg:flex absolute top-2.5 right-2.5 items-center gap-1.5">
-            {application.platforms.map((p) =>
-              platformIcons[p] ? (
-                <span key={p} className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}>
-                  <img src={platformIcons[p]} alt={p} className="w-3.5 h-3.5 brightness-0 invert opacity-80" />
-                </span>
-              ) : null
-            )}
+          <div className="hidden lg:flex absolute top-2.5 right-2.5 items-center" style={{ gap: 0 }}>
+            {application.platforms.filter((p) => platformIcons[p]).map((p, i, arr) => (
+              <div key={p} style={{
+                width: 26, height: 26, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)',
+                marginLeft: i === 0 ? 0 : -8, zIndex: arr.length - i, position: 'relative',
+                transition: 'transform 0.2s ease, box-shadow 0.2s ease', cursor: 'default',
+              }}
+              onMouseEnter={(e) => { const el = e.currentTarget as HTMLDivElement; el.style.transform = 'translateY(-3px) scale(1.15)'; el.style.boxShadow = '0 6px 20px rgba(255,255,255,0.15), 0 2px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15)'; el.style.zIndex = '99'; el.style.background = 'rgba(40,40,55,0.88)'; }}
+              onMouseLeave={(e) => { const el = e.currentTarget as HTMLDivElement; el.style.transform = 'translateY(0) scale(1)'; el.style.boxShadow = '0 2px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)'; el.style.zIndex = String(arr.length - i); el.style.background = 'rgba(20,20,28,0.72)'; }}
+              >
+                <img src={platformIcons[p]} alt={p} style={{ width: 11, height: 11, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.9 }} />
+              </div>
+            ))}
           </div>
           <div
             className="hidden lg:flex absolute bottom-2.5 left-2.5 w-7 h-7 rounded-full items-center justify-center"
@@ -817,15 +854,24 @@ function PendingCard({ application }: { application: PendingApplication }) {
           </div>
 
           <div className="flex items-center gap-2 lg:hidden">
-            {application.platforms.map((p) =>
-              platformIcons[p] ? <img key={p} src={platformIcons[p]} alt={p} className="w-3.5 h-3.5 brightness-0 invert opacity-40" /> : null
-            )}
+            <div className="flex items-center" style={{ gap: 0 }}>
+              {application.platforms.filter((p) => platformIcons[p]).map((p, i, arr) => (
+                <div key={p} style={{
+                  width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                  marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative',
+                }}>
+                  <img src={platformIcons[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+                </div>
+              ))}
+            </div>
             <span
               className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
               style={
                 application.category === 'UGC'
-                  ? { background: 'rgba(255,0,217,0.08)', border: '1px solid rgba(255,0,217,0.15)', color: 'rgba(255,0,217,0.6)' }
-                  : { background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.15)', color: 'rgba(167,139,250,0.6)' }
+                  ? { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)' }
+                  : { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)' }
               }
             >
               {application.category}
@@ -838,8 +884,8 @@ function PendingCard({ application }: { application: PendingApplication }) {
               className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
               style={
                 application.category === 'UGC'
-                  ? { background: 'rgba(255,0,217,0.08)', border: '1px solid rgba(255,0,217,0.15)', color: 'rgba(255,0,217,0.6)' }
-                  : { background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.15)', color: 'rgba(167,139,250,0.6)' }
+                  ? { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)' }
+                  : { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)' }
               }
             >
               {application.category}
