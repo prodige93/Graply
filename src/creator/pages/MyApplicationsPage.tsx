@@ -194,9 +194,10 @@ export default function MyApplicationsPage() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate(-1)}
-              className="lg:hidden flex items-center justify-center w-9 h-9 rounded-full transition-colors hover:bg-white/10 shrink-0"
+              className="flex items-center justify-center w-9 h-9 rounded-full transition-colors hover:bg-white/10 shrink-0"
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
             >
-              <ArrowLeft className="w-5 h-5 text-white" />
+              <ArrowLeft className="w-4 h-4 text-white/70" />
             </button>
             <div className="flex-1 min-w-0">
               <h1 className="text-xl lg:text-2xl font-bold text-white">Mes candidatures</h1>

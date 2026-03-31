@@ -33,6 +33,7 @@ export interface CampaignData {
   platformStats: { platform: 'youtube' | 'tiktok' | 'instagram'; views: string; earned: string }[];
   chartData: { label: string; views: number; earned: number }[];
   isPublic?: boolean;
+  requireApplication?: boolean;
   rules?: string[];
   documents?: { name: string; size: string; type: string }[];
 }

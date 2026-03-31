@@ -29,6 +29,7 @@ import TermsOfServicePage from '@/shared/pages/TermsOfServicePage.tsx';
 import { StripeDataInfoPage, TikTokDataInfoPage, InstagramDataInfoPage, YouTubeDataInfoPage } from '@/shared/pages/InstagramYouTubeDataPages.tsx';
 import SavedCampaignsPage from '@/creator/pages/SavedCampaignsPage.tsx';
 import CreatorValidationsPage from '@/creator/pages/CreatorValidationsPage.tsx';
+import CampaignApplicationPage from '@/creator/pages/CampaignApplicationPage.tsx';
 import LoginPage from '@/creator/pages/LoginPage.tsx';
 import LandingPage from '@/creator/pages/LandingPage.tsx';
 import EnterpriseAppPage from '@/app/EnterpriseAppPage.tsx';
@@ -64,6 +65,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="/creer-campagne" element={<CreateCampaignPage />} />
                   <Route path="/modifier-campagne/:id" element={<CreateCampaignPage />} />
                   <Route path="/campagne/:id/verification" element={<VideoVerificationPage />} />
+                  <Route path="/campagne/:id/candidature" element={<CampaignApplicationPage />} />
                   <Route path="/mes-campagnes" element={<MyCampaignsPage />} />
                   <Route path="/ma-campagne/:id" element={<MyCampaignDetailPage />} />
                   <Route path="/ma-campagne/:id/verifications" element={<CreatorVerificationsPage />} />
