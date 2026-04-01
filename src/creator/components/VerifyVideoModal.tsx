@@ -369,12 +369,17 @@ function CampaignRow({ campaign, hidePendingBadges, onSelect, onRemove }: {
         />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-white truncate">{campaign.name}</p>
-          <div className="flex items-center gap-1.5 mt-1">
-            {campaign.platforms.map((p) =>
-              platformIconMap[p] ? (
-                <img key={p} src={platformIconMap[p]} alt={p} className="w-3.5 h-3.5 social-icon opacity-50" />
-              ) : null
-            )}
+          <div className="flex items-center mt-1" style={{ gap: 0 }}>
+            {campaign.platforms.filter((p) => platformIconMap[p]).map((p, i, arr) => (
+              <div key={p} style={{
+                width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+              }}>
+                <img src={platformIconMap[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+              </div>
+            ))}
           </div>
         </div>
         {!hidePendingBadges && campaign.pendingCount > 0 && (

@@ -86,18 +86,23 @@ export default function GraplyCard() {
           Graply booste vos ventes.
         </h3>
 
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
           <span style={{
             padding: '4px 11px',
             borderRadius: 9999,
             fontSize: 10,
             fontWeight: 700,
-            background: 'rgba(255,0,217,0.12)',
-            border: '1px solid rgba(255,0,217,0.4)',
-            color: '#FF00D9',
+            background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)',
+            border: '1px solid rgba(255,130,210,0.55)',
+            color: '#ffffff',
             backdropFilter: 'blur(12px)',
             WebkitBackdropFilter: 'blur(12px)',
+            boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)',
+            textShadow: '0 0 8px rgba(255,150,220,0.6)',
             letterSpacing: '0.03em',
+            outline: '2px solid rgba(10,10,15,1)',
+            zIndex: 3,
+            position: 'relative' as const,
           }}>
             UGC
           </span>
@@ -106,15 +111,38 @@ export default function GraplyCard() {
             borderRadius: 9999,
             fontSize: 10,
             fontWeight: 700,
-            background: 'rgba(57,31,154,0.18)',
-            border: '1px solid rgba(57,31,154,0.45)',
-            color: '#a78bfa',
+            background: 'rgba(57,31,154,0.25)',
+            border: '1px solid rgba(57,31,154,0.5)',
+            color: '#ffffff',
             backdropFilter: 'blur(12px)',
             WebkitBackdropFilter: 'blur(12px)',
+            boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)',
             letterSpacing: '0.03em',
+            outline: '2px solid rgba(10,10,15,1)',
+            marginLeft: -6,
+            zIndex: 2,
+            position: 'relative' as const,
           }}>
             Clipping
           </span>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            padding: '4px 11px', borderRadius: 9999,
+            background: 'rgba(255,255,255,0.08)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255,255,255,0.15)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 8px rgba(0,0,0,0.2)',
+            outline: '2px solid rgba(10,10,15,1)',
+            marginLeft: -6,
+            zIndex: 1,
+            position: 'relative' as const,
+          }}>
+            <svg viewBox="0 0 16 16" style={{ width: 10, height: 10, fill: 'rgba(255,255,255,0.45)' }}>
+              <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm5 6a5 5 0 0 0-10 0h10z"/>
+            </svg>
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#fff' }}>521</span>
+          </div>
         </div>
 
         <div style={{
@@ -129,24 +157,13 @@ export default function GraplyCard() {
           </div>
 
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 4,
-            padding: '5px 11px', borderRadius: 9999,
-            background: 'rgba(255,255,255,0.07)',
-            border: '1px solid rgba(255,255,255,0.09)',
-          }}>
-            <svg viewBox="0 0 16 16" style={{ width: 10, height: 10, fill: 'rgba(255,255,255,0.45)' }}>
-              <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm5 6a5 5 0 0 0-10 0h10z"/>
-            </svg>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>521</span>
-          </div>
-
-          <div style={{
             display: 'flex', alignItems: 'center', gap: 2,
             padding: '5px 11px', borderRadius: 9999,
-            background: 'rgba(220,100,20,0.25)',
-            border: '1px solid rgba(230,120,30,0.45)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
+            background: 'linear-gradient(145deg, rgba(177,188,255,0.22) 0%, rgba(177,188,255,0.08) 50%, rgba(120,133,255,0.18) 100%)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            border: '1px solid rgba(177,188,255,0.45)',
+            boxShadow: '0 1px 0 rgba(255,255,255,0.35) inset, 0 -1px 0 rgba(120,133,255,0.2) inset, 0 2px 8px rgba(177,188,255,0.15)',
           }}>
             <span style={{ fontSize: 11, fontWeight: 800, color: '#fff' }}>$1.5</span>
             <span style={{ fontSize: 9, fontWeight: 500, color: 'rgba(255,255,255,0.55)' }}>/1K</span>

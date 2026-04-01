@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useEnterpriseNavigate } from '@/enterprise/lib/useEnterpriseNavigate';
-import { ArrowLeft, Check, X, ExternalLink, Eye, Megaphone, CheckCircle2, UserCheck } from 'lucide-react';
+import { ArrowLeft, Check, X, ExternalLink, Eye, Megaphone, CheckCircle2, UserCheck, ChevronDown, FileDown } from 'lucide-react';
 import { supabase } from '@/shared/infrastructure/supabase';
 import instagramIcon from '@/shared/assets/instagram-card.svg';
 import tiktokIcon from '@/shared/assets/tiktok.svg';
 import youtubeIcon from '@/shared/assets/youtube.svg';
+import instagramColorIcon from '@/shared/assets/instagram-logo.svg';
+import tiktokColorIcon from '@/shared/assets/tiktok-color.svg';
+import youtubeColorIcon from '@/shared/assets/youtube-symbol.svg';
 import bcreateur from '@/shared/assets/badge-creator-verified.png';
 
 interface Campaign {
@@ -36,6 +39,12 @@ const platformIcons: Record<string, string> = {
   instagram: instagramIcon,
   tiktok: tiktokIcon,
   youtube: youtubeIcon,
+};
+
+const platformColorIcons: Record<string, string> = {
+  instagram: instagramColorIcon,
+  tiktok: tiktokColorIcon,
+  youtube: youtubeColorIcon,
 };
 
 const platformLabels: Record<string, string> = {
@@ -70,6 +79,20 @@ const mockRequests: CreatorRequest[] = [
       { platform: 'youtube', handle: '@JordanTech', views: '6,450,000' },
       { platform: 'instagram', handle: '@jordan_tech', views: '920,000' },
       { platform: 'tiktok', handle: '@jordantech', views: '2,100,000' },
+    ],
+  },
+  {
+    id: 'r3',
+    username: 'sarah.clips',
+    avatar: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=200',
+    platform: 'tiktok',
+    verified: true,
+    bio: 'Clippeuse pro gaming & esports. +50M de vues sur TikTok. Specialisee dans les montages courts et percutants.',
+    motivation: 'Bonjour, je suis tres interessee par cette campagne. J\'ai deja realise plusieurs collaborations similaires avec des marques comme Red Bull et Logitech. Mon style de montage correspond parfaitement a ce que vous recherchez. Je vous ai joint mon portfolio en PDF avec mes meilleures realisations et mes statistiques detaillees.',
+    socials: [
+      { platform: 'tiktok', handle: '@sarah.clips', views: '52,300,000' },
+      { platform: 'youtube', handle: '@SarahClips', views: '8,100,000' },
+      { platform: 'instagram', handle: '@sarah.clips', views: '1,450,000' },
     ],
   },
 ];
@@ -239,18 +262,17 @@ export default function CreatorAccessValidationPage() {
           <div className="flex items-center gap-3">
             <h1 className="text-2xl lg:text-3xl font-bold text-white leading-tight">{campaign.name}</h1>
             {campaign.platforms && campaign.platforms.length > 0 && (
-              <div className="flex items-center gap-1.5">
-                {campaign.platforms.map((p) =>
-                  platformIcons[p] ? (
-                    <div
-                      key={p}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
-                    >
-                      <img src={platformIcons[p]} alt={platformLabels[p] || p} className="w-4 h-4 social-icon" />
-                    </div>
-                  ) : null
-                )}
+              <div className="flex items-center" style={{ gap: 0 }}>
+                {campaign.platforms.filter((p) => platformIcons[p]).map((p, i, arr) => (
+                  <div key={p} style={{
+                    width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                    marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+                  }}>
+                    <img src={platformIcons[p]} alt={platformLabels[p] || p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+                  </div>
+                ))}
               </div>
             )}
             {campaign.content_type && (() => {
@@ -259,8 +281,8 @@ export default function CreatorAccessValidationPage() {
               const isClipping = lower === 'clipping';
               if (!isUgc && !isClipping) return null;
               const tagStyle: React.CSSProperties = isUgc
-                ? { background: 'rgba(255,0,217,0.12)', border: '1px solid rgba(255,0,217,0.3)', color: '#FF00D9' }
-                : { background: 'rgba(57,31,154,0.12)', border: '1px solid rgba(57,31,154,0.3)', color: '#a78bfa' };
+                ? { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)' }
+                : { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)' };
               return (
                 <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider" style={tagStyle}>
                   {campaign.content_type}
@@ -372,6 +394,44 @@ export default function CreatorAccessValidationPage() {
   );
 }
 
+function CandidatureSection({ motivation }: { motivation: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
+          className="flex items-center gap-1.5 flex-1 transition-colors hover:opacity-80"
+        >
+          <span className="text-[10px] uppercase tracking-widest text-white font-semibold">
+            Candidature
+          </span>
+          <ChevronDown
+            className="w-3 h-3 text-white transition-transform duration-200"
+            style={{ transform: open ? 'rotate(0deg)' : 'rotate(-90deg)' }}
+          />
+        </button>
+        <button
+          onClick={(e) => e.stopPropagation()}
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-white hover:bg-white/[0.04] transition-colors"
+          style={{ border: '1px solid rgba(255,255,255,0.08)' }}
+        >
+          <FileDown className="w-3 h-3" />
+          <span>Fichier</span>
+        </button>
+      </div>
+      <div
+        className="overflow-hidden transition-all duration-200"
+        style={{ maxHeight: open ? '200px' : '0px', opacity: open ? 1 : 0, marginTop: open ? 8 : 0 }}
+      >
+        <p className="text-xs text-white/40 leading-relaxed">
+          {motivation || 'Aucun message de candidature.'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 interface RequestCardProps {
   creator: CreatorRequest;
   isSelected: boolean;
@@ -454,15 +514,7 @@ function RequestCard({
         </div>
 
         <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-          <div className="flex items-center gap-1.5 mb-2">
-            <UserCheck className="w-3 h-3 text-white/25" />
-            <span className="text-[10px] uppercase tracking-widest text-white/25 font-semibold">
-              Motivation
-            </span>
-          </div>
-          <p className="text-xs text-white/40 leading-relaxed line-clamp-2">
-            {creator.motivation}
-          </p>
+          <CandidatureSection motivation={creator.motivation} />
         </div>
       </button>
 
@@ -543,11 +595,6 @@ function CreatorPreview({ creator }: { creator: CreatorRequest }) {
 
         <p className="text-xs text-white/35 mt-2 leading-relaxed">{creator.bio}</p>
 
-        <div className="mt-4 p-3 rounded-xl" style={{ backgroundColor: 'rgba(255,180,50,0.04)', border: '1px solid rgba(255,180,50,0.1)' }}>
-          <p className="text-[10px] uppercase tracking-widest font-semibold mb-1.5" style={{ color: '#FFB432' }}>Motivation</p>
-          <p className="text-xs text-white/50 leading-relaxed">{creator.motivation}</p>
-        </div>
-
         {creator.socials.length > 0 && (
           <div className="mt-5">
             <p className="text-[10px] uppercase tracking-widest text-white/25 font-semibold mb-3">Reseaux sociaux</p>
@@ -561,11 +608,13 @@ function CreatorPreview({ creator }: { creator: CreatorRequest }) {
                     border: '1px solid rgba(255,255,255,0.05)',
                   }}
                 >
-                  <img
-                    src={platformIcons[social.platform]}
-                    alt={social.platform}
-                    className="w-5 h-5 shrink-0 social-icon"
-                  />
+                  <div className="w-8 h-8 flex items-center justify-center shrink-0">
+                    <img
+                      src={platformColorIcons[social.platform] || platformIcons[social.platform]}
+                      alt={social.platform}
+                      className="w-8 h-8 object-contain"
+                    />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-white truncate">{social.handle}</p>
                     <div className="flex items-center gap-1 mt-0.5">

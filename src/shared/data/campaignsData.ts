@@ -214,7 +214,8 @@ export const campaigns: CampaignData[] = [
     timeAgo: '1 week ago',
     title: 'Nike Air Max Day - Best Clips',
     description: 'Clippez les meilleurs moments Air Max ! Montrez vos collections, vos looks streetwear et les moments où vos Air Max brillent. Sneakers, culture et style de vie.',
-    isPublic: true,
+    isPublic: false,
+    requireApplication: true,
     rules: [
       'Les Nike Air Max doivent être visibles dans chaque clip',
       'Durée entre 10 et 45 secondes',
@@ -429,7 +430,8 @@ export const campaigns: CampaignData[] = [
     timeAgo: '2 days ago',
     title: 'Pump.fun Launch Campaign',
     description: 'Promouvez le lancement de Pump.fun, la plateforme de création de tokens sur Solana. Créez des tutoriels, des reviews et du contenu viral pour présenter la plateforme à une audience crypto francophone et internationale.',
-    isPublic: true,
+    isPublic: false,
+    requireApplication: true,
     rules: [
       'Présenter la plateforme Pump.fun de façon positive et authentique',
       'Ne pas faire de promesses de gains financiers garantis',
@@ -485,7 +487,7 @@ export const campaigns: CampaignData[] = [
     timeAgo: '1 week ago',
     title: 'Stake.com Official Clipping',
     description: 'Clippez les moments les plus fous sur Stake.com. Gros gains, réactions incroyables, sessions épiques — capturez l\'essence du divertissement en ligne et partagez les meilleurs extraits sur vos réseaux.',
-    isPublic: true,
+    isPublic: false,
     rules: [
       'Clips de 30 secondes maximum',
       'Inclure le watermark Stake.com visible en permanence',

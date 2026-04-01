@@ -82,9 +82,16 @@ export default function CampaignPreview({ name, photoPreview, contentType, categ
               <span className="text-[12px] font-semibold text-white/90 truncate">Votre marque</span>
               <span className="text-[10px] text-white/30 shrink-0">- maintenant</span>
             </div>
-            <div className="flex items-center gap-1 ml-auto shrink-0">
-              {platforms.map((p) => (
-                <img key={p} src={PLATFORM_ICONS[p]} alt={p} className="w-4 h-4 social-icon" style={{ opacity: 0.8 }} />
+            <div className="flex items-center ml-auto shrink-0" style={{ gap: 0 }}>
+              {platforms.filter((p) => PLATFORM_ICONS[p]).map((p, i, arr) => (
+                <div key={p} style={{
+                  width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                  marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+                }}>
+                  <img src={PLATFORM_ICONS[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+                </div>
               ))}
             </div>
           </div>
@@ -93,27 +100,37 @@ export default function CampaignPreview({ name, photoPreview, contentType, categ
             {name || 'Nom de votre campagne'}
           </h3>
 
-          <div className="flex flex-wrap items-center gap-1.5 mb-3 min-h-[22px]">
+          <div className="flex items-center mb-3 min-h-[22px]" style={{ gap: 0 }}>
             {contentType && (
               <span
                 className="px-2.5 py-0.5 rounded-full text-[9px] font-semibold tracking-wide"
                 style={{
-                  background: contentType.toLowerCase() === 'ugc' ? 'rgba(255,0,217,0.15)' : 'rgba(57,31,154,0.15)',
-                  border: contentType.toLowerCase() === 'ugc' ? '1px solid rgba(255,0,217,0.35)' : '1px solid rgba(57,31,154,0.35)',
-                  color: contentType.toLowerCase() === 'ugc' ? '#FF00D9' : '#a78bfa',
+                  ...(contentType.toLowerCase() === 'ugc'
+                    ? { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)' }
+                    : { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)' }),
+                  outline: '2px solid rgba(10,10,15,1)',
+                  zIndex: categories.length + 1,
+                  position: 'relative' as const,
                 }}
               >
                 {contentType}
               </span>
             )}
-            {categories.map((cat) => (
+            {categories.map((cat, i, arr) => (
               <span
                 key={cat}
                 className="px-2.5 py-0.5 rounded-full text-[9px] font-semibold tracking-wide"
                 style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'rgba(255,255,255,0.08)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.15)',
                   color: '#ffffff',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 8px rgba(0,0,0,0.2)',
+                  outline: '2px solid rgba(10,10,15,1)',
+                  marginLeft: -6,
+                  zIndex: arr.length - i,
+                  position: 'relative',
                 }}
               >
                 {cat}
@@ -130,22 +147,15 @@ export default function CampaignPreview({ name, photoPreview, contentType, categ
             </div>
 
             <div className="flex items-center gap-1.5">
-              <div
-                className="flex items-center gap-1 px-2 py-1 rounded-full"
-                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
-              >
-                <svg viewBox="0 0 16 16" className="w-2.5 h-2.5 fill-current text-white/40">
-                  <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm5 6a5 5 0 0 0-10 0h10z" />
-                </svg>
-                <span className="text-[10px] font-semibold text-white/60">0</span>
-              </div>
-
               {avgPer1000 > 0 && (
                 <div
-                  className="flex items-center gap-1 px-2 py-1 rounded-full"
+                  className="flex items-center gap-0.5 px-2 py-1 rounded-full"
                   style={{
-                    background: 'rgba(251,146,60,0.18)',
-                    border: '1px solid rgba(251,146,60,0.35)',
+                    background: 'linear-gradient(145deg, rgba(177,188,255,0.22) 0%, rgba(177,188,255,0.08) 50%, rgba(120,133,255,0.18) 100%)',
+                    backdropFilter: 'blur(10px)',
+                    WebkitBackdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(177,188,255,0.45)',
+                    boxShadow: '0 1px 0 rgba(255,255,255,0.35) inset, 0 -1px 0 rgba(120,133,255,0.2) inset, 0 2px 8px rgba(177,188,255,0.15)',
                   }}
                 >
                   <span className="text-[10px] font-bold text-white">

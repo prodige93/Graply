@@ -194,9 +194,10 @@ export default function MyApplicationsPage() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate(-1)}
-              className="lg:hidden flex items-center justify-center w-9 h-9 rounded-full transition-colors hover:bg-white/10 shrink-0"
+              className="flex items-center justify-center w-9 h-9 rounded-full transition-colors hover:bg-white/10 shrink-0"
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
             >
-              <ArrowLeft className="w-5 h-5 text-white" />
+              <ArrowLeft className="w-4 h-4 text-white/70" />
             </button>
             <div className="flex-1 min-w-0">
               <h1 className="text-xl lg:text-2xl font-bold text-white">Mes candidatures</h1>
@@ -535,15 +536,22 @@ function ApplicationCard({ application, onDelete }: { application: PendingApplic
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              {application.platforms.map((p) =>
-                platformIconMap[p] ? <img key={p} src={platformIconMap[p]} alt={p} className="w-3.5 h-3.5 brightness-0 invert opacity-50" /> : null
-              )}
+              {application.platforms.filter((p) => platformIconMap[p]).map((p, i, arr) => (
+                <div key={p} style={{
+                  width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                  marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+                }}>
+                  <img src={platformIconMap[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+                </div>
+              ))}
               <span
                 className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
                 style={
                   application.category === 'UGC'
-                    ? { background: 'rgba(255,0,217,0.1)', border: '1px solid rgba(255,0,217,0.25)', color: '#FF00D9' }
-                    : { background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.25)', color: '#a78bfa' }
+                    ? { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)' }
+                    : { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)' }
                 }
               >
                 {application.category}

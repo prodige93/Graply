@@ -345,13 +345,16 @@ export default function DashboardPage() {
               <div className="flex items-end justify-between gap-4">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-2">
-                    {selectedCampaign.platforms.map((p) =>
-                      platformIcons[p] ? (
-                        <div key={p} className="w-7 h-7 rounded-full flex items-center justify-center bg-white/10 backdrop-blur-sm">
-                          <img src={platformIcons[p]} alt={p} className="w-3.5 h-3.5 social-icon" />
-                        </div>
-                      ) : null
-                    )}
+                    {selectedCampaign.platforms.filter((p) => platformIcons[p]).map((p, i, arr) => (
+                      <div key={p} style={{
+                        width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                        border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                        marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+                      }}>
+                        <img src={platformIcons[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+                      </div>
+                    ))}
                   </div>
                   <h2 className="text-xl lg:text-2xl font-bold text-white truncate">{selectedCampaign.name}</h2>
                   <p className="text-xs text-white/50 mt-1">Statistiques de la campagne</p>
@@ -613,20 +616,23 @@ export default function DashboardPage() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5 mb-0.5">
-                                {c.platforms.slice(0, 3).map((p) =>
-                                  platformIcons[p] ? (
-                                    <div key={p} className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                                      <img src={platformIcons[p]} alt={p} className="w-3 h-3 social-icon" />
-                                    </div>
-                                  ) : null
-                                )}
+                                {c.platforms.slice(0, 3).filter((p) => platformIcons[p]).map((p, i, arr) => (
+                                  <div key={p} style={{
+                                    width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                                    border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                                    marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+                                  }}>
+                                    <img src={platformIcons[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+                                  </div>
+                                ))}
                                 {c.content_type && (
                                   <span
                                     className="px-1.5 py-px rounded-full text-[9px] font-bold tracking-wide shrink-0"
                                     style={
                                       c.content_type.toLowerCase() === 'ugc'
-                                        ? { background: 'rgba(255,0,217,0.15)', border: '1px solid rgba(255,0,217,0.3)', color: '#FF00D9' }
-                                        : { background: 'rgba(100,80,200,0.15)', border: '1px solid rgba(100,80,200,0.3)', color: '#a78bfa' }
+                                        ? { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)' }
+                                        : { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)' }
                                     }
                                   >
                                     {c.content_type}
@@ -712,14 +718,17 @@ export default function DashboardPage() {
                                 </div>
                               </td>
                               <td className="py-3.5 pr-4">
-                                <div className="flex items-center gap-2">
-                                  {c.platforms.map((p) =>
-                                    platformIcons[p] ? (
-                                      <div key={p} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ border: '1px solid rgba(255,255,255,0.12)' }}>
-                                        <img src={platformIcons[p]} alt={p} className="w-3.5 h-3.5 social-icon" />
-                                      </div>
-                                    ) : null
-                                  )}
+                                <div className="flex items-center" style={{ gap: 0 }}>
+                                  {c.platforms.filter((p) => platformIcons[p]).map((p, i, arr) => (
+                                    <div key={p} style={{
+                                      width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                      background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                                      border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                                      marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+                                    }}>
+                                      <img src={platformIcons[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+                                    </div>
+                                  ))}
                                 </div>
                               </td>
                               <td className="py-3.5 pr-4">
@@ -728,8 +737,8 @@ export default function DashboardPage() {
                                     className="px-2.5 py-0.5 rounded-full text-[9px] font-semibold tracking-wide"
                                     style={
                                       c.content_type.toLowerCase() === 'ugc'
-                                        ? { background: 'rgba(255,0,217,0.15)', border: '1px solid rgba(255,0,217,0.35)', color: '#FF00D9' }
-                                        : { background: 'rgba(57,31,154,0.15)', border: '1px solid rgba(57,31,154,0.35)', color: '#a78bfa' }
+                                        ? { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)' }
+                                        : { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)' }
                                     }
                                   >
                                     {c.content_type}

@@ -18,9 +18,9 @@ import bcreateurbadge from '@/shared/assets/badge-creator-verified.png';
 import instagramIcon from '@/shared/assets/instagram-logo.svg';
 import youtubeIcon from '@/shared/assets/youtube-color.svg';
 import youtubeCardIcon from '@/shared/assets/youtube.svg';
-import tiktokIcon from '@/shared/assets/tiktok.svg';
+import tiktokIcon from '@/shared/assets/tiktok-color.svg';
 import instagramCardIcon from '@/shared/assets/instagram-card.svg';
-import tiktokCardIcon from '@/shared/assets/tiktok.svg';
+import tiktokCardIcon from '@/shared/assets/tiktok-color.svg';
 
 const DEFAULT_BANNER = 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=1200';
 
@@ -1025,9 +1025,16 @@ export default function ProfilePage() {
                               <p className="text-sm font-semibold text-white truncate">{c.title}</p>
                               <div className="flex items-center gap-2 mt-0.5">
                                 <span className="text-xs text-white/35">{c.brand}</span>
-                                {c.socials.map((p) =>
-                                  cardPlatformIcons[p] ? <img key={p} src={cardPlatformIcons[p]} alt={p} className="w-3.5 h-3.5 brightness-0 invert opacity-50" /> : null
-                                )}
+                                {c.socials.filter((p) => cardPlatformIcons[p]).map((p, i, arr) => (
+                                  <div key={p} style={{
+                                    width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                                    border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                                    marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+                                  }}>
+                                    <img src={cardPlatformIcons[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+                                  </div>
+                                ))}
                               </div>
                             </div>
                             <div className="flex items-center gap-4 shrink-0">
@@ -1086,14 +1093,17 @@ function ProfileActiveCampaignCard({ campaign, onWithdraw }: { campaign: Campaig
           <img src={campaign.image} alt={campaign.title} className="w-full h-full object-cover" />
           <div className="absolute inset-0 lg:hidden" style={{ background: 'linear-gradient(90deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
           <div className="absolute inset-0 hidden lg:block" style={{ background: 'linear-gradient(180deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
-          <div className="hidden lg:flex absolute top-2.5 right-2.5 items-center gap-1.5">
-            {campaign.socials.map((p) =>
-              cardPlatformIcons[p] ? (
-                <span key={p} className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}>
-                  <img src={cardPlatformIcons[p]} alt={p} className="w-3.5 h-3.5 brightness-0 invert opacity-80" />
-                </span>
-              ) : null
-            )}
+          <div className="hidden lg:flex absolute top-2.5 right-2.5 items-center" style={{ gap: 0 }}>
+            {campaign.socials.filter((p) => cardPlatformIcons[p]).map((p, i, arr) => (
+              <div key={p} style={{
+                width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+              }}>
+                <img src={cardPlatformIcons[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+              </div>
+            ))}
           </div>
         </div>
         <div className="flex-1 px-4 py-4 flex flex-col gap-2 min-w-0">
@@ -1105,15 +1115,24 @@ function ProfileActiveCampaignCard({ campaign, onWithdraw }: { campaign: Campaig
             <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-white/50 transition-colors shrink-0 mt-0.5" />
           </div>
           <div className="flex items-center gap-2">
-            {campaign.socials.map((p) =>
-              cardPlatformIcons[p] ? <img key={p} src={cardPlatformIcons[p]} alt={p} className="w-3.5 h-3.5 brightness-0 invert opacity-50 lg:hidden" /> : null
-            )}
+            <div className="flex items-center lg:hidden" style={{ gap: 0 }}>
+              {campaign.socials.filter((p) => cardPlatformIcons[p]).map((p, i, arr) => (
+                <div key={p} style={{
+                  width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                  marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+                }}>
+                  <img src={cardPlatformIcons[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+                </div>
+              ))}
+            </div>
             <span
               className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
               style={
                 campaign.contentType === 'UGC'
-                  ? { background: 'rgba(255,0,217,0.1)', border: '1px solid rgba(255,0,217,0.25)', color: '#FF00D9' }
-                  : { background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.25)', color: '#a78bfa' }
+                  ? { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)' }
+                  : { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)' }
               }
             >
               {campaign.contentType}
@@ -1182,14 +1201,17 @@ function ProfilePendingCard({ application }: { application: PendingApplication }
           <img src={application.photo} alt={application.name} className="w-full h-full object-cover opacity-60" />
           <div className="absolute inset-0 lg:hidden" style={{ background: 'linear-gradient(90deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
           <div className="absolute inset-0 hidden lg:block" style={{ background: 'linear-gradient(180deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
-          <div className="hidden lg:flex absolute top-2.5 right-2.5 items-center gap-1.5">
-            {application.platforms.map((p) =>
-              cardPlatformIcons[p] ? (
-                <span key={p} className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}>
-                  <img src={cardPlatformIcons[p]} alt={p} className="w-3.5 h-3.5 brightness-0 invert opacity-80" />
-                </span>
-              ) : null
-            )}
+          <div className="hidden lg:flex absolute top-2.5 right-2.5 items-center" style={{ gap: 0 }}>
+            {application.platforms.filter((p) => cardPlatformIcons[p]).map((p, i, arr) => (
+              <div key={p} style={{
+                width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+              }}>
+                <img src={cardPlatformIcons[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+              </div>
+            ))}
           </div>
           <div
             className="hidden lg:flex absolute bottom-2.5 left-2.5 w-7 h-7 rounded-full items-center justify-center"
@@ -1212,15 +1234,24 @@ function ProfilePendingCard({ application }: { application: PendingApplication }
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {application.platforms.map((p) =>
-              cardPlatformIcons[p] ? <img key={p} src={cardPlatformIcons[p]} alt={p} className="w-3.5 h-3.5 brightness-0 invert opacity-40 lg:hidden" /> : null
-            )}
+            <div className="flex items-center lg:hidden" style={{ gap: 0 }}>
+              {application.platforms.filter((p) => cardPlatformIcons[p]).map((p, i, arr) => (
+                <div key={p} style={{
+                  width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                  marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+                }}>
+                  <img src={cardPlatformIcons[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+                </div>
+              ))}
+            </div>
             <span
               className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
               style={
                 application.category === 'UGC'
-                  ? { background: 'rgba(255,0,217,0.08)', border: '1px solid rgba(255,0,217,0.15)', color: 'rgba(255,0,217,0.6)' }
-                  : { background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.15)', color: 'rgba(167,139,250,0.6)' }
+                  ? { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)' }
+                  : { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)' }
               }
             >
               {application.category}
@@ -1257,14 +1288,17 @@ function ProfileCompletedCard({ campaign, onDelete }: { campaign: CreatorCampaig
           <img src={campaign.photo} alt={campaign.name} className="w-full h-full object-cover grayscale" />
           <div className="absolute inset-0 lg:hidden" style={{ background: 'linear-gradient(90deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
           <div className="absolute inset-0 hidden lg:block" style={{ background: 'linear-gradient(180deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
-          <div className="hidden lg:flex absolute top-2.5 right-2.5 items-center gap-1.5">
-            {campaign.platforms.map((p) =>
-              cardPlatformIcons[p] ? (
-                <span key={p} className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}>
-                  <img src={cardPlatformIcons[p]} alt={p} className="w-3.5 h-3.5 brightness-0 invert opacity-40" />
-                </span>
-              ) : null
-            )}
+          <div className="hidden lg:flex absolute top-2.5 right-2.5 items-center" style={{ gap: 0 }}>
+            {campaign.platforms.filter((p) => cardPlatformIcons[p]).map((p, i, arr) => (
+              <div key={p} style={{
+                width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+              }}>
+                <img src={cardPlatformIcons[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+              </div>
+            ))}
           </div>
         </div>
         <div className="flex-1 px-4 py-4 flex flex-col gap-2 min-w-0">

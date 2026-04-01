@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useEnterpriseNavigate } from '@/enterprise/lib/useEnterpriseNavigate';
 import { Camera, Pencil, Check, Shield, ChevronLeft, ChevronRight, Unlink, Loader2 } from 'lucide-react';
-import ttIcon from '@/shared/assets/tiktok.svg';
+import ttIcon from '@/shared/assets/tiktok-color.svg';
 import instaIcon from '@/shared/assets/instagram-logo.svg';
 import symbolIcon from '@/shared/assets/youtube-symbol.svg';
 import GrapeLoader from '../components/GrapeLoader';

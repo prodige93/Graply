@@ -41,7 +41,7 @@ export default function RaisinVideo({ isMars }: RaisinVideoProps) {
       <video
         key={videoKey}
         ref={videoRef}
-        className={`w-full rounded-none md:rounded-2xl ${isMars ? 'max-w-[200px] md:max-w-sm' : 'max-w-[92%] md:max-w-2xl'}`}
+        className={`w-full rounded-none md:rounded-2xl ${isMars ? 'max-w-[60%] md:max-w-sm' : 'max-w-[92%] md:max-w-2xl'}`}
         src={`${videoSrc}${cacheBuster}`}
         autoPlay
         muted
