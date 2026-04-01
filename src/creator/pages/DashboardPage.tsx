@@ -1,11 +1,12 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DollarSign, Eye, TrendingUp, ArrowUpRight, ArrowLeft, Play, ChevronRight, Clock, Zap, X, ArrowUp, ArrowDown, ChevronsUpDown, ArrowDownLeft, BarChart2 } from 'lucide-react';
+import { DollarSign, Eye, TrendingUp, ArrowUpRight, ArrowLeft, Play, ChevronRight, Clock, Zap, X, ArrowUp, ArrowDown, ChevronsUpDown, ArrowDownLeft, BarChart2, ExternalLink, Instagram, Loader2 } from 'lucide-react';
 import StatsChart from '../components/StatsChart';
 import Sidebar from '../components/Sidebar';
 import instagramIcon from '@/shared/assets/instagram-card.svg';
 import youtubeIcon from '@/shared/assets/youtube.svg';
 import tiktokIcon from '@/shared/assets/tiktok.svg';
+import { useInstagramVideos, type InstagramVideo } from '@/shared/lib/useInstagramVideos';
 
 const platformIcons: Record<string, string> = {
   instagram: instagramIcon,
@@ -225,6 +226,19 @@ function buildChartPoints(period: string, seed: typeof rawChartData6m) {
   });
 }
 
+interface DashboardVideo {
+  id: string;
+  title: string;
+  platform: string;
+  campaign?: string;
+  views?: number;
+  earned?: number;
+  date: string;
+  thumb: string;
+  permalink?: string;
+  isReal?: boolean;
+}
+
 export default function DashboardPage() {
   const navigate = useNavigate();
   const [chartPeriod, setChartPeriod] = useState('6m');
@@ -232,6 +246,7 @@ export default function DashboardPage() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+  const { videos: igVideos, loading: igLoading, notConnected: igNotConnected } = useInstagramVideos();
   const [chartMetric, setChartMetric] = useState<'views' | 'earned'>('views');
   const [activePlatform, setActivePlatform] = useState<string | null>(null);
   const [videoPlatformFilter, setVideoPlatformFilter] = useState<string | null>(null);
@@ -260,7 +275,28 @@ export default function DashboardPage() {
     }, 1200);
   }
 
-  const selectedVideo = selectedVideoId ? topVideos.find((v) => v.id === selectedVideoId) ?? null : null;
+  const dashboardVideos: DashboardVideo[] = useMemo(() => {
+    const realIg: DashboardVideo[] = igVideos.map((v) => ({
+      id: v.id,
+      title: v.title,
+      platform: 'instagram',
+      date: v.date,
+      thumb: v.thumbnail,
+      permalink: v.permalink,
+      isReal: true,
+    }));
+
+    if (realIg.length > 0) {
+      const nonIgMock = topVideos
+        .filter((v) => v.platform !== 'instagram')
+        .map((v) => ({ ...v, thumb: v.thumb, isReal: false }));
+      return [...realIg, ...nonIgMock];
+    }
+
+    return topVideos.map((v) => ({ ...v, thumb: v.thumb, isReal: false }));
+  }, [igVideos]);
+
+  const selectedVideo = selectedVideoId ? dashboardVideos.find((v) => v.id === selectedVideoId) ?? null : null;
 
   const chartData = useMemo(() => {
     if (selectedVideoId && videoChartData[selectedVideoId]) {
@@ -290,12 +326,13 @@ export default function DashboardPage() {
 
   const activePb = activePlatform ? platformBreakdown.find((p) => p.platform === activePlatform) : null;
 
-  const availablePlatforms = useMemo(() => [...new Set(topVideos.map((v) => v.platform))], []);
+  const availablePlatforms = useMemo(() => [...new Set(dashboardVideos.map((v) => v.platform))], [dashboardVideos]);
 
   const filteredVideos = useMemo(() => {
-    let vids = tablePlatform ? topVideos.filter((v) => v.platform === tablePlatform) : topVideos;
+    let vids = tablePlatform ? dashboardVideos.filter((v) => v.platform === tablePlatform) : dashboardVideos;
     if (tableSort?.key === 'performance') {
-      vids = [...vids].sort((a, b) => tableSort.dir === 'desc' ? b.views - a.views : a.views - b.views);
+      vids = [...vids].sort((a, b) => (b.views ?? 0) - (a.views ?? 0));
+      if (tableSort.dir === 'asc') vids.reverse();
     } else if (tableSort?.key === 'date') {
       vids = [...vids].sort((a, b) => {
         const diff = new Date(b.date).getTime() - new Date(a.date).getTime();
@@ -303,7 +340,7 @@ export default function DashboardPage() {
       });
     }
     return vids;
-  }, [tablePlatform, tableSort]);
+  }, [tablePlatform, tableSort, dashboardVideos]);
 
   return (
     <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
@@ -471,8 +508,8 @@ export default function DashboardPage() {
                     <p className="text-lg font-black leading-tight" style={{ color: '#fff' }}>
                       {selectedVideo
                         ? chartMetric === 'views'
-                          ? formatViews(selectedVideo.views)
-                          : `$${selectedVideo.earned.toFixed(2)}`
+                          ? formatViews(selectedVideo.views ?? 0)
+                          : `$${(selectedVideo.earned ?? 0).toFixed(2)}`
                         : activePb
                           ? chartMetric === 'views'
                             ? formatViews(activePb.views)
@@ -616,9 +653,54 @@ export default function DashboardPage() {
                 )}
               </div>
 
+              {igLoading && igVideos.length === 0 && (
+                <div className="flex items-center justify-center gap-2 px-5 py-6">
+                  <Loader2 className="w-4 h-4 text-white/30 animate-spin" />
+                  <p className="text-xs text-white/30">Chargement des vidéos…</p>
+                </div>
+              )}
+
               <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
                 {filteredVideos.map((video, i) => {
                   const isSelected = selectedVideoId === video.id;
+                  const isReal = video.isReal;
+
+                  if (isReal) {
+                    return (
+                      <a
+                        key={video.id}
+                        href={video.permalink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full flex items-center gap-4 px-5 py-4 transition-all duration-200 text-left hover:bg-white/[0.03]"
+                        style={{ background: 'transparent', borderLeft: '2px solid transparent' }}
+                      >
+                        <span className="text-[11px] font-black w-4 shrink-0 text-center" style={{ color: 'rgba(255,255,255,0.15)' }}>#{i + 1}</span>
+
+                        <div className="relative w-14 h-10 rounded-lg overflow-hidden shrink-0">
+                          <img src={video.thumb} alt="" className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.3)' }}>
+                            <Play className="w-3 h-3 text-white fill-white" />
+                          </div>
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold truncate" style={{ color: 'rgba(255,255,255,0.85)' }}>{video.title}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {platformIcons[video.platform] && (
+                              <img src={platformIcons[video.platform]} alt={video.platform} className="w-3 h-3 opacity-60" />
+                            )}
+                            <p className="text-[10px] text-white/30">{video.date}</p>
+                          </div>
+                        </div>
+
+                        <div className="shrink-0">
+                          <ExternalLink className="w-4 h-4 text-white/20" />
+                        </div>
+                      </a>
+                    );
+                  }
+
                   return (
                     <button
                       key={video.id}
@@ -652,8 +734,8 @@ export default function DashboardPage() {
                       </div>
 
                       <div className="text-right shrink-0 space-y-0.5">
-                        <p className="text-xs font-bold text-white">{formatViews(video.views)} vues</p>
-                        <p className="text-xs font-bold" style={{ color: '#FF782A' }}>${video.earned.toFixed(2)}</p>
+                        <p className="text-xs font-bold text-white">{formatViews(video.views ?? 0)} vues</p>
+                        <p className="text-xs font-bold" style={{ color: '#FF782A' }}>${(video.earned ?? 0).toFixed(2)}</p>
                       </div>
 
                       <div className="shrink-0">
