@@ -12,7 +12,7 @@ import bo7Img from '@/shared/assets/hero-slide-bo7.jpeg';
 import Sidebar from '../components/Sidebar';
 import instagramIcon from '@/shared/assets/instagram-logo.svg';
 import youtubeIcon from '@/shared/assets/youtube-symbol.svg';
-import tiktokIcon from '@/shared/assets/tiktok.svg';
+import tiktokIcon from '@/shared/assets/tiktok-color.svg';
 import { type SocialPlatform, getSocialOAuthUrl } from '@/shared/lib/socialOAuth';
 
 const SOCIAL_PLATFORMS = [

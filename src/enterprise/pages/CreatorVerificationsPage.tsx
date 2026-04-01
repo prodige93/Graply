@@ -8,7 +8,7 @@ import tiktokIcon from '@/shared/assets/tiktok.svg';
 import youtubeIcon from '@/shared/assets/youtube.svg';
 import bcreateur from '@/shared/assets/badge-creator-verified.png';
 import instaLogoPreview from '@/shared/assets/instagram-logo.svg';
-import ttLogoPreview from '@/shared/assets/tiktok.svg';
+import ttLogoPreview from '@/shared/assets/tiktok-color.svg';
 import symbolLogoPreview from '@/shared/assets/youtube-symbol.svg';
 
 interface Campaign {

@@ -18,9 +18,9 @@ import bcreateurbadge from '@/shared/assets/badge-creator-verified.png';
 import instagramIcon from '@/shared/assets/instagram-logo.svg';
 import youtubeIcon from '@/shared/assets/youtube-color.svg';
 import youtubeCardIcon from '@/shared/assets/youtube.svg';
-import tiktokIcon from '@/shared/assets/tiktok.svg';
+import tiktokIcon from '@/shared/assets/tiktok-color.svg';
 import instagramCardIcon from '@/shared/assets/instagram-card.svg';
-import tiktokCardIcon from '@/shared/assets/tiktok.svg';
+import tiktokCardIcon from '@/shared/assets/tiktok-color.svg';
 
 const DEFAULT_BANNER = 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=1200';
 

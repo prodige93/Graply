@@ -43,6 +43,8 @@ export default function CampaignApplicationPage() {
     }
     setSending(false);
     setSent(true);
+    const prev = JSON.parse(localStorage.getItem('applied_campaigns') || '[]') as string[];
+    if (id && !prev.includes(id)) localStorage.setItem('applied_campaigns', JSON.stringify([...prev, id]));
   };
 
   const formatFileSize = (bytes: number) => {
@@ -86,7 +88,7 @@ export default function CampaignApplicationPage() {
         >
           <div className="flex items-center gap-3 mb-6">
             <button
-              onClick={() => navigate(backTo)}
+              onClick={() => navigate(-1)}
               className="flex items-center justify-center w-9 h-9 rounded-full shrink-0 transition-colors hover:bg-white/10"
               style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
             >

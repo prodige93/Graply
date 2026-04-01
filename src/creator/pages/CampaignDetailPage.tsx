@@ -64,8 +64,11 @@ export default function CampaignDetailPage() {
   }, [id]);
 
   useEffect(() => {
+    if (!id) return;
+    const localApplied = JSON.parse(localStorage.getItem('applied_campaigns') || '[]') as string[];
+    if (localApplied.includes(id)) { setApplied(true); return; }
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!id || !uuidRegex.test(id)) return;
+    if (!uuidRegex.test(id)) return;
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
       supabase
@@ -401,9 +404,73 @@ export default function CampaignDetailPage() {
               <span className="font-bold text-base relative z-10 text-white flex items-center gap-2"><img src={chCircleIcon} alt="" className="w-4 h-4" />Vérifier ma vidéo</span>
             </button>
           ) : campaign.requireApplication ? (
+            applied ? (
+              <button
+                disabled
+                className="flex items-center gap-2 px-8 py-3 font-bold text-sm uppercase tracking-wide rounded-xl"
+                style={{
+                  background: '#FFFFFF',
+                  color: '#000',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                  border: '1px solid rgba(0,0,0,0.12)',
+                }}
+              >
+                <img src={checkIcon} alt="" className="w-4 h-4" />
+                Déjà postulé
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate(`/campagne/${campaign.id}/candidature`, { state: { from: location.pathname } })}
+                className="flex items-center gap-2 px-8 py-3 font-bold text-sm uppercase tracking-wide rounded-xl transition-all duration-300 hover:brightness-110 active:scale-[0.97]"
+                style={{
+                  background: '#FFFFFF',
+                  color: '#000',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                  border: '1px solid rgba(0,0,0,0.12)',
+                }}
+              >
+                <Send className="w-3.5 h-3.5" />
+                Postuler
+              </button>
+            )
+          ) : applied ? (
             <button
-              onClick={() => navigate(`/campagne/${campaign.id}/candidature`, { state: { from: location.pathname } })}
-              className="flex items-center gap-2 px-8 py-3 font-bold text-sm uppercase tracking-wide rounded-xl transition-all duration-300 hover:brightness-110 active:scale-[0.97]"
+              disabled
+              className="flex items-center gap-2 px-8 py-3 font-bold text-sm uppercase tracking-wide rounded-xl"
+              style={{
+                background: '#FFFFFF',
+                color: '#000',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                border: '1px solid rgba(0,0,0,0.12)',
+              }}
+            >
+              <img src={checkIcon} alt="" className="w-4 h-4" />
+              Déjà postulé
+            </button>
+          ) : (
+            <button
+              onClick={async () => {
+                if (applying) return;
+                setApplying(true);
+                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                const isRealCampaign = id && uuidRegex.test(id);
+                if (isRealCampaign) {
+                  const { data: { user } } = await supabase.auth.getUser();
+                  if (user) {
+                    await supabase.from('campaign_applications').upsert({
+                      campaign_id: id,
+                      user_id: user.id,
+                      status: 'pending',
+                    }, { onConflict: 'campaign_id,user_id' });
+                  }
+                }
+                setApplied(true);
+                setApplying(false);
+                const prev = JSON.parse(localStorage.getItem('applied_campaigns') || '[]') as string[];
+                if (id && !prev.includes(id)) localStorage.setItem('applied_campaigns', JSON.stringify([...prev, id]));
+              }}
+              disabled={applying}
+              className="flex items-center gap-2 px-8 py-3 font-bold text-sm uppercase tracking-wide rounded-xl transition-all duration-300 hover:brightness-110 active:scale-[0.97] disabled:opacity-60"
               style={{
                 background: '#FFFFFF',
                 color: '#000',
@@ -412,18 +479,7 @@ export default function CampaignDetailPage() {
               }}
             >
               <Send className="w-3.5 h-3.5" />
-              Postuler
-            </button>
-          ) : (
-            <button
-              onClick={() => navigate(`/campagne/${campaign.id}/verification`, { state: { from: location.pathname } })}
-              className="group relative flex items-center justify-center py-2.5 px-4 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] overflow-hidden"
-              style={{
-                background: '#FFA672',
-              }}
-            >
-              <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: 'rgba(255,255,255,0.1)' }} />
-              <span className="font-bold text-base relative z-10 text-white flex items-center gap-2"><img src={chCircleIcon} alt="" className="w-4 h-4" />Vérifier ma vidéo</span>
+              {applying ? 'Envoi...' : 'Postuler'}
             </button>
           )}
 

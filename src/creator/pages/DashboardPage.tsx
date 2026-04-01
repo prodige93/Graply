@@ -5,7 +5,7 @@ import StatsChart from '../components/StatsChart';
 import Sidebar from '../components/Sidebar';
 import instagramIcon from '@/shared/assets/instagram-card.svg';
 import youtubeIcon from '@/shared/assets/youtube.svg';
-import tiktokIcon from '@/shared/assets/tiktok.svg';
+import tiktokIcon from '@/shared/assets/tiktok-color.svg';
 
 const platformIcons: Record<string, string> = {
   instagram: instagramIcon,
@@ -360,7 +360,7 @@ export default function DashboardPage() {
                         : 'inset 0 1px 0 rgba(255,255,255,0.06)',
                     }}
                   >
-                    {platformIcons[p] && <img src={platformIcons[p]} alt={platformNames[p] || p} className="w-5 h-5 social-icon" />}
+                    {platformIcons[p] && <img src={platformIcons[p]} alt={platformNames[p] || p} className="w-5 h-5" />}
                   </button>
                 ))}
               </div>
@@ -552,7 +552,7 @@ export default function DashboardPage() {
                         opacity: tablePlatform && tablePlatform !== p ? 0.4 : 1,
                       }}
                     >
-                      {platformIcons[p] && <img src={platformIcons[p]} alt={platformNames[p] || p} className="w-4 h-4 social-icon" />}
+                      {platformIcons[p] && <img src={platformIcons[p]} alt={platformNames[p] || p} className="w-4 h-4" />}
                     </button>
                   ))}
                 </div>
@@ -584,7 +584,7 @@ export default function DashboardPage() {
                   <button key={p} onClick={() => setTablePlatform(tablePlatform === p ? null : p)}
                     className="flex items-center gap-1.5 h-7 px-3 rounded-full transition-all duration-200"
                     style={{ background: tablePlatform === p ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)', border: tablePlatform === p ? '1px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.08)', opacity: tablePlatform && tablePlatform !== p ? 0.4 : 1 }}>
-                    {platformIcons[p] && <img src={platformIcons[p]} alt={platformNames[p] || p} className="w-3.5 h-3.5 social-icon" />}
+                    {platformIcons[p] && <img src={platformIcons[p]} alt={platformNames[p] || p} className="w-3.5 h-3.5" />}
                     <span className="text-[11px] font-semibold" style={{ color: tablePlatform === p ? '#fff' : 'rgba(255,255,255,0.5)' }}>{platformNames[p] || p}</span>
                   </button>
                 ))}
