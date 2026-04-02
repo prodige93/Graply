@@ -10,6 +10,7 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('oauth', 'oauth', true)
 ON CONFLICT (id) DO NOTHING;
 
+DROP POLICY IF EXISTS "Anyone can read oauth files" ON storage.objects;
 CREATE POLICY "Anyone can read oauth files"
   ON storage.objects FOR SELECT TO public
   USING (bucket_id = 'oauth');

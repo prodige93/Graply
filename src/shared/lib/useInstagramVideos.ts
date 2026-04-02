@@ -1,16 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/shared/infrastructure/supabase';
 
-export interface InstagramMedia {
-  id: string;
-  caption: string;
-  media_type: 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM';
-  media_url: string;
-  thumbnail_url: string | null;
-  timestamp: string;
-  permalink: string;
-}
-
 export interface InstagramVideo {
   id: string;
   title: string;
@@ -44,38 +34,47 @@ export function useInstagramVideos() {
     setLoading(true);
     setError(null);
 
-    const { data, error: rpcError } = await supabase.rpc('fetch_instagram_media');
+    const { data: syncResult, error: syncErr } = await supabase.rpc('sync_instagram_videos');
 
-    if (rpcError) {
-      setError(rpcError.message);
+    if (syncErr) {
+      setError(syncErr.message);
       setLoading(false);
       return;
     }
 
-    if (data?.error === 'not_connected') {
+    if (syncResult?.error === 'not_connected') {
       setNotConnected(true);
+      setVideos([]);
       setLoading(false);
       return;
     }
 
-    if (data?.error) {
-      setError(data.error);
+    if (syncResult?.error) {
+      setError(syncResult.error);
       setLoading(false);
       return;
     }
 
-    const allMedia: InstagramMedia[] = data?.data || [];
-    const videoItems: InstagramVideo[] = allMedia
-      .filter((m) => m.media_type === 'VIDEO')
-      .map((m) => ({
-        id: m.id,
-        title: truncateCaption(m.caption),
-        platform: 'instagram' as const,
-        thumbnail: m.thumbnail_url || m.media_url,
-        permalink: m.permalink,
-        date: formatInstagramDate(m.timestamp),
-        media_url: m.media_url,
-      }));
+    const { data: rows, error: selectErr } = await supabase
+      .from('instagram_videos')
+      .select('*')
+      .order('timestamp', { ascending: false });
+
+    if (selectErr) {
+      setError(selectErr.message);
+      setLoading(false);
+      return;
+    }
+
+    const videoItems: InstagramVideo[] = (rows || []).map((m: Record<string, string>) => ({
+      id: m.id,
+      title: truncateCaption(m.caption),
+      platform: 'instagram' as const,
+      thumbnail: m.thumbnail_url || m.media_url,
+      permalink: m.permalink,
+      date: formatInstagramDate(m.timestamp),
+      media_url: m.media_url,
+    }));
 
     setVideos(videoItems);
     setNotConnected(false);

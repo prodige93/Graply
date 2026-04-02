@@ -10,11 +10,13 @@
     - anon can UPDATE the demo profile
 */
 
+DROP POLICY IF EXISTS "Anon can view demo profile" ON profiles;
 CREATE POLICY "Anon can view demo profile"
   ON profiles FOR SELECT
   TO anon
   USING (id = '00000000-0000-0000-0000-000000000001'::uuid);
 
+DROP POLICY IF EXISTS "Anon can update demo profile" ON profiles;
 CREATE POLICY "Anon can update demo profile"
   ON profiles FOR UPDATE
   TO anon
