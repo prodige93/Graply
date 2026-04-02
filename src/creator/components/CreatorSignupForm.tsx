@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
 import CguModal from './CguModal';
 import { supabase } from '@/shared/infrastructure/supabase';
+import {
+  SIGNUP_EMAIL_INVALID_MESSAGE,
+  isValidSignupEmail,
+  mapSignUpAuthError,
+} from '@/shared/lib/authSignup';
 
 const glass = {
   background: 'rgba(255,255,255,0.04)',
@@ -176,8 +181,13 @@ export default function CreatorSignupForm({ onBack }: Props) {
       return;
     }
 
-    setLoading(true);
     const email = form.phoneOrEmail.trim();
+    if (!isValidSignupEmail(email)) {
+      setError(SIGNUP_EMAIL_INVALID_MESSAGE);
+      return;
+    }
+
+    setLoading(true);
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password: form.password,
@@ -194,11 +204,7 @@ export default function CreatorSignupForm({ onBack }: Props) {
 
     if (signUpError) {
       setLoading(false);
-      if (signUpError.message.includes('already registered')) {
-        setError('Cette adresse e-mail est déjà utilisée.');
-      } else {
-        setError(signUpError.message);
-      }
+      setError(mapSignUpAuthError(signUpError));
       return;
     }
 
@@ -228,7 +234,7 @@ export default function CreatorSignupForm({ onBack }: Props) {
     { key: 'username', placeholder: "Nom d'utilisateur", type: 'text' },
     { key: 'lastName', placeholder: 'Nom', type: 'text' },
     { key: 'firstName', placeholder: 'Prénom', type: 'text' },
-    { key: 'phoneOrEmail', placeholder: 'Numéro de téléphone ou adresse e-mail', type: 'text' },
+    { key: 'phoneOrEmail', placeholder: 'Adresse e-mail (un compte par e-mail)', type: 'email' },
   ];
 
   const fieldsBottom = [

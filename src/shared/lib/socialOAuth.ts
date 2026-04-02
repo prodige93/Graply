@@ -15,7 +15,8 @@ export function buildInstagramOAuthUrl(): string {
     scope: 'instagram_business_basic',
     state: 'instagram',
   });
-  return `https://www.instagram.com/oauth/authorize?${params}`;
+  // Doit être api.instagram.com (pas www.instagram.com) — sinon page « non disponible » côté Instagram
+  return `https://api.instagram.com/oauth/authorize?${params}`;
 }
 
 export function buildTikTokOAuthUrl(): string {

@@ -65,7 +65,9 @@ export default function SocialCallbackPage() {
       const role = userData?.user?.user_metadata?.role;
       const accountPath = role === 'enterprise' ? '/app-entreprise/mon-compte' : '/mon-compte';
 
-      setTimeout(() => navigate(accountPath), 2500);
+      setTimeout(() => {
+        navigate(accountPath, { replace: true, state: { fromSocialOAuth: true } });
+      }, 600);
     }
 
     exchangeCode(state, code);

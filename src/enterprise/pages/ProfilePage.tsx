@@ -3,7 +3,8 @@ import { useEnterpriseNavigate } from '@/enterprise/lib/useEnterpriseNavigate';
 import { MessageCircle, Users, Megaphone, Globe, Camera, Lock, Unlock, Pencil, Check, ChevronDown, ArrowLeft, MessageSquareOff, MessageSquare, Bookmark, Plus, X } from 'lucide-react';
 import GrapeLoader from '../components/GrapeLoader';
 import { supabase } from '@/shared/infrastructure/supabase';
-import { useProfile, PROFILE_ID } from '@/shared/lib/useProfile';
+import { useProfile } from '@/shared/lib/useProfile';
+import { profileUsernameDisplayLabel } from '@/shared/lib/profileUsername';
 import { useSavedCampaigns } from '@/enterprise/contexts/SavedCampaignsContext';
 import { useMyCampaigns } from '@/enterprise/contexts/MyCampaignsContext';
 import { useCampaignTab } from '@/enterprise/contexts/CampaignTabContext';
@@ -35,9 +36,9 @@ const AVAILABLE_TAGS = [
   'Business', 'Education', 'Art', 'Photographie', 'Automobile', 'Sante',
 ];
 
-async function uploadFile(file: File, folder: string): Promise<string | null> {
+async function uploadFile(file: File, folder: string, ownerId: string): Promise<string | null> {
   const ext = file.name.split('.').pop();
-  const fileName = `${folder}/${PROFILE_ID}-${Date.now()}.${ext}`;
+  const fileName = `${folder}/${ownerId}-${Date.now()}.${ext}`;
   const { error } = await supabase.storage.from('avatars').upload(fileName, file, {
     upsert: true,
     contentType: file.type,
@@ -57,7 +58,7 @@ export default function ProfilePage() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
-  const { profile, updateProfile } = useProfile();
+  const { profile, userId, updateProfile } = useProfile();
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [togglingVisibility, setTogglingVisibility] = useState(false);
@@ -82,13 +83,14 @@ export default function ProfilePage() {
   }
 
   async function saveProfile() {
+    if (!userId) return;
     setSavingProfile(true);
     await supabase.from('profiles').update({
       bio: editBio,
       website: editWebsite,
       content_tags: editTags,
       updated_at: new Date().toISOString(),
-    }).eq('id', PROFILE_ID);
+    }).eq('id', userId);
     updateProfile({ bio: editBio, website: editWebsite, content_tags: editTags });
     setSavingProfile(false);
     setEditing(false);
@@ -119,13 +121,13 @@ export default function ProfilePage() {
 
   async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !userId) return;
     const localPreview = URL.createObjectURL(file);
     updateProfile({ avatar_url: localPreview });
     setUploadingAvatar(true);
-    const url = await uploadFile(file, 'profile-pics');
+    const url = await uploadFile(file, 'profile-pics', userId);
     if (url) {
-      await supabase.from('profiles').update({ avatar_url: url, updated_at: new Date().toISOString() }).eq('id', PROFILE_ID);
+      await supabase.from('profiles').update({ avatar_url: url, updated_at: new Date().toISOString() }).eq('id', userId);
       updateProfile({ avatar_url: url });
     }
     setUploadingAvatar(false);
@@ -134,13 +136,13 @@ export default function ProfilePage() {
 
   async function handleBannerChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !userId) return;
     const localPreview = URL.createObjectURL(file);
     updateProfile({ banner_url: localPreview });
     setUploadingBanner(true);
-    const url = await uploadFile(file, 'banners');
+    const url = await uploadFile(file, 'banners', userId);
     if (url) {
-      await supabase.from('profiles').update({ banner_url: url, updated_at: new Date().toISOString() }).eq('id', PROFILE_ID);
+      await supabase.from('profiles').update({ banner_url: url, updated_at: new Date().toISOString() }).eq('id', userId);
       updateProfile({ banner_url: url });
     }
     setUploadingBanner(false);
@@ -148,19 +150,19 @@ export default function ProfilePage() {
   }
 
   async function toggleVisibility() {
-    if (!profile) return;
+    if (!profile || !userId) return;
     setTogglingVisibility(true);
     const newValue = !profile.is_public;
-    await supabase.from('profiles').update({ is_public: newValue, updated_at: new Date().toISOString() }).eq('id', PROFILE_ID);
+    await supabase.from('profiles').update({ is_public: newValue, updated_at: new Date().toISOString() }).eq('id', userId);
     updateProfile({ is_public: newValue });
     setTogglingVisibility(false);
   }
 
   async function toggleMessaging() {
-    if (!profile) return;
+    if (!profile || !userId) return;
     setTogglingMessaging(true);
     const newValue = !profile.messaging_enabled;
-    await supabase.from('profiles').update({ messaging_enabled: newValue, updated_at: new Date().toISOString() }).eq('id', PROFILE_ID);
+    await supabase.from('profiles').update({ messaging_enabled: newValue, updated_at: new Date().toISOString() }).eq('id', userId);
     updateProfile({ messaging_enabled: newValue });
     setTogglingMessaging(false);
   }
@@ -168,7 +170,7 @@ export default function ProfilePage() {
   const savedCampaignsList = allCampaignsList.filter((c) => savedIds.includes(c.id));
 
   const displayBanner = profile?.banner_url || DEFAULT_BANNER;
-  const displayUsername = profile?.username || 'username';
+  const displayUsername = profileUsernameDisplayLabel(profile?.username);
   const displayWebsite = profile?.website || 'www.username.com';
   const displayBio = profile?.bio || 'Marque officielle. Nous collaborons avec des créateurs pour inspirer et innover.';
   const displayTags = profile?.content_tags?.length ? profile.content_tags : ['Technologie'];

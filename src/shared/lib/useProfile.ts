@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/shared/infrastructure/supabase';
 
-export const PROFILE_ID = '00000000-0000-0000-0000-000000000001';
-
 export interface Profile {
   id: string;
   username: string;
@@ -24,6 +22,7 @@ export interface Profile {
 }
 
 let cachedProfile: Profile | null = null;
+let cachedUserId: string | null = null;
 let fetchPromise: Promise<Profile | null> | null = null;
 const listeners = new Set<(p: Profile | null) => void>();
 
@@ -31,42 +30,99 @@ function notifyListeners(p: Profile | null) {
   listeners.forEach((fn) => fn(p));
 }
 
-async function loadProfile(): Promise<Profile | null> {
-  const { data } = await supabase
+async function loadProfileForUser(userId: string): Promise<Profile | null> {
+  let { data } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', PROFILE_ID)
+    .eq('id', userId)
     .maybeSingle();
-  cachedProfile = data;
-  return data;
+
+  if (!data) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.id === userId) {
+      const { error: ensureError } = await supabase.rpc('ensure_my_profile');
+      if (ensureError) {
+        console.error('ensure_my_profile', ensureError.message);
+      }
+      const again = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+      data = again.data;
+    }
+  }
+
+  cachedProfile = data ?? null;
+  cachedUserId = userId;
+  return data ?? null;
+}
+
+async function loadProfile(): Promise<Profile | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    cachedProfile = null;
+    cachedUserId = null;
+    return null;
+  }
+  return loadProfileForUser(user.id);
 }
 
 export function prefetchProfile() {
-  if (!fetchPromise) {
-    fetchPromise = loadProfile();
-  }
+  fetchPromise = loadProfile().then((data) => {
+    notifyListeners(data);
+    return data;
+  });
   return fetchPromise;
 }
 
 export function useProfile() {
   const [profile, setProfile] = useState<Profile | null>(cachedProfile);
+  const [userId, setUserId] = useState<string | null>(cachedUserId);
 
   useEffect(() => {
     const handler = (p: Profile | null) => setProfile(p);
     listeners.add(handler);
 
-    if (cachedProfile) {
-      setProfile(cachedProfile);
-    }
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setUserId(null);
+        setProfile(null);
+        return;
+      }
+      setUserId(user.id);
+      if (cachedUserId === user.id && cachedProfile) {
+        setProfile(cachedProfile);
+        return;
+      }
+      const p = await loadProfileForUser(user.id);
+      setProfile(p);
+      notifyListeners(p);
+    })();
 
-    if (!fetchPromise) {
-      fetchPromise = loadProfile();
-    }
-    fetchPromise.then((data) => {
-      if (data) setProfile(data);
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session?.user) {
+        cachedProfile = null;
+        cachedUserId = null;
+        fetchPromise = null;
+        setUserId(null);
+        setProfile(null);
+        notifyListeners(null);
+        return;
+      }
+      fetchPromise = null;
+      loadProfileForUser(session.user.id).then((p) => {
+        setUserId(session.user.id);
+        setProfile(p);
+        notifyListeners(p);
+      });
     });
 
-    return () => { listeners.delete(handler); };
+    return () => {
+      listeners.delete(handler);
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   const updateProfile = useCallback((updates: Partial<Profile>) => {
@@ -76,11 +132,17 @@ export function useProfile() {
 
   const refetch = useCallback(async () => {
     fetchPromise = null;
-    cachedProfile = null;
-    fetchPromise = loadProfile();
-    const data = await fetchPromise;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      cachedProfile = null;
+      cachedUserId = null;
+      notifyListeners(null);
+      return null;
+    }
+    const data = await loadProfileForUser(user.id);
     notifyListeners(data);
+    return data;
   }, []);
 
-  return { profile, updateProfile, refetch };
+  return { profile, userId, updateProfile, refetch };
 }

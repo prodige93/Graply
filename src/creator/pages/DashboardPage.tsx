@@ -1,12 +1,15 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DollarSign, Eye, TrendingUp, ArrowUpRight, Play, X, ArrowDownLeft, ExternalLink, Instagram, Loader2 } from 'lucide-react';
+import { DollarSign, TrendingUp, ArrowUpRight, Play, X, ArrowDownLeft, ExternalLink, Loader2, CalendarDays } from 'lucide-react';
 import StatsChart from '../components/StatsChart';
 import Sidebar from '../components/Sidebar';
 import instagramIcon from '@/shared/assets/instagram-card.svg';
 import youtubeIcon from '@/shared/assets/youtube.svg';
 import tiktokIcon from '@/shared/assets/tiktok.svg';
-import { useInstagramVideos } from '@/shared/lib/useInstagramVideos';
+import { useLinkedPlatformVideos } from '@/shared/lib/useLinkedPlatformVideos';
+import { useSocialConnections, type DashboardSocialPlatform } from '@/shared/lib/useSocialConnections';
+import { supabase } from '@/shared/infrastructure/supabase';
+import { getSocialOAuthUrl, type SocialPlatform } from '@/shared/lib/socialOAuth';
 
 const platformIcons: Record<string, string> = {
   instagram: instagramIcon,
@@ -22,27 +25,70 @@ const platformNames: Record<string, string> = {
 
 const allPlatforms = ['instagram', 'tiktok', 'youtube'];
 
-const rawChartData6m = [
-  { views: 42000, earned: 8 },
-  { views: 95000, earned: 17 },
-  { views: 180000, earned: 32 },
-  { views: 310000, earned: 56 },
-  { views: 520000, earned: 94 },
-  { views: 670000, earned: 121 },
-];
+const MONTH_NAMES = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Dec'];
+const DAY_NAMES = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
 
-function formatViews(v: number): string {
-  if (v >= 1000000) return `${(v / 1000000).toFixed(1)}M`;
-  if (v >= 1000) return `${(v / 1000).toFixed(0)}K`;
-  return v.toString();
+function inDateRange(t: number, start: Date, end: Date): boolean {
+  return t >= start.getTime() && t <= end.getTime();
 }
 
-const creatorStats = {
-  totalEarned: 344.80,
-  totalViews: 1817000,
-  videosPosted: 9,
-  activeCampaigns: 2,
-};
+/** Graphique : nombre de vidéos synchronisées par période (Instagram + TikTok + YouTube) */
+function buildActivityChartPoints(
+  period: string,
+  videos: { publishedAt: string }[],
+): { label: string; views: number; earned: number }[] {
+  const now = new Date();
+  const countIn = (start: Date, end: Date) =>
+    videos.filter((v) => inDateRange(new Date(v.publishedAt).getTime(), start, end)).length;
+
+  if (period === 'all' || period === '6m') {
+    return Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+      const start = new Date(d.getFullYear(), d.getMonth(), 1);
+      const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+      const label = i === 5 ? MONTH_NAMES[now.getMonth()] : MONTH_NAMES[d.getMonth()];
+      return { label, views: countIn(start, end), earned: 0 };
+    });
+  }
+
+  if (period === '7j') {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - (6 - i));
+      const start = new Date(d);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(d);
+      end.setHours(23, 59, 59, 999);
+      const label = i === 6 ? 'Auj.' : DAY_NAMES[d.getDay()] + ' ' + d.getDate();
+      return { label, views: countIn(start, end), earned: 0 };
+    });
+  }
+
+  if (period === '1m') {
+    return Array.from({ length: 4 }, (_, i) => {
+      const end = new Date(now);
+      end.setDate(end.getDate() - (3 - i) * 7);
+      end.setHours(23, 59, 59, 999);
+      const start = new Date(end);
+      start.setDate(start.getDate() - 6);
+      start.setHours(0, 0, 0, 0);
+      const label = i === 3 ? 'Auj.' : `${end.getDate()} ${MONTH_NAMES[end.getMonth()]}`;
+      return { label, views: countIn(start, end), earned: 0 };
+    });
+  }
+
+  if (period === '3m') {
+    return Array.from({ length: 3 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (2 - i), 1);
+      const start = new Date(d.getFullYear(), d.getMonth(), 1);
+      const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+      const label = i === 2 ? MONTH_NAMES[now.getMonth()] : MONTH_NAMES[d.getMonth()];
+      return { label, views: countIn(start, end), earned: 0 };
+    });
+  }
+
+  return [];
+}
 
 const glassCard: React.CSSProperties = {
   background: 'rgba(255,255,255,0.055)',
@@ -52,65 +98,6 @@ const glassCard: React.CSSProperties = {
   boxShadow: '0 8px 48px rgba(0,0,0,0.85), 0 0 0 0.5px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.13), inset 0 -1px 0 rgba(0,0,0,0.5)',
 };
 
-const MONTH_NAMES = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Dec'];
-const DAY_NAMES = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
-
-function buildChartPoints(period: string, seed: typeof rawChartData6m) {
-  const now = new Date();
-
-  function interp(count: number) {
-    return Array.from({ length: count }, (_, i) => {
-      const t = (i / (count - 1)) * (seed.length - 1);
-      const lo = Math.floor(t);
-      const hi = Math.min(lo + 1, seed.length - 1);
-      const f = t - lo;
-      return {
-        views: Math.round(seed[lo].views + (seed[hi].views - seed[lo].views) * f),
-        earned: Math.round(seed[lo].earned + (seed[hi].earned - seed[lo].earned) * f),
-      };
-    });
-  }
-
-  if (period === 'all') {
-    const pts = interp(6);
-    return pts.map((p, i) => {
-      const d = new Date(now);
-      d.setMonth(d.getMonth() - (5 - i));
-      return { label: i === 5 ? MONTH_NAMES[now.getMonth()] : MONTH_NAMES[d.getMonth()], ...p };
-    });
-  }
-  if (period === '7j') {
-    const pts = interp(7);
-    return pts.map((p, i) => {
-      const d = new Date(now);
-      d.setDate(d.getDate() - (6 - i));
-      return { label: i === 6 ? 'Auj.' : DAY_NAMES[d.getDay()] + ' ' + d.getDate(), ...p };
-    });
-  }
-  if (period === '1m') {
-    const pts = interp(4);
-    return pts.map((p, i) => {
-      const d = new Date(now);
-      d.setDate(d.getDate() - (3 - i) * 7);
-      return { label: i === 3 ? 'Auj.' : d.getDate() + ' ' + MONTH_NAMES[d.getMonth()], ...p };
-    });
-  }
-  if (period === '3m') {
-    const pts = interp(3);
-    return pts.map((p, i) => {
-      const d = new Date(now);
-      d.setMonth(d.getMonth() - (2 - i));
-      return { label: i === 2 ? MONTH_NAMES[now.getMonth()] : MONTH_NAMES[d.getMonth()], ...p };
-    });
-  }
-  const pts = interp(6);
-  return pts.map((p, i) => {
-    const d = new Date(now);
-    d.setMonth(d.getMonth() - (5 - i));
-    return { label: i === 5 ? MONTH_NAMES[now.getMonth()] : MONTH_NAMES[d.getMonth()], ...p };
-  });
-}
-
 interface DashboardVideo {
   id: string;
   title: string;
@@ -118,6 +105,7 @@ interface DashboardVideo {
   date: string;
   thumb: string;
   permalink: string;
+  publishedAt: string;
 }
 
 export default function DashboardPage() {
@@ -128,9 +116,34 @@ export default function DashboardPage() {
     window.scrollTo(0, 0);
   }, []);
 
-  const { videos: igVideos, loading: igLoading, notConnected: igNotConnected } = useInstagramVideos();
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+      const { count } = await supabase
+        .from('campaign_applications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('status', 'accepted');
+      if (!cancelled) setActiveCampaignsCount(count ?? 0);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const {
+    videos: linkedVideos,
+    loading: linkedLoading,
+    error: linkedError,
+    instagramNotConnected: igNotConnected,
+    countsByPlatform,
+    refetch: refetchLinkedVideos,
+  } = useLinkedPlatformVideos();
+  const { loading: socialLoading, refetch: refetchSocialConnections, isConnected: isSocialConnected, displayUsername } = useSocialConnections();
+  const [disconnectingSocial, setDisconnectingSocial] = useState<SocialPlatform | null>(null);
   const [chartMetric, setChartMetric] = useState<'views' | 'earned'>('views');
   const [metricsSort, setMetricsSort] = useState<'desc' | 'asc'>('desc');
+  const [activeCampaignsCount, setActiveCampaignsCount] = useState(0);
   const [withdrawBalance, setWithdrawBalance] = useState(344.80);
   const [withdrawSuccess, setWithdrawSuccess] = useState(false);
   const [withdrawLoading, setWithdrawLoading] = useState(false);
@@ -149,29 +162,54 @@ export default function DashboardPage() {
     }, 1200);
   }
 
+  function handleConnectSocial(platform: SocialPlatform) {
+    try {
+      window.location.href = getSocialOAuthUrl(platform);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Connexion impossible';
+      alert(`${msg}\nTu peux aussi vérifier les paramètres de l’application.`);
+    }
+  }
+
+  async function handleDisconnectSocial(platform: SocialPlatform) {
+    setDisconnectingSocial(platform);
+    const { error } = await supabase.rpc('disconnect_social', { p_platform: platform });
+    setDisconnectingSocial(null);
+    if (error) {
+      alert(error.message);
+      return;
+    }
+    await refetchSocialConnections();
+    await refetchLinkedVideos();
+  }
+
+  const connectedSocialCount = allPlatforms.filter((p) => isSocialConnected(p as DashboardSocialPlatform)).length;
+
   const dashboardVideos: DashboardVideo[] = useMemo(() => {
-    return igVideos.map((v) => ({
-      id: v.id,
+    return linkedVideos.map((v) => ({
+      id: `${v.platform}-${v.id}`,
       title: v.title,
-      platform: 'instagram',
+      platform: v.platform,
       date: v.date,
-      thumb: v.thumbnail,
+      thumb: v.thumb,
       permalink: v.permalink,
+      publishedAt: v.publishedAt,
     }));
-  }, [igVideos]);
+  }, [linkedVideos]);
 
   const chartData = useMemo(() => {
-    return buildChartPoints(chartPeriod, rawChartData6m);
-  }, [chartPeriod]);
+    return buildActivityChartPoints(chartPeriod, linkedVideos);
+  }, [chartPeriod, linkedVideos]);
 
-  const totalPeriodViews = chartData.reduce((s, d) => s + d.views, 0);
+  const totalPeriodVideoCount = chartData.reduce((s, d) => s + d.views, 0);
   const totalPeriodEarned = chartData.reduce((s, d) => s + d.earned, 0);
+  const totalSyncedVideos = linkedVideos.length;
 
   const filteredVideos = useMemo(() => {
     let vids = tablePlatform ? dashboardVideos.filter((v) => v.platform === tablePlatform) : dashboardVideos;
     if (tableSort?.key === 'date') {
       vids = [...vids].sort((a, b) => {
-        const diff = new Date(b.date).getTime() - new Date(a.date).getTime();
+        const diff = new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
         return tableSort.dir === 'desc' ? diff : -diff;
       });
     }
@@ -196,6 +234,15 @@ export default function DashboardPage() {
         </div>
 
         <div className="px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+          {linkedError && (
+            <div
+              className="rounded-xl px-4 py-3 text-sm"
+              style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.35)', color: '#fca5a5' }}
+            >
+              {linkedError}
+            </div>
+          )}
 
           <div className="flex items-center justify-end">
             <PeriodSelector periods={['all', '7j', '1m', '3m', '6m']} value={chartPeriod} onChange={setChartPeriod} />
@@ -250,10 +297,10 @@ export default function DashboardPage() {
 
           {(() => {
             const allMetrics = [
-              { key: 'earned', numericValue: creatorStats.totalEarned, icon: <DollarSign className="w-5 h-5" />, label: 'Total gagné', value: `$${creatorStats.totalEarned.toFixed(0)}`, change: '+18.4%', positive: true },
-              { key: 'views', numericValue: creatorStats.totalViews, icon: <Eye className="w-5 h-5" />, label: 'Vues générées', value: formatViews(creatorStats.totalViews), change: '+31.2%', positive: true },
-              { key: 'videos', numericValue: igVideos.length, icon: <Play className="w-5 h-5" />, label: 'Vidéos postées', value: String(igVideos.length), change: igVideos.length > 0 ? `${igVideos.length}` : '0', positive: igVideos.length > 0 },
-              { key: 'campaigns', numericValue: creatorStats.activeCampaigns, icon: <TrendingUp className="w-5 h-5" />, label: 'Campagnes actives', value: String(creatorStats.activeCampaigns), change: 'ce mois', positive: true },
+              { key: 'earned', numericValue: withdrawBalance, icon: <DollarSign className="w-5 h-5" />, label: 'Solde disponible', value: `$${withdrawBalance.toFixed(2)}`, change: '', positive: withdrawBalance > 0 },
+              { key: 'period', numericValue: totalPeriodVideoCount, icon: <CalendarDays className="w-5 h-5" />, label: 'Vidéos (période)', value: String(totalPeriodVideoCount), change: '', positive: totalPeriodVideoCount > 0 },
+              { key: 'videos', numericValue: totalSyncedVideos, icon: <Play className="w-5 h-5" />, label: 'Vidéos synchronisées', value: String(totalSyncedVideos), change: `${countsByPlatform.instagram} IG · ${countsByPlatform.tiktok} TT · ${countsByPlatform.youtube} YT`, positive: totalSyncedVideos > 0 },
+              { key: 'campaigns', numericValue: activeCampaignsCount, icon: <TrendingUp className="w-5 h-5" />, label: 'Campagnes actives', value: String(activeCampaignsCount), change: 'acceptées', positive: activeCampaignsCount > 0 },
             ];
             const sorted = [...allMetrics].sort((a, b) =>
               metricsSort === 'desc' ? b.numericValue - a.numericValue : a.numericValue - b.numericValue
@@ -272,11 +319,11 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between gap-3 mb-4">
                 <div className="text-left">
                     <p className="text-[9px] text-white/25 uppercase tracking-wider font-medium leading-none mb-0.5">
-                      {chartMetric === 'views' ? 'Vues' : 'Gagné'}
+                      {chartMetric === 'views' ? 'Vidéos (période)' : 'Gains'}
                     </p>
                     <p className="text-lg font-black leading-tight" style={{ color: '#fff' }}>
                       {chartMetric === 'views'
-                        ? formatViews(totalPeriodViews)
+                        ? String(totalPeriodVideoCount)
                         : `$${totalPeriodEarned}`
                       }
                     </p>
@@ -304,8 +351,8 @@ export default function DashboardPage() {
                       className="relative z-10 flex items-center gap-1.5 px-4 py-2 rounded-full text-[11px] font-bold tracking-wide transition-colors duration-300"
                       style={{ color: chartMetric === 'views' ? '#fff' : 'rgba(255,255,255,0.3)' }}
                     >
-                      <Eye className="w-3.5 h-3.5" />
-                      Vues
+                      <Play className="w-3.5 h-3.5" />
+                      Vidéos
                     </button>
                     <button
                       onClick={() => setChartMetric('earned')}
@@ -387,43 +434,112 @@ export default function DashboardPage() {
                 )}
               </div>
 
-              {igLoading && (
+              <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                <div className="px-5 py-3" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-white/35">Comptes liés</p>
+                  <p className="text-[11px] text-white/25 mt-0.5">Synchronise tes vidéos en connectant chaque réseau</p>
+                </div>
+                {allPlatforms.map((p) => {
+                  const key = p as DashboardSocialPlatform & SocialPlatform;
+                  const connected = !socialLoading && isSocialConnected(key);
+                  const handle = displayUsername(key);
+                  const busy = disconnectingSocial === key;
+                  return (
+                    <div
+                      key={p}
+                      className="flex flex-wrap items-center gap-3 px-5 py-3.5"
+                      style={{ background: 'rgba(0,0,0,0.12)' }}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        {platformIcons[p] && (
+                          <img src={platformIcons[p]} alt="" className="w-8 h-8 shrink-0 rounded-lg social-icon" style={{ opacity: 0.9 }} />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-semibold text-white/90">{platformNames[p]}</span>
+                            {socialLoading ? (
+                              <Loader2 className="w-3.5 h-3.5 text-white/25 animate-spin" />
+                            ) : (
+                              <span
+                                className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
+                                style={
+                                  connected
+                                    ? { background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.35)', color: '#4ade80' }
+                                    : { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.35)' }
+                                }
+                              >
+                                {connected ? 'Connecté' : 'Non connecté'}
+                              </span>
+                            )}
+                          </div>
+                          {connected && handle && (
+                            <p className="text-xs text-white/40 mt-1 truncate">
+                              Compte lié sur {platformNames[p]} : <span className="text-white/55 font-medium">{handle}</span>
+                            </p>
+                          )}
+                          {connected && !handle && (
+                            <p className="text-xs text-white/35 mt-1">Compte connecté sur {platformNames[p]}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end sm:justify-start">
+                        {connected ? (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => handleDisconnectSocial(key)}
+                            className="h-9 px-4 rounded-full text-xs font-bold transition-all duration-200 disabled:opacity-50"
+                            style={{
+                              background: 'rgba(239,68,68,0.12)',
+                              border: '1px solid rgba(239,68,68,0.35)',
+                              color: '#f87171',
+                            }}
+                          >
+                            {busy ? (
+                              <span className="flex items-center gap-2">
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                Déconnexion…
+                              </span>
+                            ) : (
+                              'Déconnecter'
+                            )}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleConnectSocial(key)}
+                            className="h-9 px-4 rounded-full text-xs font-bold transition-all duration-200 hover:opacity-90"
+                            style={{
+                              background: 'rgba(255,255,255,0.08)',
+                              border: '1px solid rgba(255,255,255,0.2)',
+                              color: '#fff',
+                            }}
+                          >
+                            Connecter
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {linkedLoading && (
                 <div className="flex items-center justify-center gap-2 px-5 py-10">
                   <Loader2 className="w-5 h-5 text-white/30 animate-spin" />
-                  <p className="text-sm text-white/30">Synchronisation avec Instagram…</p>
+                  <p className="text-sm text-white/30">Synchronisation Instagram, TikTok et YouTube…</p>
                 </div>
               )}
 
-              {!igLoading && igNotConnected && (
-                <div className="flex flex-col items-center justify-center gap-3 px-5 py-12 text-center">
-                  <div
-                    className="w-14 h-14 rounded-full flex items-center justify-center"
-                    style={{ background: 'rgba(228,64,95,0.1)', border: '1px solid rgba(228,64,95,0.2)' }}
-                  >
-                    <Instagram className="w-7 h-7" style={{ color: '#E4405F' }} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white/70">Aucun compte Instagram connecté</p>
-                    <p className="text-xs text-white/30 mt-1 max-w-xs">
-                      Connectez votre compte Instagram dans les paramètres pour synchroniser automatiquement vos vidéos.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => navigate('/settings')}
-                    className="mt-2 flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold transition-all duration-200 hover:scale-[1.02]"
-                    style={{
-                      background: 'rgba(228,64,95,0.15)',
-                      border: '1px solid rgba(228,64,95,0.3)',
-                      color: '#E4405F',
-                    }}
-                  >
-                    <Instagram className="w-3.5 h-3.5" />
-                    Connecter Instagram
-                  </button>
+              {!linkedLoading && connectedSocialCount === 0 && dashboardVideos.length === 0 && (
+                <div className="px-5 py-6 text-center" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                  <p className="text-xs text-white/35">
+                    Connecte au moins un compte (Instagram, TikTok ou YouTube) ci-dessus pour synchroniser tes vidéos ici.
+                  </p>
                 </div>
               )}
 
-              {!igLoading && !igNotConnected && dashboardVideos.length === 0 && (
+              {!linkedLoading && connectedSocialCount > 0 && dashboardVideos.length === 0 && (
                 <div className="flex flex-col items-center justify-center gap-3 px-5 py-12 text-center">
                   <div
                     className="w-14 h-14 rounded-full flex items-center justify-center"
@@ -432,15 +548,17 @@ export default function DashboardPage() {
                     <Play className="w-7 h-7 text-white/20" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-white/70">Aucune vidéo trouvée</p>
+                    <p className="text-sm font-semibold text-white/70">Aucune vidéo synchronisée</p>
                     <p className="text-xs text-white/30 mt-1 max-w-xs">
-                      Publiez des vidéos sur votre compte Instagram et elles apparaîtront automatiquement ici.
+                      {igNotConnected
+                        ? 'Instagram n’est pas connecté ou la synchro a échoué. Vérifie aussi TikTok (scope video.list) et YouTube (youtube.readonly).'
+                        : 'Publie des vidéos sur tes comptes liés : elles apparaîtront ici après la prochaine synchro.'}
                     </p>
                   </div>
                 </div>
               )}
 
-              {!igLoading && dashboardVideos.length > 0 && (
+              {!linkedLoading && dashboardVideos.length > 0 && (
                 <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
                   {filteredVideos.map((video, i) => (
                     <a
@@ -555,10 +673,12 @@ function MetricCard({
         <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}>
           <span style={{ color: '#fff' }}>{icon}</span>
         </div>
-        <div className="flex items-center gap-0.5">
-          <ArrowUpRight className="w-3 h-3" style={{ color: positive ? '#22c55e' : '#ef4444' }} />
-          <span className="text-[10px] font-bold" style={{ color: positive ? '#22c55e' : '#ef4444' }}>{change}</span>
-        </div>
+        {change ? (
+          <div className="flex items-center gap-0.5 min-w-0 max-w-[55%] justify-end">
+            <ArrowUpRight className="w-3 h-3 shrink-0" style={{ color: positive ? '#22c55e' : '#ef4444' }} />
+            <span className="text-[10px] font-bold text-right leading-tight break-words" style={{ color: positive ? '#22c55e' : '#ef4444' }}>{change}</span>
+          </div>
+        ) : null}
       </div>
       <p className="text-2xl font-black text-white mb-1">{value}</p>
       <p className="text-[11px] text-white/40 font-medium">{label}</p>
