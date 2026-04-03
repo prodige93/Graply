@@ -49,7 +49,8 @@ export function buildTikTokOAuthUrl(): string {
   const params = new URLSearchParams({
     client_key: clientKey,
     response_type: 'code',
-    scope: 'user.info.basic',
+    // user.info.basic : profil ; video.list : requis pour sync_tiktok_videos (Video List API)
+    scope: 'user.info.basic,video.list',
     redirect_uri: getRedirectUri(),
     state: oauthStateWithReturnOrigin('tiktok'),
   });
