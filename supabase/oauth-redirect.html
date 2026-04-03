@@ -3,9 +3,34 @@
 <body style="background:#050404;color:#fff;font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
 <p style="opacity:.5">Redirection en cours...</p>
 <script>
-var p = new URLSearchParams(location.search);
-var u = new URL('/social-callback', 'http://localhost:5173');
-p.forEach(function(v, k) { u.searchParams.set(k, v); });
-location.replace(u.toString());
+(function () {
+  var DEFAULT_ORIGIN = 'https://graply.io';
+  // Origines autorisées pour la 2e redirection (évite les redirections ouvertes). Ajoute ici ton staging si besoin.
+  var ALLOWED_ORIGINS = {
+    'https://graply.io': 1,
+    'https://www.graply.io': 1,
+    'http://localhost:5173': 1,
+    'http://127.0.0.1:5173': 1,
+  };
+
+  function originFromState(state) {
+    if (!state || typeof state !== 'string') return DEFAULT_ORIGIN;
+    var dot = state.indexOf('.');
+    if (dot < 0) return DEFAULT_ORIGIN;
+    var b64 = state.slice(dot + 1).replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    try {
+      var decoded = atob(b64);
+      if (ALLOWED_ORIGINS[decoded]) return decoded;
+    } catch (e) {}
+    return DEFAULT_ORIGIN;
+  }
+
+  var p = new URLSearchParams(location.search);
+  var appOrigin = originFromState(p.get('state'));
+  var u = new URL('/social-callback', appOrigin);
+  p.forEach(function (v, k) { u.searchParams.set(k, v); });
+  location.replace(u.toString());
+})();
 </script>
 </body></html>

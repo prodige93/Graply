@@ -1,5 +1,29 @@
 export type SocialPlatform = 'instagram' | 'tiktok' | 'youtube';
 
+/** Séparateur dans `state` OAuth : plateforme + origine (base64url) pour que redirect.html sur Supabase renvoie vers localhost ou la prod. */
+const OAUTH_STATE_ORIGIN_SEP = '.';
+
+function oauthStateWithReturnOrigin(platform: SocialPlatform): string {
+  if (typeof window === 'undefined') return platform;
+  try {
+    const o = window.location.origin;
+    if (!o) return platform;
+    const b64 = btoa(o).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    return `${platform}${OAUTH_STATE_ORIGIN_SEP}${b64}`;
+  } catch {
+    return platform;
+  }
+}
+
+/** Extrait la plateforme depuis `state` (ancien format `instagram` ou `instagram.<base64url(origin)>`). */
+export function parseOAuthPlatformFromState(state: string | null): SocialPlatform | null {
+  if (!state) return null;
+  const dot = state.indexOf(OAUTH_STATE_ORIGIN_SEP);
+  const key = dot === -1 ? state : state.slice(0, dot);
+  if (key === 'instagram' || key === 'tiktok' || key === 'youtube') return key;
+  return null;
+}
+
 function getRedirectUri(): string {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   return `${supabaseUrl}/storage/v1/object/public/oauth/redirect.html`;
@@ -13,7 +37,7 @@ export function buildInstagramOAuthUrl(): string {
     redirect_uri: getRedirectUri(),
     response_type: 'code',
     scope: 'instagram_business_basic',
-    state: 'instagram',
+    state: oauthStateWithReturnOrigin('instagram'),
   });
   // Doit être api.instagram.com (pas www.instagram.com) — sinon page « non disponible » côté Instagram
   return `https://api.instagram.com/oauth/authorize?${params}`;
@@ -27,7 +51,7 @@ export function buildTikTokOAuthUrl(): string {
     response_type: 'code',
     scope: 'user.info.basic',
     redirect_uri: getRedirectUri(),
-    state: 'tiktok',
+    state: oauthStateWithReturnOrigin('tiktok'),
   });
   return `https://www.tiktok.com/v2/auth/authorize/?${params}`;
 }
@@ -42,7 +66,7 @@ export function buildYouTubeOAuthUrl(): string {
     scope: 'https://www.googleapis.com/auth/youtube.readonly',
     access_type: 'offline',
     prompt: 'consent',
-    state: 'youtube',
+    state: oauthStateWithReturnOrigin('youtube'),
   });
   return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
 }

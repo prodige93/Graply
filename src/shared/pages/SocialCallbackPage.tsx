@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/shared/infrastructure/supabase';
-import { type SocialPlatform, getRpcName, getRedirectUriForExchange } from '@/shared/lib/socialOAuth';
+import { type SocialPlatform, getRpcName, getRedirectUriForExchange, parseOAuthPlatformFromState } from '@/shared/lib/socialOAuth';
 
 const platformLabels: Record<string, string> = {
   instagram: 'Instagram',
@@ -19,7 +19,8 @@ export default function SocialCallbackPage() {
 
   useEffect(() => {
     const code = searchParams.get('code');
-    const state = searchParams.get('state') as SocialPlatform | null;
+    const stateRaw = searchParams.get('state');
+    const state = parseOAuthPlatformFromState(stateRaw);
     const error = searchParams.get('error');
     const errorDescription = searchParams.get('error_description') || searchParams.get('error_reason') || '';
 
@@ -29,7 +30,7 @@ export default function SocialCallbackPage() {
       return;
     }
 
-    if (!state || !['instagram', 'tiktok', 'youtube'].includes(state)) {
+    if (!state) {
       setStatus('error');
       setErrorMsg('Plateforme non reconnue.');
       return;
@@ -113,7 +114,12 @@ export default function SocialCallbackPage() {
             <h1 className="text-xl font-bold text-white mb-2">Erreur {platformLabel}</h1>
             <p className="text-sm text-white/40 mb-6">{errorMsg}</p>
             <button
-              onClick={() => navigate('/mon-compte')}
+              type="button"
+              onClick={async () => {
+                const { data: userData } = await supabase.auth.getUser();
+                const role = userData?.user?.user_metadata?.role;
+                navigate(role === 'enterprise' ? '/app-entreprise/mon-compte' : '/mon-compte');
+              }}
               className="px-5 py-2.5 rounded-full text-sm font-semibold text-black transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
               style={{ background: '#fff' }}
             >
