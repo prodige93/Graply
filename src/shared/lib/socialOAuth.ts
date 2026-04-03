@@ -26,15 +26,17 @@ export function parseOAuthPlatformFromState(state: string | null): SocialPlatfor
 
 /**
  * URI de callback OAuth (identique pour authorize et pour l’échange du code côté Supabase).
- * - Par défaut : fichier sur le storage Supabase (public).
- * - Si TikTok sandbox rejette un domaine tiers (`non_sandbox_target`), définir
- *   VITE_OAUTH_REDIRECT_URI vers une page **sur le même domaine** que la Web URL TikTok
- *   (ex. https://graply.netlify.app/oauth-redirect.html) et déclarer cette URL exacte
- *   dans TikTok, Meta et Google.
+ * - Défaut : Supabase Storage `oauth/redirect.html`.
+ * - `VITE_OAUTH_REDIRECT_URI` : remplace pour **toutes** les plateformes (Meta + Google + TikTok doivent lister cette URL).
+ * - `VITE_TIKTOK_OAUTH_REDIRECT_URI` : **TikTok seulement** (ex. Netlify), pour sandbox quand Meta/Google gardent l’URL Supabase.
  */
-function getRedirectUri(): string {
-  const custom = import.meta.env.VITE_OAUTH_REDIRECT_URI?.trim();
-  if (custom) return custom;
+function getRedirectUri(platform: SocialPlatform): string {
+  const globalCustom = import.meta.env.VITE_OAUTH_REDIRECT_URI?.trim();
+  if (globalCustom) return globalCustom;
+  if (platform === 'tiktok') {
+    const ttOnly = import.meta.env.VITE_TIKTOK_OAUTH_REDIRECT_URI?.trim();
+    if (ttOnly) return ttOnly;
+  }
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   return `${supabaseUrl}/storage/v1/object/public/oauth/redirect.html`;
 }
@@ -44,7 +46,7 @@ export function buildInstagramOAuthUrl(): string {
   if (!clientId) throw new Error('VITE_INSTAGRAM_CLIENT_ID non configuré');
   const params = new URLSearchParams({
     client_id: clientId,
-    redirect_uri: getRedirectUri(),
+    redirect_uri: getRedirectUri('instagram'),
     response_type: 'code',
     scope: 'instagram_business_basic',
     state: oauthStateWithReturnOrigin('instagram'),
@@ -61,7 +63,7 @@ export function buildTikTokOAuthUrl(): string {
     response_type: 'code',
     // user.info.basic : profil ; video.list : requis pour sync_tiktok_videos (Video List API)
     scope: 'user.info.basic,video.list',
-    redirect_uri: getRedirectUri(),
+    redirect_uri: getRedirectUri('tiktok'),
     state: oauthStateWithReturnOrigin('tiktok'),
   });
   return `https://www.tiktok.com/v2/auth/authorize/?${params}`;
@@ -72,7 +74,7 @@ export function buildYouTubeOAuthUrl(): string {
   if (!clientId) throw new Error('VITE_YOUTUBE_CLIENT_ID non configuré');
   const params = new URLSearchParams({
     client_id: clientId,
-    redirect_uri: getRedirectUri(),
+    redirect_uri: getRedirectUri('youtube'),
     response_type: 'code',
     scope: 'https://www.googleapis.com/auth/youtube.readonly',
     access_type: 'offline',
@@ -98,6 +100,6 @@ export function getRpcName(platform: SocialPlatform): string {
   }
 }
 
-export function getRedirectUriForExchange(): string {
-  return getRedirectUri();
+export function getRedirectUriForExchange(platform: SocialPlatform): string {
+  return getRedirectUri(platform);
 }

@@ -46,7 +46,7 @@ export default function SocialCallbackPage() {
 
     async function exchangeCode(platform: SocialPlatform, authCode: string) {
       const rpcName = getRpcName(platform);
-      const redirectUri = getRedirectUriForExchange();
+      const redirectUri = getRedirectUriForExchange(platform);
 
       const { data, error: rpcError } = await supabase.rpc(rpcName, {
         auth_code: authCode,
