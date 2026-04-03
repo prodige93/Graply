@@ -24,7 +24,17 @@ export function parseOAuthPlatformFromState(state: string | null): SocialPlatfor
   return null;
 }
 
+/**
+ * URI de callback OAuth (identique pour authorize et pour l’échange du code côté Supabase).
+ * - Par défaut : fichier sur le storage Supabase (public).
+ * - Si TikTok sandbox rejette un domaine tiers (`non_sandbox_target`), définir
+ *   VITE_OAUTH_REDIRECT_URI vers une page **sur le même domaine** que la Web URL TikTok
+ *   (ex. https://graply.netlify.app/oauth-redirect.html) et déclarer cette URL exacte
+ *   dans TikTok, Meta et Google.
+ */
 function getRedirectUri(): string {
+  const custom = import.meta.env.VITE_OAUTH_REDIRECT_URI?.trim();
+  if (custom) return custom;
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   return `${supabaseUrl}/storage/v1/object/public/oauth/redirect.html`;
 }
