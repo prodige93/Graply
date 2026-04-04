@@ -58,13 +58,18 @@ export function buildInstagramOAuthUrl(): string {
 export function buildTikTokOAuthUrl(): string {
   const clientKey = import.meta.env.VITE_TIKTOK_CLIENT_KEY;
   if (!clientKey) throw new Error('VITE_TIKTOK_CLIENT_KEY non configuré');
+  // Sandbox : souvent seul user.info.basic est accepté ; video.list peut provoquer un refus immédiat.
+  // Prod / après review TikTok : VITE_TIKTOK_OAUTH_SCOPE=user.info.basic,video.list (sync vidéos)
+  const scope =
+    import.meta.env.VITE_TIKTOK_OAUTH_SCOPE?.trim() || 'user.info.basic';
   const params = new URLSearchParams({
     client_key: clientKey,
     response_type: 'code',
-    // user.info.basic : profil ; video.list : requis pour sync_tiktok_videos (Video List API)
-    scope: 'user.info.basic,video.list',
+    scope,
     redirect_uri: getRedirectUri('tiktok'),
     state: oauthStateWithReturnOrigin('tiktok'),
+    // Toujours afficher l’écran d’autorisation (doc Login Kit Web)
+    disable_auto_auth: '1',
   });
   return `https://www.tiktok.com/v2/auth/authorize/?${params}`;
 }
