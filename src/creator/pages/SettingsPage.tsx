@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Eye, EyeOff, Check, Mail, Phone, Lock, ChevronLeft, LogOut, ExternalLink, Unlink } from 'lucide-react';
+import { Eye, EyeOff, Check, Mail, Phone, Lock, ChevronLeft, ChevronRight, LogOut, ExternalLink, Unlink, Shield, FileText } from 'lucide-react';
 import stripeIcon from '@/shared/assets/stripe-settings-icon.jpeg';
 import Sidebar from '../components/Sidebar';
 import { supabase } from '@/shared/infrastructure/supabase';
+import CguModal from '../components/CguModal';
 
 const glassCard = {
   background: 'rgba(255,255,255,0.055)',
@@ -39,6 +40,7 @@ export default function SettingsPage() {
   const [stripeAccountId, setStripeAccountId] = useState('');
   const [stripeLoading, setStripeLoading] = useState(true);
   const [disconnectingStripe, setDisconnectingStripe] = useState(false);
+  const [termsModalOpen, setTermsModalOpen] = useState(false);
 
   useEffect(() => {
     async function loadStripeStatus() {
@@ -292,7 +294,7 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="rounded-xl p-6" style={glassCard}>
+          <div className="rounded-xl p-6 mb-3" style={glassCard}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <img src={stripeIcon} alt="Stripe" className="w-9 h-9 rounded-lg object-cover" />
@@ -346,10 +348,43 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          <div className="flex flex-col gap-3">
+            <button
+              type="button"
+              onClick={() => navigate('/privacy-policy')}
+              className="rounded-xl p-4 flex items-center justify-between w-full text-left transition-colors hover:bg-white/[0.04]"
+              style={glassCard}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                  <Shield className="w-4 h-4 text-white/60" />
+                </div>
+                <span className="text-sm font-semibold text-white">Privacy Policy</span>
+              </div>
+              <ChevronRight className="w-5 h-5 text-white/35 shrink-0" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={() => setTermsModalOpen(true)}
+              className="rounded-xl p-4 flex items-center justify-between w-full text-left transition-colors hover:bg-white/[0.04]"
+              style={glassCard}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                  <FileText className="w-4 h-4 text-white/60" />
+                </div>
+                <span className="text-sm font-semibold text-white">Terms of Service</span>
+              </div>
+              <ChevronRight className="w-5 h-5 text-white/35 shrink-0" aria-hidden />
+            </button>
+          </div>
+
         </div>
 
 
         </div>
+
+        <CguModal open={termsModalOpen} onClose={() => setTermsModalOpen(false)} />
 
         <div className="flex justify-center py-10">
           <button

@@ -19,6 +19,7 @@ import MessagingPage from '@/enterprise/pages/MessagingPage';
 import ProfilePage from '@/enterprise/pages/ProfilePage';
 import MyAccountPage from '@/enterprise/pages/MyAccountPage';
 import SettingsPage from '@/enterprise/pages/SettingsPage';
+import PrivacyPolicyPage from '@/shared/pages/PrivacyPolicyPage';
 import NotificationsPage from '@/enterprise/pages/NotificationsPage';
 import SavedCampaignsPage from '@/enterprise/pages/SavedCampaignsPage';
 import EnterprisePage from '@/enterprise/pages/EnterprisePage';
@@ -50,6 +51,7 @@ export default function EnterpriseAppPage() {
               <Route path="profil" element={<ProfilePage />} />
               <Route path="mon-compte" element={<MyAccountPage />} />
               <Route path="parametres" element={<SettingsPage />} />
+              <Route path="privacy-policy" element={<PrivacyPolicyPage />} />
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="enregistre" element={<SavedCampaignsPage />} />
               <Route path="entreprise/:id" element={<EnterprisePage />} />

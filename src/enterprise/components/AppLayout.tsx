@@ -11,7 +11,9 @@ function getActivePage(pathname: string): ActivePage | undefined {
   if (pathname.startsWith('/app-entreprise/dashboard')) return 'dashboard';
   if (pathname.startsWith('/app-entreprise/messagerie')) return 'messagerie';
   if (pathname.startsWith('/app-entreprise/mon-compte')) return 'mon-compte';
-  if (pathname.startsWith('/app-entreprise/parametres')) return 'parametres';
+  if (pathname.startsWith('/app-entreprise/parametres') || pathname.startsWith('/app-entreprise/privacy-policy')) {
+    return 'parametres';
+  }
   if (pathname.startsWith('/app-entreprise/enregistre')) return 'enregistre';
   return undefined;
 }
