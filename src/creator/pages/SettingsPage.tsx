@@ -4,7 +4,6 @@ import { Eye, EyeOff, Check, Mail, Phone, Lock, ChevronLeft, ChevronRight, LogOu
 import stripeIcon from '@/shared/assets/stripe-settings-icon.jpeg';
 import Sidebar from '../components/Sidebar';
 import { supabase } from '@/shared/infrastructure/supabase';
-import CguModal from '../components/CguModal';
 
 const glassCard = {
   background: 'rgba(255,255,255,0.055)',
@@ -40,8 +39,6 @@ export default function SettingsPage() {
   const [stripeAccountId, setStripeAccountId] = useState('');
   const [stripeLoading, setStripeLoading] = useState(true);
   const [disconnectingStripe, setDisconnectingStripe] = useState(false);
-  const [termsModalOpen, setTermsModalOpen] = useState(false);
-
   useEffect(() => {
     async function loadStripeStatus() {
       const { data: { user } } = await supabase.auth.getUser();
@@ -365,7 +362,7 @@ export default function SettingsPage() {
             </button>
             <button
               type="button"
-              onClick={() => setTermsModalOpen(true)}
+              onClick={() => navigate('/terms-of-service')}
               className="rounded-xl p-4 flex items-center justify-between w-full text-left transition-colors hover:bg-white/[0.04]"
               style={glassCard}
             >
@@ -383,8 +380,6 @@ export default function SettingsPage() {
 
 
         </div>
-
-        <CguModal open={termsModalOpen} onClose={() => setTermsModalOpen(false)} />
 
         <div className="flex justify-center py-10">
           <button
