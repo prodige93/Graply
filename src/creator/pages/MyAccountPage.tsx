@@ -14,6 +14,7 @@ import instagramIcon from '@/shared/assets/instagram-logo.svg';
 import youtubeIcon from '@/shared/assets/youtube-symbol.svg';
 import tiktokIcon from '@/shared/assets/tiktok.svg';
 import { type SocialPlatform, getSocialOAuthUrl } from '@/shared/lib/socialOAuth';
+import TikTokConnectModal from '@/shared/components/TikTokConnectModal';
 import {
   PROFILE_USERNAME_DEFAULT_LABEL,
   PROFILE_USERNAME_TAKEN_MESSAGE,
@@ -77,6 +78,7 @@ export default function MyAccountPage() {
 
   const [currentSlide, setCurrentSlide] = useState(0);
   const [disconnectingPlatform, setDisconnectingPlatform] = useState<SocialKey | null>(null);
+  const [tiktokConnectOpen, setTiktokConnectOpen] = useState(false);
 
   function connectSocial(key: SocialKey) {
     try {
@@ -221,6 +223,14 @@ export default function MyAccountPage() {
 
   return (
     <div className="h-screen text-white flex overflow-hidden" style={{ background: '#050404' }}>
+      <TikTokConnectModal
+        open={tiktokConnectOpen}
+        onClose={() => setTiktokConnectOpen(false)}
+        onContinue={() => {
+          setTiktokConnectOpen(false);
+          connectSocial('tiktok');
+        }}
+      />
       <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
       <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={handleBannerChange} />
 
@@ -454,7 +464,7 @@ export default function MyAccountPage() {
                       </button>
                     ) : (
                       <button
-                        onClick={() => connectSocial(key)}
+                        onClick={() => (key === 'tiktok' ? setTiktokConnectOpen(true) : connectSocial(key))}
                         disabled={socialLinkLoading}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all duration-200 hover:bg-white/10 active:scale-95 disabled:opacity-40"
                         style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' }}

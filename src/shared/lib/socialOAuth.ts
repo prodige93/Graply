@@ -58,10 +58,13 @@ export function buildInstagramOAuthUrl(): string {
 export function buildTikTokOAuthUrl(): string {
   const clientKey = import.meta.env.VITE_TIKTOK_CLIENT_KEY;
   if (!clientKey) throw new Error('VITE_TIKTOK_CLIENT_KEY non configuré');
-  // Sandbox : souvent seul user.info.basic est accepté ; video.list peut provoquer un refus immédiat.
-  // Prod / après review TikTok : VITE_TIKTOK_OAUTH_SCOPE=user.info.basic,video.list (sync vidéos)
+  // Si TikTok affiche « non_sandbox_target » : l’app est en mode dev/sandbox et le compte TikTok
+  // utilisé pour se connecter doit être ajouté comme testeur dans le portail développeur TikTok
+  // (ou l’app doit être validée en production). Vérifier aussi que redirect_uri correspond exactement.
+  // Défaut : user.info.basic + video.list (aligné avec le portail TikTok / sync vidéos).
+  // Si le sandbox refuse : VITE_TIKTOK_OAUTH_SCOPE=user.info.basic
   const scope =
-    import.meta.env.VITE_TIKTOK_OAUTH_SCOPE?.trim() || 'user.info.basic';
+    import.meta.env.VITE_TIKTOK_OAUTH_SCOPE?.trim() || 'user.info.basic,video.list';
   const params = new URLSearchParams({
     client_key: clientKey,
     response_type: 'code',
