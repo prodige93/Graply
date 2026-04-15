@@ -21,6 +21,7 @@ import MyAccountPage from '@/enterprise/pages/MyAccountPage';
 import SettingsPage from '@/enterprise/pages/SettingsPage';
 import PrivacyPolicyPage from '@/shared/pages/PrivacyPolicyPage';
 import TermsOfServicePage from '@/shared/pages/TermsOfServicePage';
+import { StripeDataInfoPage, TikTokDataInfoPage, InstagramDataInfoPage, YouTubeDataInfoPage } from '@/shared/pages/InstagramYouTubeDataPages';
 import NotificationsPage from '@/enterprise/pages/NotificationsPage';
 import SavedCampaignsPage from '@/enterprise/pages/SavedCampaignsPage';
 import EnterprisePage from '@/enterprise/pages/EnterprisePage';
@@ -54,6 +55,10 @@ export default function EnterpriseAppPage() {
               <Route path="parametres" element={<SettingsPage />} />
               <Route path="privacy-policy" element={<PrivacyPolicyPage />} />
               <Route path="terms-of-service" element={<TermsOfServicePage />} />
+              <Route path="stripe-data" element={<StripeDataInfoPage />} />
+              <Route path="tiktok-data" element={<TikTokDataInfoPage />} />
+              <Route path="instagram-data" element={<InstagramDataInfoPage />} />
+              <Route path="youtube-data" element={<YouTubeDataInfoPage />} />
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="enregistre" element={<SavedCampaignsPage />} />
               <Route path="entreprise/:id" element={<EnterprisePage />} />

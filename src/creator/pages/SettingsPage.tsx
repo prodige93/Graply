@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Eye, EyeOff, Check, Mail, Phone, Lock, ChevronLeft, ChevronRight, LogOut, ExternalLink, Unlink, Shield, FileText } from 'lucide-react';
+import { Eye, EyeOff, Check, Mail, Phone, Lock, ChevronLeft, ChevronRight, LogOut, ExternalLink, Unlink, Shield, FileText, UserX, Loader2 } from 'lucide-react';
 import stripeIcon from '@/shared/assets/stripe-settings-icon.jpeg';
+import instagramIcon from '@/shared/assets/instagram-logo.svg';
+import tiktokIcon from '@/shared/assets/tiktok.svg';
+import youtubeIcon from '@/shared/assets/youtube-symbol.svg';
 import Sidebar from '../components/Sidebar';
 import { supabase } from '@/shared/infrastructure/supabase';
 
@@ -39,6 +42,8 @@ export default function SettingsPage() {
   const [stripeAccountId, setStripeAccountId] = useState('');
   const [stripeLoading, setStripeLoading] = useState(true);
   const [disconnectingStripe, setDisconnectingStripe] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
   useEffect(() => {
     async function loadStripeStatus() {
       const { data: { user } } = await supabase.auth.getUser();
@@ -84,6 +89,25 @@ export default function SettingsPage() {
   }
 
   async function handleLogout() {
+    await supabase.auth.signOut();
+    navigate('/connexion');
+  }
+
+  async function handleDeleteAccount() {
+    if (
+      !window.confirm(
+        'Supprimer définitivement ton compte Graply ? Toutes tes données (profil, réseaux sociaux, candidatures, vidéos synchronisées, etc.) seront effacées. Cette action est irréversible.',
+      )
+    ) {
+      return;
+    }
+    setDeletingAccount(true);
+    const { error } = await supabase.rpc('delete_my_account');
+    setDeletingAccount(false);
+    if (error) {
+      alert(`Impossible de supprimer le compte : ${error.message}`);
+      return;
+    }
     await supabase.auth.signOut();
     navigate('/connexion');
   }
@@ -374,6 +398,54 @@ export default function SettingsPage() {
               </div>
               <ChevronRight className="w-5 h-5 text-white/35 shrink-0" aria-hidden />
             </button>
+            <button
+              type="button"
+              onClick={() => navigate('/stripe-data')}
+              className="rounded-xl p-4 flex items-center justify-between w-full text-left transition-colors hover:bg-white/[0.04]"
+              style={glassCard}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <img src={stripeIcon} alt="Stripe" className="w-9 h-9 rounded-lg object-cover shrink-0" />
+                <span className="text-sm font-semibold text-white">Données &amp; usage Stripe</span>
+              </div>
+              <ChevronRight className="w-5 h-5 text-white/35 shrink-0" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/tiktok-data')}
+              className="rounded-xl p-4 flex items-center justify-between w-full text-left transition-colors hover:bg-white/[0.04]"
+              style={glassCard}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <img src={tiktokIcon} alt="TikTok" className="w-9 h-9 shrink-0" />
+                <span className="text-sm font-semibold text-white">Données &amp; usage TikTok</span>
+              </div>
+              <ChevronRight className="w-5 h-5 text-white/35 shrink-0" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/instagram-data')}
+              className="rounded-xl p-4 flex items-center justify-between w-full text-left transition-colors hover:bg-white/[0.04]"
+              style={glassCard}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <img src={instagramIcon} alt="Instagram" className="w-9 h-9 shrink-0" />
+                <span className="text-sm font-semibold text-white">Données &amp; usage Instagram</span>
+              </div>
+              <ChevronRight className="w-5 h-5 text-white/35 shrink-0" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/youtube-data')}
+              className="rounded-xl p-4 flex items-center justify-between w-full text-left transition-colors hover:bg-white/[0.04]"
+              style={glassCard}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <img src={youtubeIcon} alt="YouTube" className="w-9 h-9 shrink-0" />
+                <span className="text-sm font-semibold text-white">Données &amp; usage YouTube</span>
+              </div>
+              <ChevronRight className="w-5 h-5 text-white/35 shrink-0" aria-hidden />
+            </button>
           </div>
 
         </div>
@@ -381,10 +453,12 @@ export default function SettingsPage() {
 
         </div>
 
-        <div className="flex justify-center py-10">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 py-10 px-4">
           <button
+            type="button"
             onClick={handleLogout}
-            className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-white/[0.06] active:scale-[0.97]"
+            disabled={deletingAccount}
+            className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-white/[0.06] active:scale-[0.97] disabled:opacity-40 w-full sm:w-auto justify-center"
             style={{
               background: 'rgba(255,255,255,0.04)',
               backdropFilter: 'blur(24px)',
@@ -395,6 +469,23 @@ export default function SettingsPage() {
           >
             <LogOut className="w-4 h-4 text-red-500" />
             <span className="text-red-500">Se déconnecter</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleDeleteAccount}
+            disabled={deletingAccount}
+            className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-red-500/10 active:scale-[0.97] disabled:opacity-40 w-full sm:w-auto justify-center"
+            style={{
+              background: 'rgba(239,68,68,0.08)',
+              border: '1px solid rgba(239,68,68,0.35)',
+            }}
+          >
+            {deletingAccount ? (
+              <Loader2 className="w-4 h-4 text-red-400 animate-spin" />
+            ) : (
+              <UserX className="w-4 h-4 text-red-400" />
+            )}
+            <span className="text-red-400">Supprimer mon compte</span>
           </button>
         </div>
       </main>

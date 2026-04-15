@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 import Sidebar from '@/creator/components/Sidebar';
 
-const CONTACT_EMAIL = 'damian.evosmart@gmail.com';
+const CONTACT_EMAIL = 'support@graply.io';
 
 function Em({ children }: { children: ReactNode }) {
   return <strong className="font-semibold text-white">{children}</strong>;
@@ -23,9 +23,9 @@ function P({ children }: { children: ReactNode }) {
   return <p className="text-sm text-white/65 leading-relaxed mb-3 last:mb-0">{children}</p>;
 }
 
-function Section({ children, className = '' }: { children: ReactNode; className?: string }) {
+function Section({ children }: { children: ReactNode }) {
   return (
-    <section className={`mb-0 pb-10 border-b border-white/[0.07] last:border-b-0 last:pb-0 ${className}`}>{children}</section>
+    <section className="mb-0 pb-10 border-b border-white/[0.07] last:border-b-0 last:pb-0">{children}</section>
   );
 }
 
@@ -58,139 +58,164 @@ export default function TermsOfServicePage() {
           Retour aux paramètres
         </button>
 
-        <h1 className="text-3xl font-bold text-white mb-2 text-left">Terms of Service</h1>
-        <p className="text-sm text-white/45 mb-10">Last updated: March 31, 2024</p>
+        <h1 className="text-3xl font-bold text-white mb-2">Conditions Générales d'Utilisation</h1>
+        <p className="text-sm text-white/45 mb-10">Dernière mise à jour : Mars 2026 — Version 1.0</p>
 
         <Section>
-          <h2 className="text-lg font-bold text-white mb-3">1. Acceptance of Terms</h2>
+          <h2 className="text-lg font-bold text-white mb-3">Article 1 — Présentation de la plateforme</h2>
           <P>
-            By accessing or using this application, you agree to be bound by these <Em>Terms of Service</Em>. If you do
-            not agree with these Terms, you <Em>must not use</Em> the service.
+            <Em>Graply</Em> est une plateforme numérique de mise en relation entre des marques souhaitant promouvoir
+            leurs produits ou services via du contenu vidéo court format, et des créateurs de contenu souhaitant
+            monétiser leur audience sur les réseaux sociaux.
+          </P>
+          <P>
+            Graply est édité par <Em>MBT COMPANY</Em>. Graply agit exclusivement en tant qu'
+            <Em>intermédiaire technique</Em> et ne saurait être considéré comme partie prenante des relations
+            contractuelles entre marques et créateurs.
           </P>
         </Section>
 
         <Section>
-          <h2 className="text-lg font-bold text-white mb-3">2. Eligibility</h2>
+          <h2 className="text-lg font-bold text-white mb-3">Article 2 — Acceptation des conditions</h2>
           <P>
-            You must be <Em>at least 13 years old</Em> (or the minimum legal age in your jurisdiction) to use this
-            service. By using the application, you confirm that you <Em>meet this requirement</Em>.
+            L'accès et l'utilisation de la plateforme Graply impliquent l'<Em>acceptation pleine et entière</Em> des
+            présentes CGU. Toute personne refusant d'en accepter les termes doit cesser d'utiliser la plateforme.
+          </P>
+          <P>
+            Ces CGU s'appliquent à <Em>tous les utilisateurs</Em>, marques ou créateurs, résidant en France ou à
+            l'étranger.
           </P>
         </Section>
 
         <Section>
-          <h2 className="text-lg font-bold text-white mb-3">3. Description of Service</h2>
-          <P>
-            Our application enables users to connect their <Em>TikTok account</Em> and access authorized data such as
-            public profile information and analytics. We reserve the right to <Em>modify, suspend, or discontinue</Em> any
-            part of the service <Em>at any time without notice</Em>.
-          </P>
-        </Section>
-
-        <Section>
-          <h2 className="text-lg font-bold text-white mb-3">4. Account and Authentication</h2>
-          <P>
-            Access to certain features requires authentication via <Em>TikTok</Em>. You are responsible for:
-          </P>
+          <h2 className="text-lg font-bold text-white mb-3">Article 3 — Inscription et compte</h2>
+          <P>Pour utiliser Graply, tu dois :</P>
           <BulletList
             items={[
-              <>Maintaining the <Em>security of your account</Em></>,
-              <>All activities performed <Em>under your account</Em></>,
+              <>Avoir au moins <Em>18 ans</Em> (ou l'âge légal dans ton pays)</>,
+              <>Fournir des informations <Em>exactes et à jour</Em> lors de l'inscription</>,
+              <>Maintenir la <Em>confidentialité de tes identifiants</Em></>,
+              <>Ne créer qu'<Em>un seul compte</Em> par utilisateur</>,
+            ]}
+          />
+          <P>
+            Graply se réserve le droit de <Em>suspendre ou supprimer</Em> tout compte ne respectant pas ces
+            conditions, sans préavis ni indemnité.
+          </P>
+        </Section>
+
+        <Section>
+          <h2 className="text-lg font-bold text-white mb-3">Article 4 — Règles spécifiques aux marques</h2>
+          <BulletList
+            items={[
+              <>La marque est <Em>seule responsable</Em> du contenu et de la légalité de ses campagnes</>,
+              <>Tout dépôt de budget est <Em>définitif et non remboursable</Em> (sauf annulation de campagne active — budget restant remboursé sous 5 à 10 jours ouvrés, hors commission)</>,
+              <>Graply prélève une <Em>commission de 8 %</Em> sur chaque dépôt (5 % en formule Premium)</>,
+              <>Le <Em>budget minimum</Em> par campagne est de 400 €</>,
+              <>La marque dispose de <Em>72 heures</Em> pour valider ou refuser une vidéo soumise (passé ce délai, validation automatique)</>,
+              <>Les campagnes faisant la promotion de produits illicites ou contraires aux lois seront <Em>supprimées sans remboursement</Em></>,
             ]}
           />
         </Section>
 
         <Section>
-          <h2 className="text-lg font-bold text-white mb-3">5. Acceptable Use</h2>
-          <P>You agree not to:</P>
+          <h2 className="text-lg font-bold text-white mb-3">Article 5 — Règles spécifiques aux créateurs</h2>
           <BulletList
             items={[
-              <>Use the service for <Em>unlawful purposes</Em></>,
-              <>Attempt to gain <Em>unauthorized access</Em> to systems or data</>,
-              <>Interfere with or <Em>disrupt</Em> the service</>,
-              <>
-                <Em>Misuse TikTok data</Em> or violate TikTok policies
-              </>,
+              <>Le créateur doit être majeur et résider dans un <Em>pays éligible à Stripe Connect</Em></>,
+              <>Les vidéos soumises doivent être <Em>conformes au brief</Em> de la marque et aux règles des plateformes</>,
+              <>Tout recours à des <Em>vues artificielles</Em> (bots, achat de vues) entraîne la suspension immédiate et définitive du compte</>,
+              <>La <Em>rémunération est versée chaque lundi</Em> via Stripe Connect, dès 20 € de solde disponible</>,
+              <>Le créateur est seul responsable de la <Em>déclaration fiscale</Em> de ses revenus</>,
             ]}
           />
         </Section>
 
         <Section>
-          <h2 className="text-lg font-bold text-white mb-3">6. TikTok Integration</h2>
+          <h2 className="text-lg font-bold text-white mb-3">Article 6 — Réseaux sociaux connectés</h2>
           <P>
-            This application uses <Em>TikTok&apos;s official APIs</Em> to access user-authorized data. We only access data
-            that users <Em>explicitly authorize</Em>.
+            Graply permet de connecter tes comptes <Em>TikTok, Instagram et YouTube</Em> via OAuth. En autorisant
+            la connexion, tu acceptes que les données correspondantes soient traitées conformément à notre
+            Politique de Confidentialité.
           </P>
-          <P>We are not affiliated with TikTok and are not responsible for:</P>
+          <P>
+            Tu peux <Em>déconnecter</Em> ces comptes à tout moment depuis la section « Mon compte ». Graply n'est
+            pas responsable des interruptions de service ou modifications des API tierces.
+          </P>
+        </Section>
+
+        <Section>
+          <h2 className="text-lg font-bold text-white mb-3">Article 7 — Paiements & Stripe</h2>
+          <P>
+            Tous les paiements sont traités par <Em>Stripe</Em>. Graply ne stocke aucune donnée bancaire. En utilisant
+            les fonctionnalités de paiement, tu acceptes également les conditions générales de Stripe.
+          </P>
+          <P>
+            Les créateurs doivent connecter un <Em>compte Stripe Connect</Em> pour recevoir des paiements.
+            L'absence de compte Stripe actif empêche toute candidature à une campagne.
+          </P>
+        </Section>
+
+        <Section>
+          <h2 className="text-lg font-bold text-white mb-3">Article 8 — Propriété intellectuelle</h2>
+          <P>
+            Tous les éléments de la plateforme (logo, code, design, textes) sont la propriété exclusive de{' '}
+            <Em>MBT COMPANY</Em>. Toute reproduction non autorisée est <Em>strictement interdite</Em>.
+          </P>
+          <P>
+            Les créateurs conservent la propriété de leurs vidéos. La marque bénéficie d'une licence d'utilisation
+            limitée aux usages définis dans le brief de campagne.
+          </P>
+        </Section>
+
+        <Section>
+          <h2 className="text-lg font-bold text-white mb-3">Article 9 — Responsabilité</h2>
+          <P>
+            Graply agit uniquement comme <Em>intermédiaire technique</Em>. MBT COMPANY ne peut être tenu
+            responsable des dommages indirects, pertes de données, interruptions de service, ou litiges entre
+            marques et créateurs.
+          </P>
+          <P>
+            En tout état de cause, la responsabilité de Graply ne saurait excéder les <Em>commissions effectivement
+            perçues</Em> au cours des trois mois précédant le dommage.
+          </P>
+        </Section>
+
+        <Section>
+          <h2 className="text-lg font-bold text-white mb-3">Article 10 — Comportements interdits</h2>
+          <P>Sont strictement interdits :</P>
           <BulletList
             items={[
-              <>TikTok <Em>platform changes</Em></>,
-              <>TikTok <Em>service interruptions</Em></>,
-              <>Any issues <Em>originating from TikTok</Em></>,
+              <>Toute tentative de <Em>piratage ou contournement</Em> de la sécurité de la plateforme</>,
+              <><Em>Usurpation d'identité</Em> d'un autre utilisateur</>,
+              <>Collecte de données d'autres utilisateurs <Em>sans consentement</Em></>,
+              <>Diffusion de contenus <Em>illicites, haineux ou trompeurs</Em></>,
+              <>Toute pratique visant à <Em>gonfler artificiellement les statistiques</Em></>,
             ]}
           />
         </Section>
 
         <Section>
-          <h2 className="text-lg font-bold text-white mb-3">7. Data Usage</h2>
+          <h2 className="text-lg font-bold text-white mb-3">Article 11 — Modification des CGU</h2>
           <P>
-            We only process data <Em>necessary to provide</Em> our services.
-          </P>
-          <P>
-            We <Em>do not access</Em> private or restricted data <Em>without user consent</Em>.
-          </P>
-        </Section>
-
-        <Section>
-          <h2 className="text-lg font-bold text-white mb-3">8. Intellectual Property</h2>
-          <P>
-            All content, branding, and features of this application are protected by <Em>intellectual property laws</Em>.
-          </P>
-          <P>
-            You may not <Em>copy, reproduce, or distribute</Em> any part of the service without <Em>prior written consent</Em>.
+            Graply se réserve le droit de modifier les présentes CGU à tout moment. Les utilisateurs seront
+            informés de toute modification substantielle <Em>par e-mail</Em>. La poursuite de l'utilisation de
+            la plateforme vaut acceptation des nouvelles conditions.
           </P>
         </Section>
 
         <Section>
-          <h2 className="text-lg font-bold text-white mb-3">9. Limitation of Liability</h2>
-          <P>To the fullest extent permitted by law, we are not liable for:</P>
-          <BulletList
-            items={[
-              <>Any <Em>indirect or consequential damages</Em></>,
-              <><Em>Data loss</Em> or corruption</>,
-              <><Em>Service interruptions</Em> or downtime</>,
-            ]}
-          />
+          <h2 className="text-lg font-bold text-white mb-3">Article 12 — Droit applicable</h2>
           <P>
-            Use of the service is <Em>at your own risk</Em>.
+            Les présentes CGU sont soumises au <Em>droit français</Em>. En cas de litige, les parties
+            s'efforceront de trouver une solution amiable dans un délai de 30 jours. À défaut, les{' '}
+            <Em>tribunaux français</Em> seront seuls compétents.
           </P>
         </Section>
 
         <Section>
-          <h2 className="text-lg font-bold text-white mb-3">10. Termination</h2>
-          <P>
-            We reserve the right to <Em>suspend or terminate</Em> your access <Em>at any time</Em>, without prior
-            notice, if you <Em>violate these Terms</Em>.
-          </P>
-        </Section>
-
-        <Section>
-          <h2 className="text-lg font-bold text-white mb-3">11. Changes to Terms</h2>
-          <P>
-            We may update these Terms <Em>at any time</Em>. <Em>Continued use</Em> of the service constitutes acceptance of
-            the updated Terms.
-          </P>
-        </Section>
-
-        <Section>
-          <h2 className="text-lg font-bold text-white mb-3">12. Governing Law</h2>
-          <P>
-            These Terms shall be governed by and interpreted in accordance with <Em>applicable laws</Em>.
-          </P>
-        </Section>
-
-        <Section>
-          <h2 className="text-lg font-bold text-white mb-3">13. Contact</h2>
-          <P>For any questions regarding these Terms:</P>
+          <h2 className="text-lg font-bold text-white mb-3">Article 13 — Contact</h2>
+          <P>Pour toute question relative aux présentes CGU :</P>
           <p className="text-sm text-white/65 leading-relaxed">
             <a
               href={`mailto:${CONTACT_EMAIL}`}
@@ -198,6 +223,7 @@ export default function TermsOfServicePage() {
             >
               {CONTACT_EMAIL}
             </a>
+            {' '}— MBT COMPANY, éditeur de Graply
           </p>
         </Section>
       </div>

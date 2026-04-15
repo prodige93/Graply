@@ -26,6 +26,7 @@ import MyAccountPage from '@/creator/pages/MyAccountPage.tsx';
 import SettingsPage from '@/creator/pages/SettingsPage.tsx';
 import PrivacyPolicyPage from '@/shared/pages/PrivacyPolicyPage.tsx';
 import TermsOfServicePage from '@/shared/pages/TermsOfServicePage.tsx';
+import { StripeDataInfoPage, TikTokDataInfoPage, InstagramDataInfoPage, YouTubeDataInfoPage } from '@/shared/pages/InstagramYouTubeDataPages.tsx';
 import SavedCampaignsPage from '@/creator/pages/SavedCampaignsPage.tsx';
 import CreatorValidationsPage from '@/creator/pages/CreatorValidationsPage.tsx';
 import LoginPage from '@/creator/pages/LoginPage.tsx';
@@ -82,6 +83,10 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="/parametres" element={<SettingsPage />} />
                   <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
                   <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+                  <Route path="/stripe-data" element={<StripeDataInfoPage />} />
+                  <Route path="/tiktok-data" element={<TikTokDataInfoPage />} />
+                  <Route path="/instagram-data" element={<InstagramDataInfoPage />} />
+                  <Route path="/youtube-data" element={<YouTubeDataInfoPage />} />
                   <Route path="/enregistre" element={<SavedCampaignsPage />} />
                   <Route path="/mes-validations" element={<CreatorValidationsPage />} />
                 </Route>

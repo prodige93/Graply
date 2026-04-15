@@ -3,9 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 import Sidebar from '@/creator/components/Sidebar';
 
-const CONTACT_EMAIL = 'damian.evosmart@gmail.com';
+const CONTACT_EMAIL = 'support@graply.io';
 
-/** Mise en évidence du texte juridique important (gras blanc plein). */
 function Em({ children }: { children: ReactNode }) {
   return <strong className="font-semibold text-white">{children}</strong>;
 }
@@ -24,9 +23,9 @@ function P({ children }: { children: ReactNode }) {
   return <p className="text-sm text-white/65 leading-relaxed mb-3 last:mb-0">{children}</p>;
 }
 
-function Section({ children, className = '' }: { children: ReactNode; className?: string }) {
+function Section({ children }: { children: ReactNode }) {
   return (
-    <section className={`mb-0 pb-10 border-b border-white/[0.07] last:border-b-0 last:pb-0 ${className}`}>{children}</section>
+    <section className="mb-0 pb-10 border-b border-white/[0.07] last:border-b-0 last:pb-0">{children}</section>
   );
 }
 
@@ -59,156 +58,144 @@ export default function PrivacyPolicyPage() {
           Retour aux paramètres
         </button>
 
-        <h1 className="text-3xl font-bold text-white mb-2 text-left">Privacy Policy</h1>
-        <p className="text-sm text-white/45 mb-10">Last updated: March 31, 2024</p>
+        <h1 className="text-3xl font-bold text-white mb-2">Politique de Confidentialité</h1>
+        <p className="text-sm text-white/45 mb-10">Dernière mise à jour : Mars 2026 — Version 1.0</p>
 
         <Section>
-          <h2 className="text-lg font-bold text-white mb-3">1. Introduction</h2>
+          <h2 className="text-lg font-bold text-white mb-3">1. Présentation</h2>
           <P>
-            This Privacy Policy explains how we collect, use, and protect your information when you use our application
-            and connect your <Em>TikTok account</Em>.
+            <Em>Graply</Em> est une plateforme numérique de mise en relation entre des marques souhaitant promouvoir
+            leurs produits via du contenu vidéo court format, et des créateurs de contenu souhaitant monétiser leur
+            audience. La plateforme est éditée par <Em>MBT COMPANY</Em>.
           </P>
           <P>
-            We are committed to <Em>protecting your privacy</Em> and ensuring <Em>full transparency</Em> regarding the
-            data we process.
+            La présente Politique de Confidentialité décrit comment Graply collecte, utilise et protège tes données
+            personnelles lorsque tu utilises la plateforme, quelle que soit ta qualité (marque ou créateur).
           </P>
         </Section>
 
         <Section>
-          <h2 className="text-lg font-bold text-white mb-3">2. Information We Collect</h2>
-          <P>When you log in using TikTok, we may collect the following information:</P>
+          <h2 className="text-lg font-bold text-white mb-3">2. Données collectées</h2>
+          <P>Graply collecte les données suivantes selon les fonctionnalités utilisées :</P>
           <BulletList
             items={[
-              <><Em>Username</Em></>,
-              <><Em>Profile picture</Em></>,
-              <><Em>Public profile information</Em></>,
-              <>Any data <Em>explicitly authorized by you</Em> via TikTok</>,
-            ]}
-          />
-          <P>
-            We only access data that is <Em>strictly necessary</Em> for the functionality of our application.
-          </P>
-          <P>
-            We <Em>do not collect</Em> sensitive personal data without your <Em>explicit consent</Em>.
-          </P>
-        </Section>
-
-        <Section>
-          <h2 className="text-lg font-bold text-white mb-3">3. How We Use Your Information</h2>
-          <P>We use your data to:</P>
-          <BulletList
-            items={[
-              <><Em>Authenticate</Em> your account securely</>,
-              <><Em>Provide access</Em> to our services</>,
-              <>Display your <Em>profile information</Em> within the application</>,
-              <>Provide <Em>analytics and insights</Em> based on authorized data</>,
-              <><Em>Improve</Em> the performance and user experience of our platform</>,
+              <><Em>Données d'identité :</Em> nom d'utilisateur, adresse e-mail, rôle (marque / créateur)</>,
+              <><Em>Données de profil :</Em> photo de profil, bannière, biographie, tags de contenu</>,
+              <><Em>Données de connexion sociale :</Em> identifiants et tokens des comptes TikTok, Instagram, YouTube connectés</>,
+              <><Em>Données financières :</Em> identifiant de compte Stripe Connect (jamais de données bancaires brutes)</>,
+              <><Em>Données d'utilisation :</Em> campagnes créées ou auxquelles tu as participé, vidéos soumises, candidatures</>,
+              <><Em>Données de session :</Em> token d'authentification Supabase pour maintenir ta session</>,
             ]}
           />
         </Section>
 
         <Section>
-          <h2 className="text-lg font-bold text-white mb-3">4. Legal Basis for Processing</h2>
-          <P>We process your data based on:</P>
+          <h2 className="text-lg font-bold text-white mb-3">3. Finalités du traitement</h2>
+          <P>Les données collectées sont utilisées pour :</P>
           <BulletList
             items={[
-              <><Em>Your explicit consent</Em> via TikTok authentication</>,
-              <><Em>The necessity</Em> to provide our services</>,
+              <>Gérer ton <Em>compte et ta session</Em> sur la plateforme</>,
+              <>Afficher et personnaliser ton <Em>profil créateur ou marque</Em></>,
+              <>Mettre en relation <Em>marques et créateurs</Em> dans le cadre de campagnes</>,
+              <>Traiter les <Em>paiements via Stripe Connect</Em> (rémunération des créateurs)</>,
+              <>Synchroniser les <Em>statistiques de contenu</Em> depuis TikTok, Instagram, YouTube</>,
+              <>Assurer la <Em>sécurité et l'intégrité</Em> de la plateforme</>,
+              <>Communiquer par e-mail dans le cadre du service (notifications, support)</>,
             ]}
           />
         </Section>
 
         <Section>
-          <h2 className="text-lg font-bold text-white mb-3">5. Data Sharing</h2>
-          <P>
-            We <Em>do not sell, rent, or trade</Em> your personal data.
-          </P>
-          <P>
-            We may share data <Em>only</Em> in the following cases:
-          </P>
+          <h2 className="text-lg font-bold text-white mb-3">4. Base légale</h2>
+          <P>Le traitement de tes données repose sur :</P>
           <BulletList
             items={[
-              <>When <Em>required by law</Em> or legal obligation</>,
-              <>
-                With <Em>trusted service providers</Em> (e.g., hosting, infrastructure){' '}
-                <Em>strictly necessary</Em> to operate the service
-              </>,
+              <><Em>Ton consentement</Em> lors de l'inscription et de la connexion des réseaux sociaux</>,
+              <>L'<Em>exécution du contrat</Em> de service (mise en relation, campagnes, paiements)</>,
+              <>Nos <Em>intérêts légitimes</Em> (sécurité, amélioration du service, prévention de la fraude)</>,
+              <>Le <Em>respect des obligations légales</Em> applicables</>,
             ]}
           />
         </Section>
 
         <Section>
-          <h2 className="text-lg font-bold text-white mb-3">6. Data Retention</h2>
+          <h2 className="text-lg font-bold text-white mb-3">5. Partage des données</h2>
           <P>
-            We retain your data <Em>only for as long as necessary</Em> to provide our services.
-          </P>
-          <P>
-            <Em>You may request deletion</Em> of your data <Em>at any time</Em>.
-          </P>
-        </Section>
-
-        <Section>
-          <h2 className="text-lg font-bold text-white mb-3">7. Data Security</h2>
-          <P>
-            We implement appropriate <Em>technical and organizational measures</Em> to protect your data against{' '}
-            <Em>unauthorized access</Em>, alteration, disclosure, or destruction.
-          </P>
-        </Section>
-
-        <Section>
-          <h2 className="text-lg font-bold text-white mb-3">8. Your Rights</h2>
-          <P>
-            You have the <Em>right</Em> to:
+            Graply <Em>ne vend ni ne loue</Em> tes données personnelles. Les données peuvent être partagées dans les cas suivants :
           </P>
           <BulletList
             items={[
-              <><Em>Access</Em> your personal data</>,
-              <><Em>Request correction or deletion</Em></>,
-              <><Em>Withdraw your consent</Em> at any time</>,
-              <><Em>Disconnect</Em> your TikTok account from our application</>,
+              <><Em>Stripe</Em> : pour le traitement des paiements et la gestion des comptes Connect</>,
+              <><Em>Supabase</Em> : hébergement de la base de données et de l'authentification</>,
+              <><Em>Meta / Instagram</Em> : échange OAuth pour connecter ton compte Instagram</>,
+              <><Em>TikTok</Em> : échange OAuth pour connecter ton compte TikTok</>,
+              <><Em>Google / YouTube</Em> : échange OAuth pour connecter ta chaîne YouTube</>,
+              <>Autorités compétentes si <Em>requis par la loi</Em></>,
             ]}
           />
-          <p className="text-sm text-white/65 leading-relaxed mt-1">
-            To exercise your rights, contact:{' '}
+        </Section>
+
+        <Section>
+          <h2 className="text-lg font-bold text-white mb-3">6. Conservation des données</h2>
+          <P>
+            Tes données sont conservées <Em>tant que ton compte est actif</Em>. En cas de suppression de compte,
+            toutes les données personnelles identifiables sont supprimées dans les délais prévus par la loi, sauf
+            obligation légale de conservation.
+          </P>
+        </Section>
+
+        <Section>
+          <h2 className="text-lg font-bold text-white mb-3">7. Sécurité</h2>
+          <P>
+            Graply met en œuvre des <Em>mesures techniques et organisationnelles</Em> appropriées pour protéger tes données :
+            chiffrement des tokens en base via <Em>Supabase Vault</Em>, RLS (Row Level Security) sur toutes les tables,
+            communications exclusivement en HTTPS.
+          </P>
+        </Section>
+
+        <Section>
+          <h2 className="text-lg font-bold text-white mb-3">8. Tes droits (RGPD)</h2>
+          <P>Conformément au RGPD, tu disposes des droits suivants :</P>
+          <BulletList
+            items={[
+              <><Em>Droit d'accès</Em> à tes données personnelles</>,
+              <><Em>Droit de rectification</Em> des données inexactes</>,
+              <><Em>Droit à l'effacement</Em> (« droit à l'oubli »)</>,
+              <><Em>Droit à la portabilité</Em> de tes données</>,
+              <><Em>Droit d'opposition</Em> au traitement</>,
+              <><Em>Droit de retrait du consentement</Em> à tout moment</>,
+            ]}
+          />
+          <P>
+            Pour exercer tes droits ou pour toute question, contacte-nous à :{' '}
             <a href={`mailto:${CONTACT_EMAIL}`} className="font-semibold text-white underline underline-offset-2 hover:text-white">
               {CONTACT_EMAIL}
             </a>
-          </p>
-        </Section>
-
-        <Section>
-          <h2 className="text-lg font-bold text-white mb-3">9. Children&apos;s Privacy</h2>
-          <P>
-            Our service is <Em>not intended</Em> for individuals <Em>under the age of 13</Em> (or the minimum legal age
-            in your country).
-          </P>
-          <P>
-            We <Em>do not knowingly collect</Em> personal data from children. If we become aware that such data has been
-            collected, it will be <Em>deleted promptly</Em>.
           </P>
         </Section>
 
         <Section>
-          <h2 className="text-lg font-bold text-white mb-3">10. Third-Party Services</h2>
+          <h2 className="text-lg font-bold text-white mb-3">9. Cookies et traceurs</h2>
           <P>
-            Our application uses <Em>TikTok&apos;s official APIs</Em> to access user-authorized data.
-          </P>
-          <P>
-            By using our service, you also agree to TikTok&apos;s Terms of Service and Privacy Policy. We are{' '}
-            <Em>not responsible</Em> for third-party practices.
+            Graply est une application web sans cookie publicitaire ni traceur tiers de marketing. Seuls des cookies{' '}
+            <Em>strictement nécessaires</Em> au fonctionnement de la session (authentification Supabase) sont utilisés.
           </P>
         </Section>
 
         <Section>
-          <h2 className="text-lg font-bold text-white mb-3">11. Changes to This Policy</h2>
+          <h2 className="text-lg font-bold text-white mb-3">10. Modifications</h2>
           <P>
-            We may update this Privacy Policy <Em>at any time</Em>. Updates will be posted on this page.
+            Graply se réserve le droit de modifier la présente Politique à tout moment. Toute modification substantielle
+            sera <Em>notifiée par e-mail</Em>. La poursuite de l'utilisation de la plateforme vaut acceptation des
+            nouvelles conditions.
           </P>
         </Section>
 
         <Section>
-          <h2 className="text-lg font-bold text-white mb-3">12. Contact</h2>
-          <P>If you have any questions regarding this Privacy Policy, you can contact us at:</P>
+          <h2 className="text-lg font-bold text-white mb-3">11. Contact</h2>
+          <P>
+            Pour toute question relative à la protection de tes données personnelles :
+          </P>
           <p className="text-sm text-white/65 leading-relaxed">
             <a
               href={`mailto:${CONTACT_EMAIL}`}
@@ -216,6 +203,7 @@ export default function PrivacyPolicyPage() {
             >
               {CONTACT_EMAIL}
             </a>
+            {' '}— MBT COMPANY, éditeur de Graply
           </p>
         </Section>
       </div>

@@ -14,7 +14,11 @@ function getActivePage(pathname: string): ActivePage | undefined {
   if (
     pathname.startsWith('/app-entreprise/parametres') ||
     pathname.startsWith('/app-entreprise/privacy-policy') ||
-    pathname.startsWith('/app-entreprise/terms-of-service')
+    pathname.startsWith('/app-entreprise/terms-of-service') ||
+    pathname.startsWith('/app-entreprise/stripe-data') ||
+    pathname.startsWith('/app-entreprise/tiktok-data') ||
+    pathname.startsWith('/app-entreprise/instagram-data') ||
+    pathname.startsWith('/app-entreprise/youtube-data')
   ) {
     return 'parametres';
   }
