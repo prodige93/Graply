@@ -251,7 +251,7 @@ export default function MyAccountPage() {
   }
 
   return (
-    <main className="text-white flex-1 overflow-y-auto pb-16 lg:pb-0" style={{ background: '#050404' }}>
+    <main className="flex-1 overflow-y-auto pb-24 lg:pb-0" style={{ background: '#050404', color: 'white' }}>
       <EnterpriseRegistrationModal
         open={showRegModal}
         onClose={() => setShowRegModal(false)}
@@ -284,7 +284,7 @@ export default function MyAccountPage() {
 
         <div className="p-4 lg:p-8 flex flex-col lg:flex-row gap-4 lg:gap-8">
 
-        <div className="flex-1 min-w-0 max-w-2xl">
+        <div className="flex-1 min-w-0">
 
           {/* Banniere */}
           <div className="flex items-center justify-between mb-2">
@@ -309,12 +309,7 @@ export default function MyAccountPage() {
             ) : (
               <img src={displayBanner} alt="Banner" className="w-full h-full object-cover" />
             )}
-            <div
-              className="absolute inset-0"
-              style={{
-                background: 'linear-gradient(180deg, transparent 60%, rgba(5,4,4,0.5) 75%, rgba(5,4,4,0.88) 88%, rgba(5,4,4,1) 100%)'
-              }}
-            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
           </div>
 
           {/* Logo */}
