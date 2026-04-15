@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
-import CguModal from './CguModal';
+import FullTermsModal from './FullTermsModal';
 import { supabase } from '@/shared/infrastructure/supabase';
 import {
   SIGNUP_EMAIL_INVALID_MESSAGE,
@@ -359,7 +359,7 @@ export default function CreatorSignupForm({ onBack }: Props) {
           }}
         >
           <div
-            onClick={() => setCguAccepted(prev => !prev)}
+            onClick={() => !cguAccepted && setCguOpen(true)}
             style={{
               display: 'flex',
               alignItems: 'flex-start',
@@ -387,29 +387,27 @@ export default function CreatorSignupForm({ onBack }: Props) {
                 </svg>
               )}
             </div>
-            <span style={{
-              fontSize: 13,
-              color: 'rgba(255,255,255,0.6)',
-              lineHeight: 1.5,
-            }}>
-              J'accepte les{' '}
-              <span style={{ color: '#F97316', fontWeight: 500 }}>
-                Conditions Générales d'Utilisation
-              </span>
-              {' '}de Graply et certifie avoir au moins 18 ans.
-            </span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <span
-              style={{
-                fontSize: 11,
-                color: 'rgba(255,255,255,0.35)',
-                cursor: 'pointer',
-                textDecoration: 'none',
-              }}
-              onClick={e => { e.stopPropagation(); setCguOpen(true); }}
-            >
-              Lire les CGU
+            <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>
+              {cguAccepted ? (
+                <>
+                  J'ai lu et j'accepte le{' '}
+                  <span
+                    style={{ color: '#F97316', fontWeight: 500, cursor: 'pointer', textDecoration: 'underline' }}
+                    onClick={e => { e.stopPropagation(); setCguOpen(true); }}
+                  >
+                    règlement de la plateforme
+                  </span>
+                  {' '}de Graply.
+                </>
+              ) : (
+                <>
+                  Lire et accepter le{' '}
+                  <span style={{ color: '#F97316', fontWeight: 500 }}>
+                    règlement de la plateforme
+                  </span>
+                  {' '}(obligatoire).
+                </>
+              )}
             </span>
           </div>
         </div>
@@ -440,7 +438,12 @@ export default function CreatorSignupForm({ onBack }: Props) {
         {loading ? 'Inscription...' : "S'inscrire"}
       </button>
 
-      <CguModal open={cguOpen} onClose={() => setCguOpen(false)} />
+      <FullTermsModal
+        open={cguOpen}
+        onClose={() => setCguOpen(false)}
+        onAccept={() => setCguAccepted(true)}
+        accentColor="#F97316"
+      />
     </div>
   );
 }
