@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useEnterpriseNavigate } from '@/enterprise/lib/useEnterpriseNavigate';
-import { Camera, Pencil, Check, Shield, ChevronLeft, ChevronRight, Unlink, Loader2 } from 'lucide-react';
+import { Camera, Pencil, Check, Shield, ChevronLeft, ChevronRight, Unlink, Loader2, FileText, ExternalLink, Trash2 } from 'lucide-react';
 import ttIcon from '@/shared/assets/tiktok.svg';
 import instaIcon from '@/shared/assets/instagram-logo.svg';
 import symbolIcon from '@/shared/assets/youtube-symbol.svg';
@@ -15,6 +15,7 @@ import iphone17Img from '@/shared/assets/hero-slide-iphone17.jpeg';
 import bo7Img from '@/shared/assets/hero-slide-bo7.jpeg';
 import { type SocialPlatform, getSocialOAuthUrl } from '@/shared/lib/socialOAuth';
 import TikTokConnectModal from '@/shared/components/TikTokConnectModal';
+import EnterpriseRegistrationModal from '../components/EnterpriseRegistrationModal';
 import {
   PROFILE_USERNAME_DEFAULT_LABEL,
   PROFILE_USERNAME_TAKEN_MESSAGE,
@@ -80,6 +81,17 @@ export default function MyAccountPage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [disconnectingPlatform, setDisconnectingPlatform] = useState<SocialKey | null>(null);
   const [tiktokConnectOpen, setTiktokConnectOpen] = useState(false);
+  const [enterpriseInfo, setEnterpriseInfo] = useState<{
+    company_legal_name?: string;
+    company_siret?: string;
+    company_country?: string;
+    company_kbis_url?: string;
+    company_rep_name?: string;
+    company_id_doc_url?: string;
+    company_website?: string;
+    company_registration_completed?: boolean;
+  } | null>(null);
+  const [showRegModal, setShowRegModal] = useState(false);
 
   function connectSocial(key: SocialKey) {
     try {
@@ -99,6 +111,26 @@ export default function MyAccountPage() {
       return;
     }
     await Promise.all([refetchSocial(), refetchProfile()]);
+  }
+
+  useEffect(() => {
+    async function loadEnterpriseInfo() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from('profiles')
+        .select('company_legal_name,company_siret,company_country,company_kbis_url,company_rep_name,company_id_doc_url,company_website,company_registration_completed')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (data) setEnterpriseInfo(data);
+    }
+    loadEnterpriseInfo();
+  }, []);
+
+  async function handleDeleteDoc(field: 'company_kbis_url' | 'company_id_doc_url') {
+    if (!userId) return;
+    await supabase.from('profiles').update({ [field]: '', updated_at: new Date().toISOString() }).eq('id', userId);
+    setEnterpriseInfo((prev) => prev ? { ...prev, [field]: '' } : prev);
   }
 
   useEffect(() => {
@@ -219,7 +251,16 @@ export default function MyAccountPage() {
   }
 
   return (
-    <main className="text-white" style={{ background: '#050404' }}>
+    <main className="text-white flex-1 overflow-y-auto pb-16 lg:pb-0" style={{ background: '#050404' }}>
+      <EnterpriseRegistrationModal
+        open={showRegModal}
+        onClose={() => setShowRegModal(false)}
+        userId={userId ?? ''}
+        onSuccess={async () => {
+          const { data } = await supabase.from('profiles').select('company_legal_name,company_siret,company_country,company_kbis_url,company_rep_name,company_id_doc_url,company_website,company_registration_completed').eq('id', userId ?? '').maybeSingle();
+          if (data) setEnterpriseInfo(data);
+        }}
+      />
       <TikTokConnectModal
         open={tiktokConnectOpen}
         onClose={() => setTiktokConnectOpen(false)}
@@ -407,6 +448,71 @@ export default function MyAccountPage() {
             )}
           </div>
 
+          {/* Documents entreprise */}
+          <div className="mb-8" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '24px' }}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-xs font-bold text-white uppercase tracking-widest mb-0.5">Informations entreprise</p>
+                <p className="text-xs text-white/30">Documents et informations enregistrés lors de votre inscription</p>
+              </div>
+              <button
+                onClick={() => setShowRegModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 hover:bg-white/10 active:scale-95"
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' }}
+              >
+                <Pencil className="w-3 h-3" />
+                Modifier
+              </button>
+            </div>
+            {enterpriseInfo?.company_registration_completed ? (
+              <div className="space-y-3">
+                {[
+                  { label: 'Nom légal', value: enterpriseInfo.company_legal_name },
+                  { label: 'SIRET', value: enterpriseInfo.company_siret },
+                  { label: 'Pays', value: enterpriseInfo.company_country },
+                  { label: 'Représentant légal', value: enterpriseInfo.company_rep_name },
+                  ...(enterpriseInfo.company_website ? [{ label: 'Site web', value: enterpriseInfo.company_website }] : []),
+                ].filter((r) => r.value).map(({ label, value }) => (
+                  <div key={label} className="flex items-center gap-3 px-4 py-2.5 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                    <p className="text-xs text-white/35 w-36 shrink-0">{label}</p>
+                    <p className="text-sm text-white truncate">{value}</p>
+                  </div>
+                ))}
+                {[
+                  { label: 'Extrait Kbis', url: enterpriseInfo.company_kbis_url, field: 'company_kbis_url' as const },
+                  { label: 'Pièce d\'identité', url: enterpriseInfo.company_id_doc_url, field: 'company_id_doc_url' as const },
+                ].map(({ label, url, field }) => (
+                  <div key={field} className="flex items-center gap-3 px-4 py-2.5 rounded-xl" style={{ background: url ? 'rgba(16,185,129,0.04)' : 'rgba(255,255,255,0.03)', border: url ? '1px solid rgba(16,185,129,0.15)' : '1px solid rgba(255,255,255,0.07)' }}>
+                    <FileText className="w-4 h-4 text-white/30 shrink-0" />
+                    <p className="text-xs text-white/35 w-32 shrink-0">{label}</p>
+                    {url ? (
+                      <div className="flex items-center gap-2 ml-auto">
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-white/60 hover:text-white transition-colors">
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          Voir
+                        </a>
+                        <button onClick={() => handleDeleteDoc(field)} className="flex items-center gap-1 text-xs text-red-400/70 hover:text-red-400 transition-colors">
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Supprimer
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-white/20 ml-auto italic">Non renseigné</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowRegModal(true)}
+                className="w-full py-4 rounded-xl text-sm text-white/50 text-center transition-colors hover:bg-white/[0.03]"
+                style={{ border: '1px dashed rgba(255,255,255,0.12)' }}
+              >
+                Compléter les informations entreprise →
+              </button>
+            )}
+          </div>
+
           {/* Reseaux sociaux */}
           <div className="mb-8" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '24px' }}>
             <div className="flex items-center gap-2.5 mb-1">
@@ -499,7 +605,7 @@ export default function MyAccountPage() {
 
         </div>
 
-        <div className="hidden lg:flex w-[340px] shrink-0 sticky top-8 self-start flex-col items-center gap-4 ml-auto">
+        <div className="hidden lg:flex w-[340px] shrink-0 sticky top-8 self-start flex-col items-center gap-4">
           <h3 className="text-sm font-bold text-white uppercase tracking-widest text-center w-full">Top campagne</h3>
           <div className="w-full rounded-2xl overflow-hidden relative" style={{ height: '240px' }}>
             {slides.map((slide, index) => (

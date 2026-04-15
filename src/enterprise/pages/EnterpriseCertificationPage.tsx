@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { useEnterpriseNavigate } from '@/enterprise/lib/useEnterpriseNavigate';
-import { ArrowLeft, Upload, X, Check, Globe, ChevronDown, Search } from 'lucide-react';
+import { ArrowLeft, Upload, X, Check, Globe, ChevronDown, Search, ExternalLink, Trash2, Loader2 } from 'lucide-react';
 import jentrepriseIcon from '@/shared/assets/badge-enterprise-verified.png';
 import certificationBtn from '@/shared/assets/certification-button-bg.svg';
+import { supabase } from '@/shared/infrastructure/supabase';
 
 const countries = [
   'Afghanistan', 'Afrique du Sud', 'Albanie', 'Algérie', 'Allemagne', 'Andorre', 'Angola', 'Antigua-et-Barbuda',
@@ -30,6 +31,15 @@ const countries = [
   'Vietnam', 'Yémen', 'Zambie', 'Zimbabwe'
 ];
 
+async function uploadDoc(file: File, userId: string, label: string): Promise<string | null> {
+  const ext = file.name.split('.').pop() ?? 'pdf';
+  const path = `${userId}/${label}-${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from('enterprise-docs').upload(path, file, { upsert: true, contentType: file.type });
+  if (error) { console.error(error); return null; }
+  const { data } = supabase.storage.from('enterprise-docs').getPublicUrl(path);
+  return data.publicUrl;
+}
+
 export default function EnterpriseCertificationPage() {
   const navigate = useEnterpriseNavigate();
 
@@ -39,10 +49,15 @@ export default function EnterpriseCertificationPage() {
   const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
   const [kbisFile, setKbisFile] = useState<File | null>(null);
+  const [kbisUrl, setKbisUrl] = useState('');
   const [repName, setRepName] = useState('');
   const [idFile, setIdFile] = useState<File | null>(null);
+  const [idUrl, setIdUrl] = useState('');
   const [website, setWebsite] = useState('');
   const [agreed, setAgreed] = useState(false);
+  const [userId, setUserId] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const kbisInputRef = useRef<HTMLInputElement>(null);
   const idInputRef = useRef<HTMLInputElement>(null);
@@ -52,6 +67,29 @@ export default function EnterpriseCertificationPage() {
   const filteredCountries = countries.filter((c) =>
     c.toLowerCase().includes(countrySearch.toLowerCase())
   );
+
+  /* Pré-remplissage depuis la base */
+  useEffect(() => {
+    async function load() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      setUserId(user.id);
+      const { data } = await supabase
+        .from('profiles')
+        .select('company_legal_name,company_siret,company_country,company_kbis_url,company_rep_name,company_id_doc_url,company_website')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (!data) return;
+      if (data.company_legal_name) setLegalName(data.company_legal_name);
+      if (data.company_siret) setSiret(data.company_siret);
+      if (data.company_country) setCountry(data.company_country);
+      if (data.company_kbis_url) setKbisUrl(data.company_kbis_url);
+      if (data.company_rep_name) setRepName(data.company_rep_name);
+      if (data.company_id_doc_url) setIdUrl(data.company_id_doc_url);
+      if (data.company_website) setWebsite(data.company_website);
+    }
+    load();
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -72,17 +110,61 @@ export default function EnterpriseCertificationPage() {
 
   function handleKbisChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) setKbisFile(file);
+    if (file) { setKbisFile(file); setKbisUrl(''); }
     e.target.value = '';
   }
 
   function handleIdChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) setIdFile(file);
+    if (file) { setIdFile(file); setIdUrl(''); }
     e.target.value = '';
   }
 
-  const canSubmit = legalName.trim() && siret.trim() && country.trim() && kbisFile && repName.trim() && idFile && agreed;
+  async function deleteDoc(field: 'company_kbis_url' | 'company_id_doc_url') {
+    if (!userId) return;
+    await supabase.from('profiles').update({ [field]: '', updated_at: new Date().toISOString() }).eq('id', userId);
+    if (field === 'company_kbis_url') { setKbisUrl(''); setKbisFile(null); }
+    else { setIdUrl(''); setIdFile(null); }
+  }
+
+  async function handleSubmit() {
+    setSaving(true);
+    setSaveError('');
+    let finalKbisUrl = kbisUrl;
+    let finalIdUrl = idUrl;
+    if (kbisFile) {
+      const u = await uploadDoc(kbisFile, userId, 'kbis');
+      if (!u) { setSaveError('Erreur upload Kbis.'); setSaving(false); return; }
+      finalKbisUrl = u;
+    }
+    if (idFile) {
+      const u = await uploadDoc(idFile, userId, 'identity');
+      if (!u) { setSaveError('Erreur upload pièce d\'identité.'); setSaving(false); return; }
+      finalIdUrl = u;
+    }
+    const { error } = await supabase.from('profiles').update({
+      company_legal_name: legalName.trim(),
+      company_siret: siret.trim(),
+      company_country: country,
+      company_kbis_url: finalKbisUrl,
+      company_rep_name: repName.trim(),
+      company_id_doc_url: finalIdUrl,
+      company_website: website.trim(),
+      company_registration_completed: true,
+      updated_at: new Date().toISOString(),
+    }).eq('id', userId);
+    setSaving(false);
+    if (error) { setSaveError(error.message); return; }
+    setKbisUrl(finalKbisUrl);
+    setIdUrl(finalIdUrl);
+    setKbisFile(null);
+    setIdFile(null);
+    navigate('/mon-compte');
+  }
+
+  const hasKbis = !!(kbisFile || kbisUrl);
+  const hasId = !!(idFile || idUrl);
+  const canSubmit = legalName.trim() && siret.trim() && country.trim() && hasKbis && repName.trim() && hasId && agreed;
 
   return (
     <div className="min-h-screen text-white" style={{ backgroundColor: '#050404' }}>
@@ -271,26 +353,30 @@ export default function EnterpriseCertificationPage() {
                 Extrait Kbis ou document équivalent <span style={{ color: '#FACC15' }}>*</span>
               </label>
               {kbisFile ? (
-                <div
-                  className="w-full px-4 py-3 rounded-xl flex items-center justify-between"
-                  style={{ background: 'rgba(100,250,81,0.04)', border: '1px solid rgba(100,250,81,0.2)' }}
-                >
+                <div className="w-full px-4 py-3 rounded-xl flex items-center justify-between" style={{ background: 'rgba(100,250,81,0.04)', border: '1px solid rgba(100,250,81,0.2)' }}>
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(100,250,81,0.1)' }}>
                       <Check className="w-3.5 h-3.5" style={{ color: '#64FA51' }} />
                     </div>
                     <span className="text-sm text-white truncate">{kbisFile.name}</span>
                   </div>
-                  <button onClick={() => setKbisFile(null)} className="shrink-0 p-1 hover:bg-white/10 rounded-full transition-colors ml-2">
-                    <X className="w-4 h-4 text-white/40" />
-                  </button>
+                  <button onClick={() => setKbisFile(null)} className="shrink-0 p-1 hover:bg-white/10 rounded-full transition-colors ml-2"><X className="w-4 h-4 text-white/40" /></button>
+                </div>
+              ) : kbisUrl ? (
+                <div className="w-full px-4 py-3 rounded-xl flex items-center justify-between" style={{ background: 'rgba(100,250,81,0.04)', border: '1px solid rgba(100,250,81,0.2)' }}>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(100,250,81,0.1)' }}>
+                      <Check className="w-3.5 h-3.5" style={{ color: '#64FA51' }} />
+                    </div>
+                    <span className="text-sm text-white/70 truncate">Document enregistré</span>
+                  </div>
+                  <div className="flex items-center gap-2 ml-2">
+                    <a href={kbisUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-white/50 hover:text-white transition-colors"><ExternalLink className="w-3.5 h-3.5" />Voir</a>
+                    <button onClick={() => deleteDoc('company_kbis_url')} className="flex items-center gap-1 text-xs text-red-400/70 hover:text-red-400 transition-colors"><Trash2 className="w-3.5 h-3.5" />Supprimer</button>
+                  </div>
                 </div>
               ) : (
-                <button
-                  onClick={() => kbisInputRef.current?.click()}
-                  className="w-full px-4 py-6 rounded-xl flex flex-col items-center justify-center gap-2 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.03]"
-                  style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.12)' }}
-                >
+                <button onClick={() => kbisInputRef.current?.click()} className="w-full px-4 py-6 rounded-xl flex flex-col items-center justify-center gap-2 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.03]" style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.12)' }}>
                   <Upload className="w-5 h-5 text-white/30" />
                   <span className="text-sm text-white/40">Cliquer pour déposer un fichier</span>
                   <span className="text-xs text-white/20">PDF, JPG, PNG</span>
@@ -317,26 +403,30 @@ export default function EnterpriseCertificationPage() {
                 Pièce d'identité du représentant légal <span style={{ color: '#FACC15' }}>*</span>
               </label>
               {idFile ? (
-                <div
-                  className="w-full px-4 py-3 rounded-xl flex items-center justify-between"
-                  style={{ background: 'rgba(100,250,81,0.04)', border: '1px solid rgba(100,250,81,0.2)' }}
-                >
+                <div className="w-full px-4 py-3 rounded-xl flex items-center justify-between" style={{ background: 'rgba(100,250,81,0.04)', border: '1px solid rgba(100,250,81,0.2)' }}>
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(100,250,81,0.1)' }}>
                       <Check className="w-3.5 h-3.5" style={{ color: '#64FA51' }} />
                     </div>
                     <span className="text-sm text-white truncate">{idFile.name}</span>
                   </div>
-                  <button onClick={() => setIdFile(null)} className="shrink-0 p-1 hover:bg-white/10 rounded-full transition-colors ml-2">
-                    <X className="w-4 h-4 text-white/40" />
-                  </button>
+                  <button onClick={() => setIdFile(null)} className="shrink-0 p-1 hover:bg-white/10 rounded-full transition-colors ml-2"><X className="w-4 h-4 text-white/40" /></button>
+                </div>
+              ) : idUrl ? (
+                <div className="w-full px-4 py-3 rounded-xl flex items-center justify-between" style={{ background: 'rgba(100,250,81,0.04)', border: '1px solid rgba(100,250,81,0.2)' }}>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(100,250,81,0.1)' }}>
+                      <Check className="w-3.5 h-3.5" style={{ color: '#64FA51' }} />
+                    </div>
+                    <span className="text-sm text-white/70 truncate">Document enregistré</span>
+                  </div>
+                  <div className="flex items-center gap-2 ml-2">
+                    <a href={idUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-white/50 hover:text-white transition-colors"><ExternalLink className="w-3.5 h-3.5" />Voir</a>
+                    <button onClick={() => deleteDoc('company_id_doc_url')} className="flex items-center gap-1 text-xs text-red-400/70 hover:text-red-400 transition-colors"><Trash2 className="w-3.5 h-3.5" />Supprimer</button>
+                  </div>
                 </div>
               ) : (
-                <button
-                  onClick={() => idInputRef.current?.click()}
-                  className="w-full px-4 py-6 rounded-xl flex flex-col items-center justify-center gap-2 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.03]"
-                  style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.12)' }}
-                >
+                <button onClick={() => idInputRef.current?.click()} className="w-full px-4 py-6 rounded-xl flex flex-col items-center justify-center gap-2 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.03]" style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.12)' }}>
                   <Upload className="w-5 h-5 text-white/30" />
                   <span className="text-sm text-white/40">Cliquer pour déposer un fichier</span>
                   <span className="text-xs text-white/20">PDF, JPG, PNG</span>
@@ -380,21 +470,27 @@ export default function EnterpriseCertificationPage() {
               </p>
             </div>
 
+            {saveError && <p className="text-xs text-red-400 text-center">{saveError}</p>}
+
             <div className="pt-4 pb-8 flex justify-center">
               <button
-                disabled={!canSubmit}
+                disabled={!canSubmit || saving}
+                onClick={handleSubmit}
                 className="relative flex items-center justify-center transition-all duration-300 hover:scale-[1.02] active:scale-[0.97] overflow-hidden"
                 style={{
                   borderRadius: '12px',
                   padding: 0,
                   background: 'none',
                   border: 'none',
-                  opacity: canSubmit ? 1 : 0.45,
-                  cursor: canSubmit ? 'pointer' : 'not-allowed',
+                  opacity: canSubmit && !saving ? 1 : 0.45,
+                  cursor: canSubmit && !saving ? 'pointer' : 'not-allowed',
                 }}
               >
                 <img src={certificationBtn} alt="Devenir certifié" className="rounded-xl" style={{ height: '42px', width: '200px', display: 'block' }} />
-                <span className="absolute inset-0 flex items-center justify-center text-sm font-extrabold" style={{ color: '#ffffff' }}>Devenir certifié</span>
+                <span className="absolute inset-0 flex items-center justify-center text-sm font-extrabold gap-2" style={{ color: '#ffffff' }}>
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                  Devenir certifié
+                </span>
               </button>
             </div>
           </div>

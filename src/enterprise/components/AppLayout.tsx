@@ -1,6 +1,9 @@
+import { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
+import EnterpriseRegistrationModal from './EnterpriseRegistrationModal';
+import { supabase } from '@/shared/infrastructure/supabase';
 
 type ActivePage = 'home' | 'mes-campagnes' | 'validation-videos' | 'dashboard' | 'messagerie' | 'mon-compte' | 'parametres' | 'enregistre';
 
@@ -29,6 +32,25 @@ function getActivePage(pathname: string): ActivePage | undefined {
 export default function AppLayout() {
   const location = useLocation();
   const activePage = getActivePage(location.pathname);
+  const [showRegistration, setShowRegistration] = useState(false);
+  const [userId, setUserId] = useState('');
+
+  useEffect(() => {
+    async function checkRegistration() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      setUserId(user.id);
+      const { data } = await supabase
+        .from('profiles')
+        .select('company_registration_completed, role')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (data?.role === 'enterprise' && !data?.company_registration_completed) {
+        setShowRegistration(true);
+      }
+    }
+    checkRegistration();
+  }, []);
 
   return (
     <div className="min-h-screen text-white flex" style={{ background: '#050404' }}>
@@ -37,6 +59,14 @@ export default function AppLayout() {
         <Outlet />
       </div>
       <MobileNav />
+      {userId && (
+        <EnterpriseRegistrationModal
+          open={showRegistration}
+          onClose={() => setShowRegistration(false)}
+          onSuccess={() => setShowRegistration(false)}
+          userId={userId}
+        />
+      )}
     </div>
   );
 }

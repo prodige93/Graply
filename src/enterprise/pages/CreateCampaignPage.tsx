@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { useEnterpriseNavigate } from '@/enterprise/lib/useEnterpriseNavigate';
-import { ArrowLeft, ArrowRight, Save, Send, Check, X, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Save, Send, Check, X, Trash2, Lock } from 'lucide-react';
 import GrapeLoader from '../components/GrapeLoader';
 import StepOne from '../components/create-campaign/StepOne';
 import StepTwo from '../components/create-campaign/StepTwo';
@@ -65,6 +65,22 @@ export default function CreateCampaignPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isDraft, setIsDraft] = useState(false);
+  const [registrationDone, setRegistrationDone] = useState<boolean | null>(null);
+
+  /* Vérifie si l'enregistrement entreprise est complet */
+  useEffect(() => {
+    async function checkReg() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setRegistrationDone(false); return; }
+      const { data } = await supabase
+        .from('profiles')
+        .select('company_registration_completed')
+        .eq('id', user.id)
+        .maybeSingle();
+      setRegistrationDone(data?.company_registration_completed === true);
+    }
+    checkReg();
+  }, []);
 
   useEffect(() => {
     if (!editId) return;
@@ -320,7 +336,42 @@ export default function CreateCampaignPage() {
 
   const isLastStep = step === STEPS.length - 1;
 
-  if (loadingCampaign) {
+  /* Bloquer la création si l'enregistrement n'est pas complet */
+  if (registrationDone === false) {
+    return (
+      <div className="text-white flex-1 flex items-center justify-center min-h-[60vh] px-6" style={{ backgroundColor: '#050404' }}>
+        <div className="max-w-md w-full text-center space-y-6">
+          <div
+            className="mx-auto w-16 h-16 rounded-full flex items-center justify-center"
+            style={{ background: 'rgba(161,94,255,0.12)', border: '1px solid rgba(161,94,255,0.25)' }}
+          >
+            <Lock className="w-7 h-7" style={{ color: '#A15EFF' }} />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-white mb-2">Informations entreprise requises</h2>
+            <p className="text-sm text-white/50 leading-relaxed">
+              Vous devez compléter les informations de votre entreprise avant de pouvoir créer une campagne.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/mon-compte')}
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            style={{ background: 'linear-gradient(135deg, #A15EFF 0%, #7c3aed 100%)', boxShadow: '0 4px 20px rgba(161,94,255,0.3)' }}
+          >
+            Compléter mon profil entreprise
+          </button>
+          <button
+            onClick={() => navigate(-1)}
+            className="block w-full text-sm text-white/30 hover:text-white/60 transition-colors mt-2"
+          >
+            Retour
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadingCampaign || registrationDone === null) {
     return (
       <div className="text-white min-h-screen" style={{ backgroundColor: '#050404' }}>
         <div className="max-w-[1440px] mx-auto px-4 lg:px-8 py-6 lg:py-10">

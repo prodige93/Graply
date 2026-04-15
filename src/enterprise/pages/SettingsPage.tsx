@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useEnterpriseNavigate } from '@/enterprise/lib/useEnterpriseNavigate';
-import { Eye, EyeOff, Check, Mail, Phone, Lock, ChevronLeft, ChevronRight, LogOut, ExternalLink, Unlink, Shield, FileText, UserX, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Check, Mail, Phone, Lock, ChevronLeft, ChevronRight, LogOut, ExternalLink, Unlink, Shield, FileText, UserX } from 'lucide-react';
+import DeleteAccountModal from '@/shared/components/DeleteAccountModal';
 import stripeIcon from '@/shared/assets/stripe-settings-icon.jpeg';
 import instagramIcon from '@/shared/assets/instagram-logo.svg';
 import tiktokIcon from '@/shared/assets/tiktok.svg';
@@ -89,14 +90,9 @@ export default function SettingsPage() {
     navigate('/connexion');
   }
 
-  async function handleDeleteAccount() {
-    if (
-      !window.confirm(
-        'Supprimer définitivement ton compte Graply ? Toutes tes données (profil, réseaux sociaux, candidatures, vidéos synchronisées, etc.) seront effacées. Cette action est irréversible.',
-      )
-    ) {
-      return;
-    }
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
+  async function doDeleteAccount() {
     setDeletingAccount(true);
     const { error } = await supabase.rpc('delete_my_account');
     setDeletingAccount(false);
@@ -105,7 +101,7 @@ export default function SettingsPage() {
       return;
     }
     await supabase.auth.signOut();
-    navigate('/connexion');
+    navigate('/');
   }
 
   function saveEmail() {
@@ -460,7 +456,7 @@ export default function SettingsPage() {
           </button>
           <button
             type="button"
-            onClick={handleDeleteAccount}
+            onClick={() => setDeleteConfirmOpen(true)}
             disabled={deletingAccount}
             className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-red-500/10 active:scale-[0.97] disabled:opacity-40 w-full sm:w-auto justify-center"
             style={{
@@ -468,14 +464,17 @@ export default function SettingsPage() {
               border: '1px solid rgba(239,68,68,0.35)',
             }}
           >
-            {deletingAccount ? (
-              <Loader2 className="w-4 h-4 text-red-400 animate-spin" />
-            ) : (
-              <UserX className="w-4 h-4 text-red-400" />
-            )}
+            <UserX className="w-4 h-4 text-red-400" />
             <span className="text-red-400">Supprimer mon compte</span>
           </button>
         </div>
+
+        <DeleteAccountModal
+          open={deleteConfirmOpen}
+          loading={deletingAccount}
+          onClose={() => setDeleteConfirmOpen(false)}
+          onConfirm={doDeleteAccount}
+        />
     </main>
   );
 }
