@@ -1,0 +1,89 @@
+// Tables dédiées au worker UGC (Prisma) — préfixe ugc_tracking_* pour ne pas entrer en conflit
+// avec public.campaigns et le reste du schéma Supabase / Graply.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["public"]
+}
+
+model Campaign {
+  id              String         @id @default(cuid())
+  name            String
+  ratePerKViews   Float
+  minPayment      Float
+  maxPayment      Float
+  totalBudget     Float
+  remainingBudget Float
+  status          CampaignStatus @default(ACTIVE)
+  createdAt       DateTime       @default(now())
+  videos          VideoTracking[]
+
+  @@map("ugc_tracking_campaigns")
+  @@schema("public")
+}
+
+model VideoTracking {
+  id                     String          @id @default(cuid())
+  videoUrl               String
+  platform               Platform
+  creatorId              String
+  campaignId             String
+  campaign               Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  status                 VideoStatus     @default(ACTIVE)
+  currentViews           Int             @default(0)
+  currentEarning         Float           @default(0)
+  scrapingFrequencyHours Int             @default(2)
+  lastScrapedAt          DateTime?
+  createdAt              DateTime        @default(now())
+  scrapeLogs             VideoScrapeLog[]
+
+  @@index([campaignId])
+  @@index([status])
+  @@map("ugc_video_tracking")
+  @@schema("public")
+}
+
+model VideoScrapeLog {
+  id              String        @id @default(cuid())
+  videoTrackingId String
+  videoTracking   VideoTracking @relation(fields: [videoTrackingId], references: [id], onDelete: Cascade)
+  views           Int
+  createdAt       DateTime      @default(now())
+
+  @@index([videoTrackingId, createdAt])
+  @@map("ugc_video_scrape_logs")
+  @@schema("public")
+}
+
+enum CampaignStatus {
+  ACTIVE
+  BUDGET_EXHAUSTED
+  COMPLETED
+
+  @@map("ugc_tracking_campaign_status")
+  @@schema("public")
+}
+
+enum VideoStatus {
+  ACTIVE
+  CAPPED
+  BUDGET_EXHAUSTED
+  STOPPED
+
+  @@map("ugc_video_status")
+  @@schema("public")
+}
+
+enum Platform {
+  TIKTOK
+  INSTAGRAM
+  YOUTUBE
+
+  @@map("ugc_tracking_platform")
+  @@schema("public")
+}
