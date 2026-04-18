@@ -18,6 +18,7 @@ export interface Campaign {
 
 interface MyCampaignsContextValue {
   campaigns: Campaign[];
+  pendingCheckout: Campaign[];
   pausedCampaigns: Campaign[];
   drafts: Campaign[];
   loading: boolean;
@@ -31,6 +32,7 @@ const MyCampaignsContext = createContext<MyCampaignsContextValue | null>(null);
 
 export function MyCampaignsProvider({ children }: { children: ReactNode }) {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [pendingCheckout, setPendingCheckout] = useState<Campaign[]>([]);
   const [pausedCampaigns, setPausedCampaigns] = useState<Campaign[]>([]);
   const [drafts, setDrafts] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,6 +44,7 @@ export function MyCampaignsProvider({ children }: { children: ReactNode }) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setCampaigns([]);
+        setPendingCheckout([]);
         setPausedCampaigns([]);
         setDrafts([]);
         setLoading(false);
@@ -51,12 +54,14 @@ export function MyCampaignsProvider({ children }: { children: ReactNode }) {
       return fetchCampaigns(user.id);
     }
     setLoading(true);
-    const [pubResult, pausedResult, draftResult] = await Promise.all([
+    const [pubResult, pendingResult, pausedResult, draftResult] = await Promise.all([
       supabase.from('campaigns').select('*').eq('status', 'published').eq('user_id', effectiveUid).order('created_at', { ascending: false }),
+      supabase.from('campaigns').select('*').eq('status', 'pending_checkout').eq('user_id', effectiveUid).order('created_at', { ascending: false }),
       supabase.from('campaigns').select('*').eq('status', 'paused').eq('user_id', effectiveUid).order('created_at', { ascending: false }),
       supabase.from('campaigns').select('*').eq('status', 'draft').eq('user_id', effectiveUid).order('created_at', { ascending: false }),
     ]);
     setCampaigns(pubResult.data ?? []);
+    setPendingCheckout(pendingResult.data ?? []);
     setPausedCampaigns(pausedResult.data ?? []);
     if (draftResult.data) setDrafts(draftResult.data);
     setLoading(false);
@@ -77,6 +82,7 @@ export function MyCampaignsProvider({ children }: { children: ReactNode }) {
 
   const deleteDraft = useCallback((id: string) => {
     setDrafts((prev) => prev.filter((d) => d.id !== id));
+    setPendingCheckout((prev) => prev.filter((d) => d.id !== id));
   }, []);
 
   const deleteActiveCampaign = useCallback(async (id: string) => {
@@ -132,7 +138,7 @@ export function MyCampaignsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <MyCampaignsContext.Provider value={{ campaigns, pausedCampaigns, drafts, loading, refresh: fetchCampaigns, deleteDraft, deleteActiveCampaign, updateCampaignStatus }}>
+    <MyCampaignsContext.Provider value={{ campaigns, pendingCheckout, pausedCampaigns, drafts, loading, refresh: fetchCampaigns, deleteDraft, deleteActiveCampaign, updateCampaignStatus }}>
       {children}
     </MyCampaignsContext.Provider>
   );

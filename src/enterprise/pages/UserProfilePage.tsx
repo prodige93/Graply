@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useEnterpriseNavigate } from '@/enterprise/lib/useEnterpriseNavigate';
-import { ArrowLeft, MessageCircle, User, MoreVertical, Flag, ShieldBan, X } from 'lucide-react';
-import { supabase } from '@/shared/infrastructure/supabase';
+import { ArrowLeft, MessageCircle, User, MoreVertical, Flag, ShieldBan, X, Eye, Video } from 'lucide-react';
+import { fetchCreatorProfilePreview, type CreatorProfilePreview } from '@/shared/lib/creatorProfilePreview';
 import jentrepriseIcon from '@/shared/assets/badge-enterprise-verified.png';
 import instagramIcon from '@/shared/assets/instagram-logo.svg';
 import youtubeIcon from '@/shared/assets/youtube-symbol.svg';
@@ -24,25 +24,14 @@ const platformBaseUrls: Record<string, string> = {
   youtube: 'https://youtube.com/@',
 };
 
-interface UserProfile {
-  id: string;
-  username: string;
-  display_name: string;
-  bio: string;
-  avatar_url: string | null;
-  banner_url: string | null;
-  content_tags: string[];
-  website: string;
-  created_at: string;
-  instagram_handle: string;
-  tiktok_handle: string;
-  youtube_handle: string;
+function formatInt(n: number): string {
+  return new Intl.NumberFormat('fr-FR').format(Math.max(0, Math.floor(n)));
 }
 
 export default function UserProfilePage() {
   const { username } = useParams<{ username: string }>();
   const navigate = useEnterpriseNavigate();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<CreatorProfilePreview | null>(null);
   const [loading, setLoading] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
   const [modal, setModal] = useState<{ type: 'report' | 'block' } | null>(null);
@@ -65,16 +54,11 @@ export default function UserProfilePage() {
   useEffect(() => {
     if (!username) return;
     setLoading(true);
-    supabase
-      .from('profiles')
-      .select('id, username, display_name, bio, avatar_url, banner_url, content_tags, website, created_at, instagram_handle, tiktok_handle, youtube_handle')
-      .eq('username', username)
-      .eq('is_public', true)
-      .maybeSingle()
-      .then(({ data }) => {
-        setProfile(data);
-        setLoading(false);
-      });
+    void (async () => {
+      const res = await fetchCreatorProfilePreview(username);
+      setProfile(res.found ? res : null);
+      setLoading(false);
+    })();
   }, [username]);
 
   if (loading) {
@@ -108,7 +92,14 @@ export default function UserProfilePage() {
     );
   }
 
-  const joinedDate = new Date(profile.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  const joinedDate = profile.created_at
+    ? new Date(profile.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+    : '';
+  const canMessage = profile.is_public && profile.messaging_enabled;
+  const isPrivateVisitor = !profile.is_public;
+  const viewsGraply = profile.clip_views_total;
+  const videosApproved = profile.stats.approved_videos;
+  const campaignsDone = profile.stats.campaigns_with_approved_video;
 
   return (
     <div className="text-white" style={{ backgroundColor: '#050404' }}>
@@ -184,32 +175,43 @@ export default function UserProfilePage() {
               <h1 className="text-2xl lg:text-3xl font-bold text-white">@{profile.username}</h1>
               <img src={jentrepriseIcon} alt="Verified" className="w-[29px] h-[29px]" />
             </div>
-            {profile.display_name && (
+            {!isPrivateVisitor && profile.display_name ? (
               <p className="text-sm text-white/50 mb-0.5">{profile.display_name}</p>
+            ) : null}
+            {isPrivateVisitor ? (
+              <p className="text-xs text-white/40 mt-1 flex items-center gap-1.5">
+                <Eye className="w-3.5 h-3.5 shrink-0" />
+                Profil privé — bannière, photo et compteurs uniquement.
+              </p>
+            ) : (
+              <p className="text-xs text-white/30">Membre depuis {joinedDate}</p>
             )}
-            <p className="text-xs text-white/30">Membre depuis {joinedDate}</p>
-            <button
-              onClick={() => navigate(`/messagerie?dm=${profile.username}`)}
-              className="lg:hidden flex items-center gap-2 px-4 py-2 mt-3 rounded-full text-sm font-semibold transition-all duration-200 hover:brightness-110 active:scale-[0.96] w-fit"
-              style={{ background: '#fff', color: '#000' }}
-            >
-              <MessageCircle className="w-4 h-4" />
-              Message
-            </button>
+            {canMessage ? (
+              <button
+                onClick={() => navigate(`/messagerie?dm=${profile.username}`)}
+                className="lg:hidden flex items-center gap-2 px-4 py-2 mt-3 rounded-full text-sm font-semibold transition-all duration-200 hover:brightness-110 active:scale-[0.96] w-fit"
+                style={{ background: '#fff', color: '#000' }}
+              >
+                <MessageCircle className="w-4 h-4" />
+                Message
+              </button>
+            ) : (
+              <p className="text-xs text-white/35 mt-3 lg:hidden">Messagerie indisponible</p>
+            )}
           </div>
         </div>
 
-        {profile.bio && (
+        {!isPrivateVisitor && profile.bio ? (
           <p className="text-sm text-white leading-relaxed max-w-2xl mb-6">{profile.bio}</p>
-        )}
+        ) : null}
 
-        {socialPlatformKeys.some((key) => {
-          const handleKey = `${key}_handle` as keyof UserProfile;
+        {!isPrivateVisitor && socialPlatformKeys.some((key) => {
+          const handleKey = `${key}_handle` as keyof CreatorProfilePreview;
           return !!(profile[handleKey]);
-        }) && (
+        }) ? (
           <div className="flex items-center gap-2.5 mb-5">
             {socialPlatformKeys.map((key) => {
-              const handleKey = `${key}_handle` as keyof UserProfile;
+              const handleKey = `${key}_handle` as keyof CreatorProfilePreview;
               const handle = (profile[handleKey] as string) || '';
               if (!handle) return null;
               const clean = handle.replace(/^@/, '');
@@ -229,9 +231,10 @@ export default function UserProfilePage() {
               );
             })}
           </div>
-        )}
+        ) : null}
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          {!isPrivateVisitor ? (
           <div className="flex flex-wrap gap-2">
             {(profile.content_tags || []).map((tag) => (
               <span
@@ -247,8 +250,10 @@ export default function UserProfilePage() {
               </span>
             ))}
           </div>
+          ) : <div />}
 
           <div className="hidden lg:flex items-center gap-2">
+            {canMessage ? (
             <button
               onClick={() => navigate(`/messagerie?dm=${profile.username}`)}
               className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200 hover:brightness-110 active:scale-[0.96]"
@@ -257,6 +262,7 @@ export default function UserProfilePage() {
               <MessageCircle className="w-4 h-4" />
               Message
             </button>
+            ) : null}
             <div className="relative" ref={menuRefDesktop}>
               <button
                 onClick={() => setShowMenu((p) => !p)}
@@ -290,7 +296,33 @@ export default function UserProfilePage() {
           </div>
         </div>
 
-        {profile.website && (
+        <div className="flex flex-wrap items-center gap-3 mb-6">
+          <div
+            className="flex items-center gap-2.5 px-4 py-3 rounded-xl"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            <Eye className="w-4 h-4 text-white/40" />
+            <span className="text-sm font-bold text-white">{formatInt(viewsGraply)}</span>
+            <span className="text-sm text-white/40">vues Graply</span>
+          </div>
+          <div
+            className="flex items-center gap-2.5 px-4 py-3 rounded-xl"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            <Video className="w-4 h-4 text-white/40" />
+            <span className="text-sm font-bold text-white">{formatInt(videosApproved)}</span>
+            <span className="text-sm text-white/40">vidéos</span>
+          </div>
+          <div
+            className="flex items-center gap-2.5 px-4 py-3 rounded-xl"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            <span className="text-sm font-bold text-white">{formatInt(campaignsDone)}</span>
+            <span className="text-sm text-white/40">campagnes</span>
+          </div>
+        </div>
+
+        {!isPrivateVisitor && profile.website ? (
           <a
             href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
             target="_blank"
@@ -299,7 +331,7 @@ export default function UserProfilePage() {
           >
             {profile.website}
           </a>
-        )}
+        ) : null}
       </div>
 
       {modal && (

@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, ChevronDown, Check, X, ArrowLeft, ChevronRight } from 'lucide-react';
-import iphone17Img from '@/shared/assets/hero-slide-iphone17.jpeg';
-import bo7Img from '@/shared/assets/hero-slide-bo7.jpeg';
 import instagramIcon from '@/shared/assets/instagram-card.svg';
 import tiktokIcon from '@/shared/assets/tiktok.svg';
 import youtubeIcon from '@/shared/assets/youtube.svg';
@@ -13,23 +11,7 @@ import verifiedIcon from '@/shared/assets/badge-enterprise-verified.png';
 import Sidebar from '../components/Sidebar';
 import { supabase } from '@/shared/infrastructure/supabase';
 import { mapSupabaseCampaign, enrichCampaignsWithProfiles } from '@/shared/lib/mapSupabaseCampaign';
-
-const slides = [
-  {
-    id: 1,
-    title: 'iPhone 17',
-    image: iphone17Img,
-    subtitle: 'Nouvelle collection',
-    campaignId: 'apple-iphone-17',
-  },
-  {
-    id: 2,
-    title: 'Black Ops 7',
-    image: bo7Img,
-    subtitle: 'Campagne exclusive',
-    campaignId: 'activision-cod-bo7',
-  },
-];
+import { useHeroFeaturedSlides } from '@/shared/lib/useHeroFeaturedSlides';
 
 const categoryOptions = ['UGC', 'Clipping'];
 const categoryColors: Record<string, string> = {
@@ -366,6 +348,7 @@ function FilterBar({
 
 export default function CampaignsPage() {
   const navigate = useNavigate();
+  const { slides } = useHeroFeaturedSlides();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [dbCampaigns, setDbCampaigns] = useState<CampaignData[]>([]);
   const [filters, setFilters] = useState<FilterState>({
@@ -388,11 +371,16 @@ export default function CampaignsPage() {
   }, []);
 
   useEffect(() => {
+    setCurrentSlide(0);
+  }, [slides]);
+
+  useEffect(() => {
+    if (slides.length === 0) return;
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
     }, 4000);
     return () => clearInterval(timer);
-  }, []);
+  }, [slides.length]);
 
   useEffect(() => {
     const fetchPublished = async () => {
@@ -457,7 +445,11 @@ export default function CampaignsPage() {
       <div
         className="relative w-full overflow-hidden select-none cursor-pointer shrink-0"
         style={{ height: '288px', minHeight: '288px', maxHeight: '288px' }}
-        onClick={() => navigate(`/campaign/${slides[currentSlide].campaignId}`)}
+        onClick={() => {
+          const s = slides[currentSlide];
+          if (s?.campaignId) navigate(`/campagne/${s.campaignId}`);
+          else navigate('/campagnes');
+        }}
       >
         <button
           onClick={(e) => { e.stopPropagation(); navigate('/home'); }}
@@ -468,13 +460,13 @@ export default function CampaignsPage() {
         </button>
         {slides.map((slide, index) => (
           <div
-            key={slide.id}
+            key={slide.key}
             className={`absolute inset-0 overflow-hidden transition-opacity duration-1000 ${
               index === currentSlide ? 'opacity-100' : 'opacity-0'
             }`}
           >
             <img
-              src={slide.image}
+              src={slide.imageUrl}
               alt={slide.title}
               className="w-full h-full object-cover pointer-events-none"
               draggable={false}
@@ -486,9 +478,14 @@ export default function CampaignsPage() {
 
         <div className="absolute bottom-6 left-6 z-10">
           <h2 className="text-3xl font-bold">{slides[currentSlide].title}</h2>
-          <p className="text-gray-300 mt-1">{slides[currentSlide].subtitle}</p>
+          <p className="text-gray-300 mt-1">{slides[currentSlide]?.line2}</p>
           <button
-            onClick={(e) => { e.stopPropagation(); navigate(`/campaign/${slides[currentSlide].campaignId}`); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              const s = slides[currentSlide];
+              if (s?.campaignId) navigate(`/campagne/${s.campaignId}`);
+              else navigate('/campagnes');
+            }}
             className="mt-3 flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]"
             style={{
               background: 'rgba(255,255,255,0.12)',

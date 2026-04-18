@@ -9,6 +9,7 @@ import { campaigns as allCampaignsData, sponsoredCampaigns } from '@/shared/data
 import CampaignCard from '../components/CampaignCard';
 import ActiveCampaignCard from '../components/campaign-cards/ActiveCampaignCard';
 import DraftCard from '../components/campaign-cards/DraftCard';
+import PendingCheckoutCard from '../components/campaign-cards/PendingCheckoutCard';
 import SavedCampaignCard from '../components/campaign-cards/SavedCampaignCard';
 import instagramIcon from '@/shared/assets/instagram-card.svg';
 import youtubeIcon from '@/shared/assets/youtube.svg';
@@ -28,7 +29,7 @@ const allCampaignsList = [...allCampaignsData, ...sponsoredCampaigns];
 export default function MyCampaignsPage() {
   const navigate = useEnterpriseNavigate();
   const { savedIds, toggle } = useSavedCampaigns();
-  const { campaigns, pausedCampaigns, drafts, loading, deleteDraft, deleteActiveCampaign } = useMyCampaigns();
+  const { campaigns, pendingCheckout, pausedCampaigns, drafts, loading, deleteDraft, deleteActiveCampaign } = useMyCampaigns();
   const { tab: activeTab, setTab: setActiveTab } = useCampaignTab();
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -103,6 +104,11 @@ export default function MyCampaignsPage() {
 
   const filteredDrafts = useMemo(() => drafts.filter(filterCampaign), [drafts, searchQuery, selectedCategory, selectedContent, budgetMin, budgetMax, selectedPlatforms]);
 
+  const filteredPending = useMemo(
+    () => pendingCheckout.filter(filterCampaign),
+    [pendingCheckout, searchQuery, selectedCategory, selectedContent, budgetMin, budgetMax, selectedPlatforms],
+  );
+
   const savedCampaignsList = allCampaignsList.filter((c) => savedIds.includes(c.id));
 
   const filteredSaved = useMemo(() => {
@@ -139,10 +145,18 @@ export default function MyCampaignsPage() {
     setOpenDropdown(null);
   };
 
-  const hasCampaigns = campaigns.length > 0 || pausedCampaigns.length > 0 || drafts.length > 0;
+  const hasCampaigns =
+    campaigns.length > 0 ||
+    pendingCheckout.length > 0 ||
+    pausedCampaigns.length > 0 ||
+    drafts.length > 0;
 
   const handleDeleteDraft = async (draftId: string) => {
-    const { error } = await supabase.from('campaigns').delete().eq('id', draftId).eq('status', 'draft');
+    const { error } = await supabase
+      .from('campaigns')
+      .delete()
+      .eq('id', draftId)
+      .in('status', ['draft', 'pending_checkout']);
     if (!error) {
       deleteDraft(draftId);
     }
@@ -185,6 +199,7 @@ export default function MyCampaignsPage() {
         <div className="flex items-center gap-0 min-w-max">
           {([
             { key: 'active' as const, label: 'Campagne en cours' },
+            { key: 'pending_payment' as const, label: 'Paiement' },
             { key: 'paused' as const, label: 'En pause' },
             { key: 'saved' as const, label: 'Enregistrees' },
             { key: 'drafts' as const, label: 'Brouillons' },
@@ -507,6 +522,26 @@ export default function MyCampaignsPage() {
                 <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
                   {filteredCampaigns.map((c) => (
                     <ActiveCampaignCard key={c.id} campaign={c} onDelete={deleteActiveCampaign} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'pending_payment' && (
+            <div className="px-4 sm:px-6 mt-4 sm:mt-10 pb-12">
+              {filteredPending.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                  <Megaphone className="w-10 h-10 text-white/10 mb-3" />
+                  <p className="text-white/40 text-sm font-medium">Aucune campagne en attente de paiement</p>
+                  {hasAnyFilter && (
+                    <p className="text-white/20 text-xs mt-1">Essayez de modifier vos filtres</p>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
+                  {filteredPending.map((c) => (
+                    <PendingCheckoutCard key={c.id} campaign={c} onDelete={handleDeleteDraft} />
                   ))}
                 </div>
               )}

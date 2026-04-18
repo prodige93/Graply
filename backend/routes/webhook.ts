@@ -1,5 +1,8 @@
 import { Router, Request, Response } from "express";
+import type Stripe from "stripe";
 import stripe from "../config/stripe";
+import { supabaseAdmin } from "../config/supabaseAdmin";
+import { budgetToCents } from "../lib/money";
 
 const router = Router();
 
@@ -66,10 +69,62 @@ router.post(
     // Traitement des événements Stripe
     switch (event.type) {
       case "checkout.session.completed": {
-        const session = event.data.object;
-        // mets à jour la base de données
-        // ex: créditer le budget de la campagne, enregistrer le paiement
-        console.log("Paiement confirmé pour la session:", session.id);
+        const session = event.data.object as Stripe.Checkout.Session;
+        const campaignId =
+          session.metadata?.campaign_id || session.client_reference_id;
+        if (!campaignId || !supabaseAdmin) {
+          console.log("checkout.session.completed sans campaign_id ou Supabase admin:", session.id);
+          break;
+        }
+
+        const { data: campaign, error: fetchErr } = await supabaseAdmin
+          .from("campaigns")
+          .select("id, budget, status")
+          .eq("id", campaignId)
+          .maybeSingle();
+
+        if (fetchErr || !campaign) {
+          console.error("Campagne introuvable pour webhook:", campaignId, fetchErr?.message);
+          break;
+        }
+
+        if (campaign.status === "published") {
+          console.log("Campagne déjà publiée, idempotence:", campaignId);
+          break;
+        }
+
+        if (campaign.status !== "pending_checkout") {
+          console.warn("Statut inattendu pour paiement:", campaign.status, campaignId);
+          break;
+        }
+
+        const expectedCents = budgetToCents(campaign.budget as string);
+        const paid = session.amount_total ?? 0;
+        if (paid !== expectedCents) {
+          console.error(
+            "Montant Stripe ≠ budget campagne:",
+            paid,
+            expectedCents,
+            campaignId,
+          );
+          break;
+        }
+
+        const { error: upErr } = await supabaseAdmin
+          .from("campaigns")
+          .update({
+            status: "published",
+            paid_at: new Date().toISOString(),
+            stripe_checkout_session_id: session.id,
+          })
+          .eq("id", campaignId)
+          .eq("status", "pending_checkout");
+
+        if (upErr) {
+          console.error("Mise à jour campagne après paiement:", upErr.message);
+        } else {
+          console.log("Campagne publiée après paiement:", campaignId);
+        }
         break;
       }
 

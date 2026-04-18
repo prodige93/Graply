@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, User, MoreVertical, Flag, ShieldBan, X, Video } from 'lucide-react';
+import { ArrowLeft, MessageCircle, User, MoreVertical, Flag, ShieldBan, X, Video, Eye } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
-import { supabase } from '@/shared/infrastructure/supabase';
 import GrapeLoader from '../components/GrapeLoader';
+import { fetchCreatorProfilePreview, type CreatorProfilePreview } from '@/shared/lib/creatorProfilePreview';
 import verifiedIcon from '@/shared/assets/badge-creator-verified.png';
 import instagramIcon from '@/shared/assets/instagram-logo.svg';
 import youtubeIcon from '@/shared/assets/youtube-color.svg';
@@ -17,19 +17,8 @@ const socialPlatforms = [
   { key: 'youtube', icon: youtubeIcon, label: 'YouTube', baseUrl: 'https://youtube.com/@' },
 ] as const;
 
-interface UserProfile {
-  id: string;
-  username: string;
-  display_name: string;
-  bio: string;
-  avatar_url: string | null;
-  banner_url: string | null;
-  content_tags: string[];
-  website: string;
-  created_at: string;
-  instagram_handle: string;
-  tiktok_handle: string;
-  youtube_handle: string;
+function formatInt(n: number): string {
+  return new Intl.NumberFormat('fr-FR').format(Math.max(0, Math.floor(n)));
 }
 
 export default function UserProfilePage() {
@@ -39,7 +28,7 @@ export default function UserProfilePage() {
   const locationState = location.state as { from?: string; backState?: Record<string, unknown> } | null;
   const from = locationState?.from;
   const backState = locationState?.backState;
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<CreatorProfilePreview | null>(null);
   const [loading, setLoading] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
   const [modal, setModal] = useState<{ type: 'report' | 'block' } | null>(null);
@@ -62,16 +51,11 @@ export default function UserProfilePage() {
   useEffect(() => {
     if (!username) return;
     setLoading(true);
-    supabase
-      .from('profiles')
-      .select('id, username, display_name, bio, avatar_url, banner_url, content_tags, website, created_at, instagram_handle, tiktok_handle, youtube_handle')
-      .eq('username', username)
-      .eq('is_public', true)
-      .maybeSingle()
-      .then(({ data }) => {
-        setProfile(data);
-        setLoading(false);
-      });
+    void (async () => {
+      const res = await fetchCreatorProfilePreview(username);
+      setProfile(res.found ? res : null);
+      setLoading(false);
+    })();
   }, [username]);
 
   if (loading) {
@@ -99,7 +83,14 @@ export default function UserProfilePage() {
     );
   }
 
-  const joinedDate = new Date(profile.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  const joinedDate = profile.created_at
+    ? new Date(profile.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+    : '';
+  const canMessage = profile.is_public && profile.messaging_enabled;
+  const isPrivateVisitor = !profile.is_public;
+  const viewsGraply = profile.clip_views_total;
+  const videosApproved = profile.stats.approved_videos;
+  const campaignsDone = profile.stats.campaigns_with_approved_video;
 
   return (
     <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
@@ -154,29 +145,42 @@ export default function UserProfilePage() {
                 <h1 className="text-2xl lg:text-3xl font-bold text-white">@{profile.username}</h1>
                 <img src={verifiedIcon} alt="Verified" className="w-[29px] h-[29px]" />
               </div>
-              {profile.display_name && (
+              {!isPrivateVisitor && profile.display_name ? (
                 <p className="text-sm text-white/50 mb-0.5">{profile.display_name}</p>
+              ) : null}
+              {isPrivateVisitor ? (
+                <p className="text-xs text-white/40 mb-2 flex items-center gap-1.5">
+                  <Eye className="w-3.5 h-3.5 shrink-0" />
+                  Profil privé — seules la bannière, la photo et les compteurs ci-dessous sont visibles.
+                </p>
+              ) : (
+                <p className="text-xs text-white/30 mb-2">Membre depuis {joinedDate}</p>
               )}
-              <p className="text-xs text-white/30 mb-2">Membre depuis {joinedDate}</p>
               <div className="flex items-center gap-2 lg:hidden">
-                <button
-                  onClick={() => navigate(`/messagerie?dm=${profile.username}`)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200 hover:brightness-110 active:scale-[0.96]"
-                  style={{ background: '#fff', color: '#000' }}
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  Message
-                </button>
+                {canMessage ? (
+                  <button
+                    onClick={() => navigate(`/messagerie?dm=${profile.username}`)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200 hover:brightness-110 active:scale-[0.96]"
+                    style={{ background: '#fff', color: '#000' }}
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    Message
+                  </button>
+                ) : (
+                  <p className="text-xs text-white/35">Messagerie indisponible</p>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0 pt-1">
-              <button
-                onClick={() => navigate(`/messagerie?dm=${profile.username}`)}
-                className="hidden lg:flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 hover:brightness-110 active:scale-[0.96]"
-                style={{ background: '#fff', color: '#000' }}
-              >
-                <MessageCircle className="w-4 h-4" />
-              </button>
+              {canMessage ? (
+                <button
+                  onClick={() => navigate(`/messagerie?dm=${profile.username}`)}
+                  className="hidden lg:flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 hover:brightness-110 active:scale-[0.96]"
+                  style={{ background: '#fff', color: '#000' }}
+                >
+                  <MessageCircle className="w-4 h-4" />
+                </button>
+              ) : null}
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => setShowMenu((p) => !p)}
@@ -211,10 +215,11 @@ export default function UserProfilePage() {
           </div>
         </div>
 
-        {profile.bio && (
+        {!isPrivateVisitor && profile.bio ? (
           <p className="text-sm text-white leading-relaxed max-w-2xl mb-6">{profile.bio}</p>
-        )}
+        ) : null}
 
+        {!isPrivateVisitor ? (
         <div className="flex flex-wrap gap-2 mb-6">
           {(profile.content_tags || []).map((tag) => (
             <span
@@ -230,11 +235,15 @@ export default function UserProfilePage() {
             </span>
           ))}
         </div>
+        ) : null}
 
-        {socialPlatforms.some((p) => profile[`${p.key}_handle` as keyof UserProfile]) && (
+        {!isPrivateVisitor && socialPlatforms.some((p) => {
+          const k = `${p.key}_handle` as 'instagram_handle' | 'tiktok_handle' | 'youtube_handle';
+          return Boolean(profile[k]?.trim());
+        }) ? (
           <div className="flex items-center gap-2.5 mb-6">
             {socialPlatforms.map((p) => {
-              const handle = (profile[`${p.key}_handle` as keyof UserProfile] as string) || '';
+              const handle = profile[`${p.key}_handle` as 'instagram_handle' | 'tiktok_handle' | 'youtube_handle'] || '';
               if (!handle) return null;
               const clean = handle.replace(/^@/, '');
               const url = `${p.baseUrl}${clean}`;
@@ -253,20 +262,36 @@ export default function UserProfilePage() {
               );
             })}
           </div>
-        )}
+        ) : null}
 
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex flex-wrap items-center gap-3 mb-6">
+          <div
+            className="flex items-center gap-2.5 px-4 py-3 rounded-xl"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+            title="Vues cumulées sur les vidéos Graply acceptées (synchronisation automatique)."
+          >
+            <Eye className="w-4 h-4 text-white/40" />
+            <span className="text-sm font-bold text-white">{formatInt(viewsGraply)}</span>
+            <span className="text-sm text-white/40">vues Graply</span>
+          </div>
           <div
             className="flex items-center gap-2.5 px-4 py-3 rounded-xl"
             style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
           >
             <Video className="w-4 h-4 text-white/40" />
-            <span className="text-sm font-bold text-white">0</span>
-            <span className="text-sm text-white/40">videos</span>
+            <span className="text-sm font-bold text-white">{formatInt(videosApproved)}</span>
+            <span className="text-sm text-white/40">vidéos</span>
+          </div>
+          <div
+            className="flex items-center gap-2.5 px-4 py-3 rounded-xl"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            <span className="text-sm font-bold text-white">{formatInt(campaignsDone)}</span>
+            <span className="text-sm text-white/40">campagnes</span>
           </div>
         </div>
 
-        {profile.website && (
+        {!isPrivateVisitor && profile.website ? (
           <a
             href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
             target="_blank"
@@ -275,7 +300,7 @@ export default function UserProfilePage() {
           >
             {profile.website}
           </a>
-        )}
+        ) : null}
       </div>
 
       {modal && (

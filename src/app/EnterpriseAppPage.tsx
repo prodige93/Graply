@@ -27,6 +27,7 @@ import SavedCampaignsPage from '@/enterprise/pages/SavedCampaignsPage';
 import EnterprisePage from '@/enterprise/pages/EnterprisePage';
 import EnterpriseCertificationPage from '@/enterprise/pages/EnterpriseCertificationPage';
 import UserProfilePage from '@/enterprise/pages/UserProfilePage';
+import EnterpriseCampaignPaymentSuccessPage from '@/enterprise/pages/EnterpriseCampaignPaymentSuccessPage';
 
 export default function EnterpriseAppPage() {
   return (
@@ -65,6 +66,7 @@ export default function EnterpriseAppPage() {
               <Route path="certification" element={<EnterpriseCertificationPage />} />
               <Route path="certification-entreprise" element={<EnterpriseCertificationPage />} />
               <Route path="u/:username" element={<UserProfilePage />} />
+              <Route path="paiement-reussi-campagne" element={<EnterpriseCampaignPaymentSuccessPage />} />
               <Route path="*" element={<Navigate to="/app-entreprise" replace />} />
             </Route>
           </Routes>

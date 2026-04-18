@@ -11,6 +11,12 @@ import StepFive from '../components/create-campaign/StepFive';
 import CampaignPreview from '../components/create-campaign/CampaignPreview';
 import { supabase } from '@/shared/infrastructure/supabase';
 import { useMyCampaigns } from '@/enterprise/contexts/MyCampaignsContext';
+import {
+  MIN_CAMPAIGN_BUDGET_EUR,
+  validateRewardRow,
+  parseMoneyEuros,
+} from '@/enterprise/lib/campaignBudgetRules';
+import { startEnterpriseCampaignCheckout } from '@/shared/lib/enterpriseCampaignCheckout';
 
 const STEPS = [
   { label: 'General' },
@@ -129,6 +135,10 @@ export default function CreateCampaignPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const photoUrl = photo ? await uploadPhoto(photo) : (isEditMode ? photoPreview : null);
+
+      /** Mise à jour d’une campagne déjà publiée : pas de nouveau paiement. */
+      const skipPayment = isPublishedEdit;
+
       const payload = {
         name,
         description,
@@ -144,7 +154,7 @@ export default function CreateCampaignPage() {
         min_followers: minFollowers,
         require_application: requireApplication,
         require_review: requireReview,
-        status: 'published',
+        status: (skipPayment ? 'published' : 'pending_checkout') as 'published' | 'pending_checkout',
         ...(user && !isEditMode ? { user_id: user.id } : {}),
       };
 
@@ -152,13 +162,23 @@ export default function CreateCampaignPage() {
         const { error } = await supabase.from('campaigns').update(payload).eq('id', editId);
         if (error) throw error;
         refresh();
-        navigate(`/ma-campagne/${editId}`);
-      } else {
-        const { error } = await supabase.from('campaigns').insert(payload);
-        if (error) throw error;
-        refresh();
-        navigate('/mes-campagnes');
+        if (skipPayment) {
+          navigate(`/ma-campagne/${editId}`);
+          return;
+        }
+        await startEnterpriseCampaignCheckout(editId);
+        return;
       }
+
+      const { data: inserted, error: insErr } = await supabase
+        .from('campaigns')
+        .insert(payload)
+        .select('id')
+        .single();
+      if (insErr) throw insErr;
+      refresh();
+      if (!inserted?.id) throw new Error('Campagne créée sans identifiant.');
+      await startEnterpriseCampaignCheckout(inserted.id);
     } catch (err) {
       console.error(err);
       setPublishError(err instanceof Error ? err.message : 'Une erreur est survenue. Veuillez réessayer.');
@@ -217,6 +237,11 @@ export default function CreateCampaignPage() {
     setPhotoPreview(null);
   }, [photo]);
 
+  /** PDF Entreprise : activer « Candidature » impose le mode privé (require_review / confidentialité). */
+  useEffect(() => {
+    if (requireApplication) setRequireReview(true);
+  }, [requireApplication]);
+
   const isPublishedEdit = isEditMode && !isDraft;
 
   const hasAnyInput = !!(
@@ -241,21 +266,39 @@ export default function CreateCampaignPage() {
       case 0:
         return name.trim().length > 0 && (photo !== null || !!photoPreview);
       case 1: {
-        const budgetVal = parseFloat(budget.replace(/[^0-9.]/g, '')) || 0;
-        return budget.trim().length > 0 && budgetVal >= 500 && contentType.length > 0 && categories.length > 0 && platforms.length > 0;
+        const budgetVal = parseMoneyEuros(budget);
+        return budget.trim().length > 0 && budgetVal >= MIN_CAMPAIGN_BUDGET_EUR && contentType.length > 0 && categories.length > 0 && platforms.length > 0;
       }
       case 2: {
         if (isPublishedEdit) return true;
-        const totalBudget = parseFloat(budget.replace(/[^0-9.]/g, '')) || 0;
-        const totalAllocated = platforms.reduce((sum, id) => sum + (parseFloat((platformBudgets[id]?.amount || '').replace(/[^0-9.]/g, '')) || 0), 0);
-        return platforms.length > 0 && totalAllocated <= totalBudget && platforms.every((id) => {
+        const totalBudget = parseMoneyEuros(budget);
+        const isSinglePlatform = platforms.length === 1;
+        const totalAllocated = platforms.reduce((sum, id) => sum + parseMoneyEuros(platformBudgets[id]?.amount || ''), 0);
+        if (platforms.length === 0 || totalAllocated > totalBudget) return false;
+        if (!isSinglePlatform && platforms.some((id) => parseMoneyEuros(platformBudgets[id]?.amount || '') <= 0)) {
+          return false;
+        }
+        return platforms.every((id) => {
           const pb = platformBudgets[id];
-          return pb && pb.per1000.trim().length > 0;
+          const platformBudgetEur = isSinglePlatform ? totalBudget : parseMoneyEuros(pb?.amount || '');
+          const v = validateRewardRow(pb, {
+            platformBudgetEur,
+            campaignTotalEur: totalBudget,
+            isSinglePlatform,
+          });
+          return v.ok;
         });
       }
       case 3:
         if (isPublishedEdit) return rules.some((r) => r.trim().length > 0);
         return information.trim().length > 0 && rules.some((r) => r.trim().length > 0);
+      case 4: {
+        if (requireFollowers) {
+          const n = parseInt(minFollowers.replace(/\D/g, ''), 10);
+          if (!minFollowers.trim() || Number.isNaN(n) || n <= 0) return false;
+        }
+        return true;
+      }
       default:
         return true;
     }
@@ -327,6 +370,7 @@ export default function CreateCampaignPage() {
             minFollowers={minFollowers} setMinFollowers={setMinFollowers}
             requireApplication={requireApplication} setRequireApplication={setRequireApplication}
             requireReview={requireReview} setRequireReview={setRequireReview}
+            privacyLockedByApplication={requireApplication}
           />
         );
       default:

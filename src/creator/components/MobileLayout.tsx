@@ -4,13 +4,18 @@ import { Video, Clock } from 'lucide-react'
 import chCircleIcon from '@/shared/assets/creator-hub-mark.svg'
 import MobileNav from './MobileNav'
 import { getSubmittedVideos } from '@/shared/lib/useCreatorCampaigns'
-import { VERIFY_EVENT, openVerifyModal } from '@/shared/lib/verifyEvent'
+import { VERIFY_EVENT, openVerifyModal, setVerifyVideoNavigate } from '@/shared/lib/verifyEvent'
 import VerifyVideoModal from './VerifyVideoModal'
 
 export default function MobileLayout() {
   const navigate = useNavigate()
   const [verifyChoiceOpen, setVerifyChoiceOpen] = useState(false)
   const [verifyModalOpen, setVerifyModalOpen] = useState(false)
+
+  useEffect(() => {
+    setVerifyVideoNavigate(navigate)
+    return () => setVerifyVideoNavigate(null)
+  }, [navigate])
 
   useEffect(() => {
     const handler = () => setVerifyModalOpen(true)

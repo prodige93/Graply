@@ -192,15 +192,15 @@ export default function StepTwo({ budget, setBudget, contentType, setContentType
             className="w-full pl-14 pr-4 py-3.5 rounded-xl text-white text-sm placeholder-white/25 outline-none transition-all duration-200 focus:ring-2 focus:ring-white/20"
             style={{
               backgroundColor: 'rgba(255,255,255,0.06)',
-              border: budget && parseFloat(budget.replace(/[^0-9.]/g, '')) < 500
+              border: budget && parseFloat(budget.replace(/[^0-9.]/g, '')) < 300
                 ? '1px solid rgba(239,68,68,0.5)'
                 : '1px solid rgba(255,255,255,0.08)',
             }}
           />
         </div>
-        {budget && parseFloat(budget.replace(/[^0-9.]/g, '')) < 500 && (
+        {budget && parseFloat(budget.replace(/[^0-9.]/g, '')) < 300 && (
           <p className="mt-2 text-xs" style={{ color: '#fca5a5' }}>
-            Le budget minimum est de <span className="font-bold text-white">500 EUR</span>.
+            Le budget minimum est de <span className="font-bold text-white">300 EUR</span> (document Entreprise).
           </p>
         )}
       </div>

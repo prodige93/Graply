@@ -3,11 +3,20 @@ import cors from "cors";
 import "dotenv/config";
 
 import checkoutRouter from "./routes/checkout";
+import enterpriseCheckoutRouter from "./routes/enterpriseCheckout";
 import webhookRouter from "./routes/webhook";
 
 const app = express();
 
-app.use(cors({ origin: process.env.FRONTEND_URL || "http://localhost:5173" }));
+/** Plusieurs origines (prod graply.io + dev). Ex. CORS_ORIGINS=https://graply.io,https://www.graply.io,http://localhost:5173 */
+const corsOrigins = (process.env.CORS_ORIGINS || process.env.FRONTEND_URL || "http://localhost:5173")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+const corsOriginOption =
+  corsOrigins.length === 1 ? corsOrigins[0] : corsOrigins;
+
+app.use(cors({ origin: corsOriginOption, credentials: true }));
 
 app.use(
   "/api/webhook",
@@ -22,6 +31,7 @@ app.get("/api", (_req, res) => {
 });
 
 app.use("/api", checkoutRouter);
+app.use("/api", enterpriseCheckoutRouter);
 
 const PORT = process.env.PORT || 3300;
 app.listen(PORT, () => {

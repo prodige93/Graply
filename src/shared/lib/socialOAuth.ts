@@ -27,8 +27,8 @@ export function parseOAuthPlatformFromState(state: string | null): SocialPlatfor
 /**
  * URI de callback OAuth (identique pour authorize et pour l’échange du code côté Supabase).
  * - Défaut : Supabase Storage `oauth/redirect.html`.
- * - `VITE_OAUTH_REDIRECT_URI` : remplace pour **toutes** les plateformes (Meta + Google + TikTok doivent lister cette URL).
- * - `VITE_TIKTOK_OAUTH_REDIRECT_URI` : **TikTok seulement** (ex. Netlify), pour sandbox quand Meta/Google gardent l’URL Supabase.
+ * - `VITE_OAUTH_REDIRECT_URI` : prod typique `https://graply.io/oauth-redirect.html` — à enregistrer tel quel chez Meta (Instagram), TikTok, Google (YouTube).
+ * - `VITE_TIKTOK_OAUTH_REDIRECT_URI` : **TikTok seulement** si Instagram/YouTube utilisent encore l’URL Supabase.
  */
 function getRedirectUri(platform: SocialPlatform): string {
   const globalCustom = import.meta.env.VITE_OAUTH_REDIRECT_URI?.trim();

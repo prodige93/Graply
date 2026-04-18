@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DollarSign, TrendingUp, ArrowUpRight, Play, X, ArrowDownLeft, ExternalLink, Loader2, CalendarDays } from 'lucide-react';
 import StatsChart from '../components/StatsChart';
@@ -10,6 +10,11 @@ import { useLinkedPlatformVideos } from '@/shared/lib/useLinkedPlatformVideos';
 import { useSocialConnections, type DashboardSocialPlatform } from '@/shared/lib/useSocialConnections';
 import { supabase } from '@/shared/infrastructure/supabase';
 import { getSocialOAuthUrl, type SocialPlatform } from '@/shared/lib/socialOAuth';
+import {
+  MIN_CLIP_VIEWS_FOR_PAYOUT,
+  canWithdrawThisWeek,
+  nextWithdrawalAvailableAt,
+} from '@/shared/lib/creatorPayoutRules';
 
 const platformIcons: Record<string, string> = {
   instagram: instagramIcon,
@@ -116,20 +121,71 @@ export default function DashboardPage() {
     window.scrollTo(0, 0);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user || cancelled) return;
-      const { count } = await supabase
+  const [profileUpdatedAt, setProfileUpdatedAt] = useState<string | null>(null);
+
+  const loadDashboardProfile = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const [{ count }, profileRes] = await Promise.all([
+      supabase
         .from('campaign_applications')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', user.id)
-        .eq('status', 'accepted');
-      if (!cancelled) setActiveCampaignsCount(count ?? 0);
+        .eq('status', 'accepted'),
+      supabase
+        .from('profiles')
+        .select('creator_wallet_balance, clip_views_total, last_creator_withdrawal_at, updated_at')
+        .eq('id', user.id)
+        .maybeSingle(),
+    ]);
+    setActiveCampaignsCount(count ?? 0);
+    const p = profileRes.data;
+    if (p) {
+      const bal = Number(p.creator_wallet_balance);
+      setWithdrawBalance(Number.isFinite(bal) ? bal : 0);
+      setClipViewsTotal(Number(p.clip_views_total) || 0);
+      setLastWithdrawalAt(p.last_creator_withdrawal_at ?? null);
+      setProfileUpdatedAt(p.updated_at ?? new Date().toISOString());
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (cancelled) return;
+      await loadDashboardProfile();
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [loadDashboardProfile]);
+
+  useEffect(() => {
+    let unsub: (() => void) | undefined;
+    let poll: ReturnType<typeof setInterval> | undefined;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const channel = supabase
+        .channel(`profiles-dashboard-${user.id}`)
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
+          () => {
+            void loadDashboardProfile();
+          },
+        )
+        .subscribe();
+      unsub = () => {
+        void supabase.removeChannel(channel);
+      };
+      poll = setInterval(() => {
+        void loadDashboardProfile();
+      }, 45_000);
+    })();
+    return () => {
+      unsub?.();
+      if (poll) clearInterval(poll);
+    };
+  }, [loadDashboardProfile]);
 
   const {
     videos: linkedVideos,
@@ -144,23 +200,61 @@ export default function DashboardPage() {
   const [chartMetric, setChartMetric] = useState<'views' | 'earned'>('views');
   const [metricsSort, setMetricsSort] = useState<'desc' | 'asc'>('desc');
   const [activeCampaignsCount, setActiveCampaignsCount] = useState(0);
-  const [withdrawBalance, setWithdrawBalance] = useState(344.80);
+  const [withdrawBalance, setWithdrawBalance] = useState(0);
+  const [clipViewsTotal, setClipViewsTotal] = useState(0);
+  const [lastWithdrawalAt, setLastWithdrawalAt] = useState<string | null>(null);
   const [withdrawSuccess, setWithdrawSuccess] = useState(false);
   const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [tablePlatform, setTablePlatform] = useState<string | null>(null);
   const [tableSort, setTableSort] = useState<{ key: 'date'; dir: 'desc' | 'asc' } | null>(null);
   const chartRef = useRef<HTMLDivElement>(null);
 
-  function handleWithdraw() {
+  async function handleWithdraw() {
     if (withdrawBalance <= 0 || withdrawLoading) return;
+    if (clipViewsTotal < MIN_CLIP_VIEWS_FOR_PAYOUT) {
+      alert(
+        `Les versements ne sont possibles qu’à partir de ${MIN_CLIP_VIEWS_FOR_PAYOUT.toLocaleString('fr-FR')} vues cumulées sur les vidéos Graply (vues suivies : ${clipViewsTotal.toLocaleString('fr-FR')}).`,
+      );
+      return;
+    }
+    if (!canWithdrawThisWeek(lastWithdrawalAt)) {
+      const next = nextWithdrawalAvailableAt(lastWithdrawalAt);
+      const label = next
+        ? next.toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })
+        : '';
+      alert(`Un seul retrait par semaine. Prochaine fenêtre : ${label || 'bientôt'}.`);
+      return;
+    }
     setWithdrawLoading(true);
-    setTimeout(() => {
-      setWithdrawBalance(0);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       setWithdrawLoading(false);
-      setWithdrawSuccess(true);
-      setTimeout(() => setWithdrawSuccess(false), 3000);
-    }, 1200);
+      return;
+    }
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        creator_wallet_balance: 0,
+        last_creator_withdrawal_at: now,
+        updated_at: now,
+      })
+      .eq('id', user.id);
+    setWithdrawLoading(false);
+    if (error) {
+      alert(`Retrait impossible : ${error.message}`);
+      return;
+    }
+    setWithdrawBalance(0);
+    setLastWithdrawalAt(now);
+    setWithdrawSuccess(true);
+    setTimeout(() => setWithdrawSuccess(false), 3000);
   }
+
+  const payoutEligible = clipViewsTotal >= MIN_CLIP_VIEWS_FOR_PAYOUT;
+  const weeklyOk = canWithdrawThisWeek(lastWithdrawalAt);
+  const withdrawDisabled =
+    withdrawBalance <= 0 || withdrawLoading || !payoutEligible || !weeklyOk;
 
   function handleConnectSocial(platform: SocialPlatform) {
     try {
@@ -181,6 +275,7 @@ export default function DashboardPage() {
     }
     await refetchSocialConnections();
     await refetchLinkedVideos();
+    await loadDashboardProfile();
   }
 
   const connectedSocialCount = allPlatforms.filter((p) => isSocialConnected(p as DashboardSocialPlatform)).length;
@@ -229,6 +324,16 @@ export default function DashboardPage() {
               <div>
               <h1 className="text-xl lg:text-2xl font-bold text-white">Mon dashboard</h1>
               <p className="text-sm text-white/40 mt-0.5">Vos performances en tant que créateur</p>
+              <p className="text-[11px] text-white/28 mt-1 max-w-xl">
+                Quasi temps réel : le solde et les vues se mettent à jour quand ton profil change (écoute en direct + rafraîchissement toutes les 45&nbsp;s).
+                {profileUpdatedAt && (
+                  <span className="text-white/35">
+                    {' '}
+                    Dernière synchro affichée :{' '}
+                    {new Date(profileUpdatedAt).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'medium' })}
+                  </span>
+                )}
+              </p>
             </div>
           </div>
         </div>
@@ -259,11 +364,22 @@ export default function DashboardPage() {
               <p className="text-5xl font-black tracking-tight" style={{ color: withdrawBalance > 0 ? '#fff' : 'rgba(255,255,255,0.2)' }}>
                 ${withdrawBalance.toFixed(2)}
               </p>
-              {withdrawBalance > 0 && (
-                <p className="text-[11px] mt-1.5" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                  Gains accumulés depuis la dernière demande
-                </p>
-              )}
+              <p className="text-[11px] mt-2 max-w-md mx-auto space-y-1" style={{ color: 'rgba(255,255,255,0.32)' }}>
+                <span className="block">
+                  Vues Graply suivies :{' '}
+                  <strong className="text-white/70">{clipViewsTotal.toLocaleString('fr-FR')}</strong>
+                  {' '}/ seuil {MIN_CLIP_VIEWS_FOR_PAYOUT.toLocaleString('fr-FR')} pour être payé
+                </span>
+                {!weeklyOk && lastWithdrawalAt && (
+                  <span className="block text-amber-200/80">
+                    Retrait suivant après le{' '}
+                    {nextWithdrawalAvailableAt(lastWithdrawalAt)?.toLocaleString('fr-FR', {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    })}
+                  </span>
+                )}
+              </p>
             </div>
 
             {withdrawSuccess ? (
@@ -276,21 +392,29 @@ export default function DashboardPage() {
               </div>
             ) : (
               <button
-                onClick={handleWithdraw}
-                disabled={withdrawBalance <= 0 || withdrawLoading}
+                onClick={() => void handleWithdraw()}
+                disabled={withdrawDisabled}
                 className="flex items-center gap-2 px-8 py-3.5 rounded-full text-sm font-bold transition-all duration-200"
                 style={{
-                  background: withdrawBalance > 0 ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)',
-                  border: withdrawBalance > 0 ? '1px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.08)',
+                  background: !withdrawDisabled ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)',
+                  border: !withdrawDisabled ? '1px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.08)',
                   backdropFilter: 'blur(20px)',
-                  color: withdrawBalance > 0 ? '#fff' : 'rgba(255,255,255,0.2)',
-                  boxShadow: withdrawBalance > 0 ? '0 2px 24px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.12)' : 'none',
+                  color: !withdrawDisabled ? '#fff' : 'rgba(255,255,255,0.2)',
+                  boxShadow: !withdrawDisabled ? '0 2px 24px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.12)' : 'none',
                   transform: withdrawLoading ? 'scale(0.97)' : 'scale(1)',
-                  cursor: withdrawBalance <= 0 ? 'not-allowed' : 'pointer',
+                  cursor: withdrawDisabled ? 'not-allowed' : 'pointer',
                 }}
               >
                 <DollarSign className="w-4 h-4" />
-                {withdrawLoading ? 'Traitement...' : withdrawBalance <= 0 ? 'Aucun solde à retirer' : 'Retirer mes gains'}
+                {withdrawLoading
+                  ? 'Traitement...'
+                  : withdrawBalance <= 0
+                    ? 'Aucun solde à retirer'
+                    : !payoutEligible
+                      ? `Seuil de vues requis (${MIN_CLIP_VIEWS_FOR_PAYOUT.toLocaleString('fr-FR')})`
+                      : !weeklyOk
+                        ? 'Retrait disponible la semaine prochaine'
+                        : 'Retirer mes gains'}
               </button>
             )}
           </div>

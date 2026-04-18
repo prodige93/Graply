@@ -7,8 +7,6 @@ import { useProfile } from '@/shared/lib/useProfile';
 import { useSocialConnections, type DashboardSocialPlatform } from '@/shared/lib/useSocialConnections';
 import verifiedIcon from '@/shared/assets/badge-creator-verified.png';
 import certBtnBg from '@/shared/assets/certification-button-bg.svg';
-import iphone17Img from '@/shared/assets/hero-slide-iphone17.jpeg';
-import bo7Img from '@/shared/assets/hero-slide-bo7.jpeg';
 import Sidebar from '../components/Sidebar';
 import instagramIcon from '@/shared/assets/instagram-logo.svg';
 import youtubeIcon from '@/shared/assets/youtube-symbol.svg';
@@ -22,6 +20,7 @@ import {
   profileUsernameDisplayLabel,
   profileUsernameSaveErrorMessage,
 } from '@/shared/lib/profileUsername';
+import { useHeroFeaturedSlides } from '@/shared/lib/useHeroFeaturedSlides';
 
 const SOCIAL_PLATFORMS = [
   { key: 'instagram' as SocialPlatform, label: 'Instagram', icon: instagramIcon },
@@ -45,13 +44,9 @@ async function uploadFile(file: File, folder: string, ownerId: string): Promise<
   return data.publicUrl;
 }
 
-const slides = [
-  { id: 1, title: 'iPhone 17', image: iphone17Img, subtitle: 'Nouvelle collection' },
-  { id: 2, title: 'Black Ops 7', image: bo7Img, subtitle: 'Campagne exclusive' },
-];
-
 export default function MyAccountPage() {
   const navigate = useNavigate();
+  const { slides } = useHeroFeaturedSlides();
   const location = useLocation();
   const { profile, userId, updateProfile, refetch: refetchProfile } = useProfile();
   const {
@@ -111,11 +106,16 @@ export default function MyAccountPage() {
   }, [location.pathname, location.state?.fromSocialOAuth, navigate, refetchProfile, refetchSocial]);
 
   useEffect(() => {
+    setCurrentSlide(0);
+  }, [slides]);
+
+  useEffect(() => {
+    if (slides.length === 0) return;
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
     }, 5000);
     return () => clearInterval(timer);
-  }, []);
+  }, [slides.length]);
 
   const displayBanner = profile?.banner_url || DEFAULT_BANNER;
   const storedProfileUsername = profile?.username ?? '';
@@ -542,16 +542,16 @@ export default function MyAccountPage() {
           <div className="w-full rounded-2xl overflow-hidden relative" style={{ height: '240px' }}>
             {slides.map((slide, index) => (
               <div
-                key={slide.id}
+                key={slide.key}
                 className="absolute inset-0 transition-all duration-500"
                 style={{ transform: `translateX(${(index - currentSlide) * 100}%)`, opacity: index === currentSlide ? 1 : 0 }}
               >
-                <img src={slide.image} alt={slide.title} className="w-full h-full object-cover" />
+                <img src={slide.imageUrl} alt={slide.title} className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                 <div className="absolute bottom-4 left-5 right-5 flex items-end justify-between">
                   <div>
                     <p className="text-white font-bold text-base leading-tight">{slide.title}</p>
-                    <p className="text-white/60 text-xs mt-0.5">{slide.subtitle}</p>
+                    <p className="text-white/60 text-xs mt-0.5">{slide.line2}</p>
                   </div>
                   <div className="flex items-center gap-1">
                     {slides.map((_, i) => (
@@ -582,7 +582,11 @@ export default function MyAccountPage() {
             </button>
           </div>
           <button
-            onClick={() => navigate('/campagnes')}
+            onClick={() => {
+              const s = slides[currentSlide];
+              if (s?.campaignId) navigate(`/campagne/${s.campaignId}`);
+              else navigate('/campagnes');
+            }}
             className="px-5 py-2 rounded-full text-xs font-bold text-black transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
             style={{ background: '#ffffff' }}
           >

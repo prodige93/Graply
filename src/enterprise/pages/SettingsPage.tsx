@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useEnterpriseNavigate } from '@/enterprise/lib/useEnterpriseNavigate';
-import { Eye, EyeOff, Check, Mail, Phone, Lock, ChevronLeft, ChevronRight, LogOut, ExternalLink, Unlink, Shield, FileText, UserX } from 'lucide-react';
+import { Eye, EyeOff, Check, Mail, Phone, Lock, ChevronLeft, LogOut, ExternalLink, Unlink } from 'lucide-react';
 import DeleteAccountModal from '@/shared/components/DeleteAccountModal';
+import SettingsSecurityPrivacySection from '@/shared/components/SettingsSecurityPrivacySection';
 import stripeIcon from '@/shared/assets/stripe-settings-icon.jpeg';
-import instagramIcon from '@/shared/assets/instagram-logo.svg';
-import tiktokIcon from '@/shared/assets/tiktok.svg';
-import youtubeIcon from '@/shared/assets/youtube-symbol.svg';
 import { supabase } from '@/shared/infrastructure/supabase';
 
 const glassCard = {
@@ -25,7 +23,7 @@ export default function SettingsPage() {
   const [editingEmail, setEditingEmail] = useState(false);
   const [newEmail, setNewEmail] = useState('');
 
-  const [phone, setPhone] = useState('+33 6 12 34 56 78');
+  const [phone, setPhone] = useState('');
   const [editingPhone, setEditingPhone] = useState(false);
   const [newPhone, setNewPhone] = useState('');
 
@@ -48,11 +46,14 @@ export default function SettingsPage() {
       setEmail(user.email || '');
       const { data } = await supabase
         .from('profiles')
-        .select('stripe_account_id')
+        .select('stripe_account_id, phone')
         .eq('id', user.id)
         .maybeSingle();
       if (data?.stripe_account_id) {
         setStripeAccountId(data.stripe_account_id);
+      }
+      if (data?.phone != null && data.phone !== '') {
+        setPhone(data.phone);
       }
       setStripeLoading(false);
     }
@@ -104,17 +105,63 @@ export default function SettingsPage() {
     navigate('/');
   }
 
-  function saveEmail() {
-    if (newEmail.trim()) setEmail(newEmail.trim());
+  async function saveEmail() {
+    const next = newEmail.trim();
+    if (!next) {
+      setEditingEmail(false);
+      return;
+    }
+    const { error } = await supabase.auth.updateUser({ email: next });
+    if (error) {
+      alert(`Impossible de mettre à jour l’e-mail : ${error.message}`);
+      return;
+    }
+    setEmail(next);
     setEditingEmail(false);
+    alert('Si l’adresse change, confirme-la depuis le message envoyé par e-mail.');
   }
 
-  function savePhone() {
-    if (newPhone.trim()) setPhone(newPhone.trim());
+  async function savePhone() {
+    const next = newPhone.trim();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error } = await supabase
+      .from('profiles')
+      .update({ phone: next, updated_at: new Date().toISOString() })
+      .eq('id', user.id);
+    if (error) {
+      alert(`Impossible d’enregistrer le téléphone : ${error.message}`);
+      return;
+    }
+    setPhone(next);
     setEditingPhone(false);
   }
 
-  function savePassword() {
+  async function savePassword() {
+    if (newPassword !== confirmPassword) {
+      alert('Les mots de passe ne correspondent pas.');
+      return;
+    }
+    if (newPassword.length < 8) {
+      alert('Le nouveau mot de passe doit contenir au moins 8 caractères.');
+      return;
+    }
+    const { data: { user } } = await supabase.auth.getUser();
+    const em = user?.email;
+    if (!em) {
+      alert('Session invalide.');
+      return;
+    }
+    const { error: signErr } = await supabase.auth.signInWithPassword({ email: em, password: currentPassword });
+    if (signErr) {
+      alert('Mot de passe actuel incorrect.');
+      return;
+    }
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      alert(`Impossible de mettre à jour le mot de passe : ${error.message}`);
+      return;
+    }
     setEditingPassword(false);
     setCurrentPassword('');
     setNewPassword('');
@@ -354,84 +401,11 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-3">
-            <button
-              type="button"
-              onClick={() => navigate('/privacy-policy')}
-              className="rounded-xl p-4 flex items-center justify-between w-full text-left transition-colors hover:bg-white/[0.04]"
-              style={glassCard}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                  <Shield className="w-4 h-4 text-white/60" />
-                </div>
-                <span className="text-sm font-semibold text-white">Privacy Policy</span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-white/35 shrink-0" aria-hidden />
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/terms-of-service')}
-              className="rounded-xl p-4 flex items-center justify-between w-full text-left transition-colors hover:bg-white/[0.04]"
-              style={glassCard}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                  <FileText className="w-4 h-4 text-white/60" />
-                </div>
-                <span className="text-sm font-semibold text-white">Terms of Service</span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-white/35 shrink-0" aria-hidden />
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/stripe-data')}
-              className="rounded-xl p-4 flex items-center justify-between w-full text-left transition-colors hover:bg-white/[0.04]"
-              style={glassCard}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <img src={stripeIcon} alt="Stripe" className="w-9 h-9 rounded-lg object-cover shrink-0" />
-                <span className="text-sm font-semibold text-white">Données &amp; usage Stripe</span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-white/35 shrink-0" aria-hidden />
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/tiktok-data')}
-              className="rounded-xl p-4 flex items-center justify-between w-full text-left transition-colors hover:bg-white/[0.04]"
-              style={glassCard}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <img src={tiktokIcon} alt="TikTok" className="w-9 h-9 shrink-0" />
-                <span className="text-sm font-semibold text-white">Données &amp; usage TikTok</span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-white/35 shrink-0" aria-hidden />
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/instagram-data')}
-              className="rounded-xl p-4 flex items-center justify-between w-full text-left transition-colors hover:bg-white/[0.04]"
-              style={glassCard}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <img src={instagramIcon} alt="Instagram" className="w-9 h-9 shrink-0" />
-                <span className="text-sm font-semibold text-white">Données &amp; usage Instagram</span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-white/35 shrink-0" aria-hidden />
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/youtube-data')}
-              className="rounded-xl p-4 flex items-center justify-between w-full text-left transition-colors hover:bg-white/[0.04]"
-              style={glassCard}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <img src={youtubeIcon} alt="YouTube" className="w-9 h-9 shrink-0" />
-                <span className="text-sm font-semibold text-white">Données &amp; usage YouTube</span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-white/35 shrink-0" aria-hidden />
-            </button>
-          </div>
+          <SettingsSecurityPrivacySection
+            navigate={(path) => navigate(path)}
+            onDeleteAccount={() => setDeleteConfirmOpen(true)}
+            deletingAccount={deletingAccount}
+          />
         </div>
 
 
@@ -453,19 +427,6 @@ export default function SettingsPage() {
           >
             <LogOut className="w-4 h-4 text-red-500" />
             <span className="text-red-500">Se déconnecter</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setDeleteConfirmOpen(true)}
-            disabled={deletingAccount}
-            className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-red-500/10 active:scale-[0.97] disabled:opacity-40 w-full sm:w-auto justify-center"
-            style={{
-              background: 'rgba(239,68,68,0.08)',
-              border: '1px solid rgba(239,68,68,0.35)',
-            }}
-          >
-            <UserX className="w-4 h-4 text-red-400" />
-            <span className="text-red-400">Supprimer mon compte</span>
           </button>
         </div>
 

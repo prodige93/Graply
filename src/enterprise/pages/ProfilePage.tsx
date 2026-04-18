@@ -12,6 +12,7 @@ import { campaigns as allCampaignsData, sponsoredCampaigns } from '@/shared/data
 import CampaignCard from '../components/CampaignCard';
 import ActiveCampaignCard from '../components/campaign-cards/ActiveCampaignCard';
 import DraftCard from '../components/campaign-cards/DraftCard';
+import PendingCheckoutCard from '../components/campaign-cards/PendingCheckoutCard';
 import SavedCampaignCard from '../components/campaign-cards/SavedCampaignCard';
 import jentrepriseIcon from '@/shared/assets/badge-enterprise-verified.png';
 import instagramIcon from '@/shared/assets/instagram-logo.svg';
@@ -54,7 +55,7 @@ async function uploadFile(file: File, folder: string, ownerId: string): Promise<
 export default function ProfilePage() {
   const navigate = useEnterpriseNavigate();
   const { savedIds, toggle } = useSavedCampaigns();
-  const { campaigns, pausedCampaigns, drafts, loading, deleteDraft, deleteActiveCampaign } = useMyCampaigns();
+  const { campaigns, pendingCheckout, pausedCampaigns, drafts, loading, deleteDraft, deleteActiveCampaign } = useMyCampaigns();
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
@@ -69,6 +70,9 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [editBio, setEditBio] = useState('');
   const [editWebsite, setEditWebsite] = useState('');
+  const [editInstagram, setEditInstagram] = useState('');
+  const [editTiktok, setEditTiktok] = useState('');
+  const [editYoutube, setEditYoutube] = useState('');
   const [editTags, setEditTags] = useState<string[]>([]);
   const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -78,6 +82,9 @@ export default function ProfilePage() {
   function startEditing() {
     setEditBio(profile?.bio || '');
     setEditWebsite(profile?.website || '');
+    setEditInstagram(profile?.instagram_handle || '');
+    setEditTiktok(profile?.tiktok_handle || '');
+    setEditYoutube(profile?.youtube_handle || '');
     setEditTags(profile?.content_tags || []);
     setEditing(true);
   }
@@ -88,10 +95,20 @@ export default function ProfilePage() {
     await supabase.from('profiles').update({
       bio: editBio,
       website: editWebsite,
+      instagram_handle: editInstagram.trim(),
+      tiktok_handle: editTiktok.trim(),
+      youtube_handle: editYoutube.trim(),
       content_tags: editTags,
       updated_at: new Date().toISOString(),
     }).eq('id', userId);
-    updateProfile({ bio: editBio, website: editWebsite, content_tags: editTags });
+    updateProfile({
+      bio: editBio,
+      website: editWebsite,
+      instagram_handle: editInstagram.trim(),
+      tiktok_handle: editTiktok.trim(),
+      youtube_handle: editYoutube.trim(),
+      content_tags: editTags,
+    });
     setSavingProfile(false);
     setEditing(false);
   }
@@ -113,7 +130,11 @@ export default function ProfilePage() {
   }, []);
 
   const handleDeleteDraft = async (draftId: string) => {
-    const { error } = await supabase.from('campaigns').delete().eq('id', draftId).eq('status', 'draft');
+    const { error } = await supabase
+      .from('campaigns')
+      .delete()
+      .eq('id', draftId)
+      .in('status', ['draft', 'pending_checkout']);
     if (!error) {
       deleteDraft(draftId);
     }
@@ -320,6 +341,42 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-1.5">Instagram</label>
+                    <input
+                      type="text"
+                      value={editInstagram}
+                      onChange={(e) => setEditInstagram(e.target.value)}
+                      className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 outline-none"
+                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+                      placeholder="@marque"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-1.5">TikTok</label>
+                    <input
+                      type="text"
+                      value={editTiktok}
+                      onChange={(e) => setEditTiktok(e.target.value)}
+                      className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 outline-none"
+                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+                      placeholder="@marque"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-1.5">YouTube</label>
+                    <input
+                      type="text"
+                      value={editYoutube}
+                      onChange={(e) => setEditYoutube(e.target.value)}
+                      className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 outline-none"
+                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+                      placeholder="Chaîne ou @handle"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-1.5">Contenu</label>
                   <div className="flex flex-wrap gap-2 mb-2">
@@ -505,6 +562,7 @@ export default function ProfilePage() {
           <div className="flex items-center gap-0 min-w-max">
             {([
               { key: 'active' as const, label: 'Campagne en cours' },
+              { key: 'pending_payment' as const, label: 'Paiement' },
               { key: 'paused' as const, label: 'En pause' },
               { key: 'saved' as const, label: 'Enregistrées' },
               { key: 'drafts' as const, label: 'Brouillons' },
@@ -568,6 +626,29 @@ export default function ProfilePage() {
                   <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
                     {campaigns.map((c) => (
                       <ActiveCampaignCard key={c.id} campaign={c} onDelete={deleteActiveCampaign} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {profileTab === 'pending_payment' && (
+            <div className="pb-12">
+              {loading ? (
+                <div className="flex items-center justify-center py-16">
+                  <GrapeLoader size="md" />
+                </div>
+              ) : pendingCheckout.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <Megaphone className="w-10 h-10 text-white/10 mb-3" />
+                  <p className="text-sm text-white/30">Aucune campagne en attente de paiement</p>
+                </div>
+              ) : (
+                <div className="mt-6">
+                  <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
+                    {pendingCheckout.map((c) => (
+                      <PendingCheckoutCard key={c.id} campaign={c} onDelete={handleDeleteDraft} />
                     ))}
                   </div>
                 </div>

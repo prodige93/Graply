@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from '@/creator/components/Sidebar'
 import CreatorPanel from '@/creator/components/CreatorPanel'
-import iphone17Img from '@/shared/assets/hero-slide-iphone17.jpeg'
-import bo7Img from '@/shared/assets/hero-slide-bo7.jpeg'
+import { useHeroFeaturedSlides } from '@/shared/lib/useHeroFeaturedSlides'
 
 interface DbProfile {
   id: string;
@@ -15,22 +14,23 @@ interface DbProfile {
 
 function App() {
   const navigate = useNavigate()
+  const { slides } = useHeroFeaturedSlides()
   const [currentSlide, setCurrentSlide] = useState(0)
   const [selectedCreatorId, setSelectedCreatorId] = useState<string | null>(null)
   const [selectedProfile, setSelectedProfile] = useState<DbProfile | null>(null)
 
-  const slides = [
-    { id: 1, title: 'iPhone 17', image: iphone17Img, description: 'Nouvelle collection' },
-    { id: 2, title: 'Black Ops 7', image: bo7Img, description: 'Campagne exclusive' },
-  ]
+  useEffect(() => {
+    setCurrentSlide(0)
+  }, [slides])
 
   useEffect(() => {
     if (selectedCreatorId || selectedProfile) return
+    if (slides.length === 0) return
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length)
     }, 4000)
     return () => clearInterval(timer)
-  }, [selectedCreatorId, selectedProfile])
+  }, [selectedCreatorId, selectedProfile, slides.length])
 
   function handleClosePanel() {
     setSelectedCreatorId(null)
@@ -60,13 +60,13 @@ function App() {
         >
           {slides.map((slide, index) => (
             <div
-              key={slide.id}
+              key={slide.key}
               className={`absolute inset-0 transition-opacity duration-1000 ${
                 index === currentSlide ? 'opacity-100' : 'opacity-0'
               }`}
             >
               <img
-                src={slide.image}
+                src={slide.imageUrl}
                 alt={slide.title}
                 className="w-full h-full object-cover"
                 draggable={false}
@@ -74,7 +74,7 @@ function App() {
               <div className="absolute inset-0 bg-black/20 lg:bg-transparent" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex flex-col justify-end p-6 lg:p-12 pb-32 lg:pb-12">
                 <h2 className="text-4xl lg:text-5xl font-bold mb-2 lg:mb-3">{slide.title}</h2>
-                <p className="text-lg lg:text-xl text-gray-300">{slide.description}</p>
+                <p className="text-lg lg:text-xl text-gray-300">{slide.line2}</p>
               </div>
             </div>
           ))}

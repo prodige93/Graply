@@ -7,6 +7,8 @@ interface StepFiveProps {
   setRequireApplication: (v: boolean) => void;
   requireReview: boolean;
   setRequireReview: (v: boolean) => void;
+  /** Candidature active : campagne privée obligatoire (PDF Entreprise). */
+  privacyLockedByApplication: boolean;
 }
 
 function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
@@ -35,6 +37,7 @@ export default function StepFive({
   setRequireApplication,
   requireReview,
   setRequireReview,
+  privacyLockedByApplication,
 }: StepFiveProps) {
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -52,14 +55,20 @@ export default function StepFive({
         </div>
         {requireFollowers && (
           <div className="mt-3 animate-fadeIn">
+            <label className="block text-xs font-semibold text-white/70 mb-1.5">
+              Seuil global (abonnés) <span style={{ color: '#F97316' }}>*</span>
+            </label>
             <input
               type="text"
               value={minFollowers}
               onChange={(e) => setMinFollowers(e.target.value.replace(/[^0-9]/g, ''))}
-              placeholder="Ex: 10000"
+              placeholder="Ex: 12000"
               className="w-full px-4 py-3.5 rounded-xl text-white text-sm placeholder-white/25 outline-none transition-all duration-200 focus:ring-2 focus:ring-white/20"
               style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
             />
+            <p className="text-[11px] text-white/30 mt-2 leading-relaxed">
+              Pour un seuil différent par réseau (ex. 12k sur IG et 12k sur TikTok), la vérification plateforme par plateforme est prévue côté candidature / validation créateur.
+            </p>
           </div>
         )}
       </div>
@@ -97,14 +106,30 @@ export default function StepFive({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h3 className="text-sm font-semibold text-white">
-              Confidentialité
+              Confidentialité (campagne privée)
             </h3>
             <p className="text-xs text-white/35 mt-1 leading-relaxed">
-              Souhaitez-vous vérifier les créateurs avant qu'ils postent pour vous.
+              Une campagne privée n’est pas visible comme une campagne publique ; elle sert aux sélections et candidatures ciblées.
+              {privacyLockedByApplication && (
+                <span className="block mt-1.5 text-amber-200/90">
+                  Activée automatiquement lorsque les candidatures sont exigées.
+                </span>
+              )}
             </p>
           </div>
-          <Toggle enabled={requireReview} onToggle={() => setRequireReview(!requireReview)} />
+          <div className={privacyLockedByApplication ? 'opacity-55 pointer-events-none' : ''}>
+            <Toggle
+              enabled={requireReview}
+              onToggle={() => {
+                if (privacyLockedByApplication) return;
+                setRequireReview(!requireReview);
+              }}
+            />
+          </div>
         </div>
+        {privacyLockedByApplication && (
+          <p className="text-[11px] text-white/40 mt-2">Désactivez les candidatures pour pouvoir couper la confidentialité.</p>
+        )}
       </div>
     </div>
   );

@@ -62,6 +62,16 @@ export function useLinkedPlatformVideos() {
       return;
     }
 
+    const ytStats = await supabase.rpc('refresh_youtube_view_counts');
+    if (ytStats.error) {
+      console.warn('refresh_youtube_view_counts:', ytStats.error.message);
+    }
+
+    const recompute = await supabase.rpc('recompute_clip_views_total');
+    if (recompute.error) {
+      console.warn('recompute_clip_views_total:', recompute.error.message);
+    }
+
     const [igRows, ttRows, ytRows] = await Promise.all([
       supabase.from('instagram_videos').select('*').order('timestamp', { ascending: false }),
       supabase.from('tiktok_videos').select('*').order('timestamp', { ascending: false }),

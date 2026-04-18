@@ -1,49 +1,39 @@
 import { useState, useEffect } from 'react';
 import { useEnterpriseNavigate } from '@/enterprise/lib/useEnterpriseNavigate';
-import iphone17Img from '@/shared/assets/hero-slide-iphone17.jpeg';
-import bo7Img from '@/shared/assets/hero-slide-bo7.jpeg';
+import { useHeroFeaturedSlides } from '@/shared/lib/useHeroFeaturedSlides';
 
 export default function EnterpriseHomePage() {
   const navigate = useEnterpriseNavigate();
+  const { slides } = useHeroFeaturedSlides();
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  const slides = [
-    {
-      id: 1,
-      title: 'iPhone 17',
-      image: iphone17Img,
-      description: 'Nouvelle collection',
-    },
-    {
-      id: 2,
-      title: 'Black Ops 7',
-      image: bo7Img,
-      description: 'Campagne exclusive',
-    },
-  ];
+  useEffect(() => {
+    setCurrentSlide(0);
+  }, [slides]);
 
   useEffect(() => {
+    if (slides.length === 0) return;
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
     }, 4000);
     return () => clearInterval(timer);
-  }, []);
+  }, [slides.length]);
 
   return (
     <main className="relative overflow-hidden" style={{ height: '100dvh', minHeight: '-webkit-fill-available' }}>
       {slides.map((slide, index) => (
         <div
-          key={slide.id}
+          key={slide.key}
           onClick={() => navigate('/campagnes')}
           className={`absolute inset-0 transition-opacity duration-1000 cursor-pointer ${
             index === currentSlide ? 'opacity-100 z-[1]' : 'opacity-0 z-0'
           }`}
         >
-          <img src={slide.image} alt={slide.title} className="w-full h-full object-cover" />
+          <img src={slide.imageUrl} alt={slide.title} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-black/20 lg:bg-transparent" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex flex-col justify-end p-6 lg:p-12 pb-32 lg:pb-12">
             <h2 className="text-4xl lg:text-5xl font-bold mb-2 lg:mb-3">{slide.title}</h2>
-            <p className="text-lg lg:text-xl text-gray-300">{slide.description}</p>
+            <p className="text-lg lg:text-xl text-gray-300">{slide.line2}</p>
           </div>
         </div>
       ))}

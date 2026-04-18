@@ -7,6 +7,7 @@ import CampaignsPage from '@/creator/pages/CampaignsPage.tsx';
 import CampaignDetailPage from '@/creator/pages/CampaignDetailPage.tsx';
 import CreateCampaignPage from '@/creator/pages/CreateCampaignPage.tsx';
 import VideoVerificationPage from '@/creator/pages/VideoVerificationPage.tsx';
+import VerifyVideoHubPage from '@/creator/pages/VerifyVideoHubPage.tsx';
 import MyCampaignsPage from '@/creator/pages/MyCampaignsPage.tsx';
 import MyCampaignDetailPage from '@/creator/pages/MyCampaignDetailPage.tsx';
 import CreatorVerificationsPage from '@/creator/pages/CreatorVerificationsPage.tsx';
@@ -65,6 +66,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="/creer-campagne" element={<CreateCampaignPage />} />
                   <Route path="/modifier-campagne/:id" element={<CreateCampaignPage />} />
                   <Route path="/campagne/:id/verification" element={<VideoVerificationPage />} />
+                  <Route path="/verifier-ma-video" element={<VerifyVideoHubPage />} />
                   <Route path="/campagne/:id/candidature" element={<CampaignApplicationPage />} />
                   <Route path="/mes-campagnes" element={<MyCampaignsPage />} />
                   <Route path="/ma-campagne/:id" element={<MyCampaignDetailPage />} />

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { MIN_PER_1000_VIEWS_EUR, MIN_SINGLE_PAYMENT_EUR } from '@/enterprise/lib/campaignBudgetRules';
 import instagramIcon from '@/shared/assets/instagram-card.svg';
 import youtubeIcon from '@/shared/assets/youtube.svg';
 import tiktokIcon from '@/shared/assets/tiktok.svg';
@@ -60,7 +61,9 @@ export default function StepThree({ platforms, budget, platformBudgets, setPlatf
         <p className="text-xs text-white/30 leading-relaxed mb-4">
           {isSinglePlatform
             ? 'Définissez les montants de récompense pour cette plateforme.'
-            : 'Répartissez votre budget entre les différentes plateformes et définissez les montants de récompense.'}
+            : 'Répartissez votre budget entre les différentes plateformes et définissez les montants de récompense.'}{' '}
+          Minimum <span className="text-white/50">{MIN_PER_1000_VIEWS_EUR} €</span> pour 1&nbsp;000 vues et{' '}
+          <span className="text-white/50">{MIN_SINGLE_PAYMENT_EUR} €</span> pour le paiement minimum ; le plafond ne doit pas dépasser le budget de la ligne (document Entreprise).
         </p>
 
         {isSinglePlatform && totalBudget > 0 && (
