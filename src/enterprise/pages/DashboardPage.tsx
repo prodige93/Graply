@@ -293,7 +293,7 @@ export default function DashboardPage() {
                         : 'inset 0 1px 0 rgba(255,255,255,0.06)',
                     }}
                   >
-                    {platformIcons[p] && <img src={platformIcons[p]} alt={platformNames[p] || p} className="w-5 h-5 social-icon" />}
+                    {platformIcons[p] && <img src={platformIcons[p]} alt={platformNames[p] || p} className="w-5 h-5" />}
                   </button>
                 ))}
               </>
@@ -354,7 +354,7 @@ export default function DashboardPage() {
                     {selectedCampaign.platforms.map((p) =>
                       platformIcons[p] ? (
                         <div key={p} className="w-7 h-7 rounded-full flex items-center justify-center bg-white/10 backdrop-blur-sm">
-                          <img src={platformIcons[p]} alt={p} className="w-3.5 h-3.5 social-icon" />
+                          <img src={platformIcons[p]} alt={p} className="w-3.5 h-3.5" />
                         </div>
                       ) : null
                     )}
@@ -483,7 +483,7 @@ export default function DashboardPage() {
                       opacity: tablePlatform && tablePlatform !== p ? 0.4 : 1,
                     }}
                   >
-                    {platformIcons[p] && <img src={platformIcons[p]} alt={platformNames[p] || p} className="w-4 h-4 social-icon" />}
+                    {platformIcons[p] && <img src={platformIcons[p]} alt={platformNames[p] || p} className="w-4 h-4" />}
                   </button>
                 ))}
               </div>
@@ -525,7 +525,7 @@ export default function DashboardPage() {
                     opacity: tablePlatform && tablePlatform !== p ? 0.4 : 1,
                   }}
                 >
-                  {platformIcons[p] && <img src={platformIcons[p]} alt={platformNames[p] || p} className="w-3.5 h-3.5 social-icon" />}
+                  {platformIcons[p] && <img src={platformIcons[p]} alt={platformNames[p] || p} className="w-3.5 h-3.5" />}
                   <span className="text-[11px] font-semibold" style={{ color: tablePlatform === p ? '#fff' : 'rgba(255,255,255,0.5)' }}>
                     {platformNames[p] || p}
                   </span>
@@ -622,7 +622,7 @@ export default function DashboardPage() {
                                 {c.platforms.slice(0, 3).map((p) =>
                                   platformIcons[p] ? (
                                     <div key={p} className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                                      <img src={platformIcons[p]} alt={p} className="w-3 h-3 social-icon" />
+                                      <img src={platformIcons[p]} alt={p} className="w-3 h-3" />
                                     </div>
                                   ) : null
                                 )}
@@ -722,7 +722,7 @@ export default function DashboardPage() {
                                   {c.platforms.map((p) =>
                                     platformIcons[p] ? (
                                       <div key={p} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ border: '1px solid rgba(255,255,255,0.12)' }}>
-                                        <img src={platformIcons[p]} alt={p} className="w-3.5 h-3.5 social-icon" />
+                                        <img src={platformIcons[p]} alt={p} className="w-3.5 h-3.5" />
                                       </div>
                                     ) : null
                                   )}

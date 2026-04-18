@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { DollarSign, TrendingUp, ArrowUpRight, Play, X, ArrowDownLeft, ExternalLink, Loader2, CalendarDays } from 'lucide-react';
 import StatsChart from '../components/StatsChart';
 import Sidebar from '../components/Sidebar';
-import instagramIcon from '@/shared/assets/instagram-card.svg';
-import youtubeIcon from '@/shared/assets/youtube.svg';
+import instagramIcon from '@/shared/assets/instagram-logo.svg';
+import youtubeIcon from '@/shared/assets/youtube-symbol.svg';
 import tiktokIcon from '@/shared/assets/tiktok.svg';
 import { useLinkedPlatformVideos } from '@/shared/lib/useLinkedPlatformVideos';
 import { useSocialConnections, type DashboardSocialPlatform } from '@/shared/lib/useSocialConnections';
@@ -520,7 +520,7 @@ export default function DashboardPage() {
                       opacity: tablePlatform && tablePlatform !== p ? 0.4 : 1,
                     }}
                   >
-                    {platformIcons[p] && <img src={platformIcons[p]} alt={platformNames[p] || p} className="w-3.5 h-3.5 social-icon" />}
+                    {platformIcons[p] && <img src={platformIcons[p]} alt={platformNames[p] || p} className="w-3.5 h-3.5" />}
                     <span className="text-[11px] font-semibold" style={{ color: tablePlatform === p ? '#fff' : 'rgba(255,255,255,0.5)' }}>{platformNames[p] || p}</span>
                   </button>
                 ))}
@@ -576,7 +576,7 @@ export default function DashboardPage() {
                     >
                       <div className="flex items-center gap-2.5 min-w-0 flex-1">
                         {platformIcons[p] && (
-                          <img src={platformIcons[p]} alt="" className="w-8 h-8 shrink-0 rounded-lg social-icon" style={{ opacity: 0.9 }} />
+                          <img src={platformIcons[p]} alt="" className="w-8 h-8 shrink-0 rounded-lg" style={{ opacity: 0.95 }} />
                         )}
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
