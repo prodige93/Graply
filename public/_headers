@@ -1,4 +1,7 @@
 # Évite qu’un ancien 404 / HTML reste en cache côté CDN au moment du clic « Verify »
+/tiktokzBjp3YBCtDCoG27xwdn2dztggwMaPhly.txt
+  Cache-Control: public, max-age=0, must-revalidate
+
 /tiktokYGag1Vlpirb2srP5vWT7TDx8L4wU4Jti.txt
   Cache-Control: public, max-age=0, must-revalidate
 
