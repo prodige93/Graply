@@ -107,7 +107,7 @@ export default function Sidebar({ activePage }: SidebarProps) {
     return (
       <button
         onClick={() => go(path)}
-        className={`w-full text-left px-4 py-3.5 rounded-lg transition-colors text-white flex items-center gap-3 ${isActive ? 'bg-white/[0.08] font-medium' : 'hover:bg-white/[0.08]'}`}
+        className={`w-full text-left px-4 py-3.5 rounded-lg transition-colors duration-tap ease-apple text-white flex items-center gap-3 ${isActive ? 'bg-white/[0.08] font-medium' : 'hover:bg-white/[0.08]'}`}
       >
         {icon}
         {label}
@@ -120,7 +120,7 @@ export default function Sidebar({ activePage }: SidebarProps) {
     return (
       <button
         onClick={() => go(path)}
-        className={`w-full text-left px-4 py-3 rounded-lg transition-colors text-white flex items-center gap-3 ${isActive ? 'bg-white/[0.08] font-medium' : 'hover:bg-white/[0.06]'}`}
+        className={`w-full text-left px-4 py-3 rounded-lg transition-colors duration-tap ease-apple text-white flex items-center gap-3 ${isActive ? 'bg-white/[0.08] font-medium' : 'hover:bg-white/[0.06]'}`}
       >
         {icon}
         {label}
@@ -180,7 +180,7 @@ export default function Sidebar({ activePage }: SidebarProps) {
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-6 pb-10 pt-3">
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-10 pt-3">
             <div className="max-w-2xl mx-auto space-y-1">
               {notifications.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-32">
@@ -228,7 +228,7 @@ export default function Sidebar({ activePage }: SidebarProps) {
 
       <aside className="hidden lg:flex w-80 shrink-0 sticky top-0 h-screen relative" style={{ background: 'transparent', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
         <div
-          className="flex-1 flex flex-col p-6 overflow-y-auto transition-all duration-300"
+          className="flex-1 flex flex-col p-6 overflow-y-auto custom-scrollbar transition-all duration-200 ease-apple"
           style={{ filter: profileMenuOpen ? 'blur(6px) brightness(0.5)' : 'none' }}
         >
         <div className="space-y-6 flex-1">
@@ -247,7 +247,7 @@ export default function Sidebar({ activePage }: SidebarProps) {
                   )}
                 </div>
                 <span onClick={() => setProfileMenuOpen((v) => !v)} className="text-sm font-semibold text-white cursor-pointer hover:text-white/80 transition-colors">@{profile?.username || 'username'}</span>
-                <img src={jentrepriseIcon} alt="Verified" className="w-[29px] h-[29px]" />
+                <img src={jentrepriseIcon} alt="Verified" className="w-[29px] h-[29px] shrink-0 object-contain" />
               </div>
               <button
                 onClick={() => setNotifOpen((v) => !v)}
@@ -271,10 +271,10 @@ export default function Sidebar({ activePage }: SidebarProps) {
               <nav className="space-y-1.5">
                 {navBtn('home', '/', <Home className="w-5 h-5 text-white" />, 'Accueil')}
 
-                {navBtn('mes-campagnes', '/mes-campagnes', <img src={globeIcon} alt="Globe" className="w-5 h-5" />, 'Mes campagnes')}
+                {navBtn('mes-campagnes', '/mes-campagnes', <img src={globeIcon} alt="Globe" className="w-5 h-5 shrink-0 object-contain" />, 'Mes campagnes')}
 
-                {navBtn('validation-videos', '/validation-videos', <img src={hourglassIcon} alt="Validation" className="w-5 h-5" />, 'Validation')}
-                {navBtn('dashboard', '/dashboard', <img src={barChartIcon} alt="Dashboard" className="w-5 h-5" />, 'Mon dashboard')}
+                {navBtn('validation-videos', '/validation-videos', <img src={hourglassIcon} alt="Validation" className="w-5 h-5 shrink-0 object-contain" />, 'Validation')}
+                {navBtn('dashboard', '/dashboard', <img src={barChartIcon} alt="Dashboard" className="w-5 h-5 shrink-0 object-contain" />, 'Mon dashboard')}
                 <button
                   onClick={() => { setSearchOpen(true); setSearchQuery(''); }}
                   className="w-full text-left px-4 py-3.5 rounded-lg hover:bg-white/[0.08] transition-colors text-white flex items-center gap-3"
@@ -293,7 +293,7 @@ export default function Sidebar({ activePage }: SidebarProps) {
                 style={{ opacity: fade ? 1 : 0, transition: 'opacity 0.3s ease' }}
               >
                 <div className="flex items-center gap-3">
-                  <img src={networks[activeNetwork].icon} alt={networks[activeNetwork].alt} className="w-5 h-5" />
+                  <img src={networks[activeNetwork].icon} alt={networks[activeNetwork].alt} className="w-5 h-5 shrink-0 object-contain" />
                   <span className="text-white font-semibold">{networks[activeNetwork].value}</span>
                 </div>
                 <span className="text-white/40 text-sm">{networks[activeNetwork].label}</span>

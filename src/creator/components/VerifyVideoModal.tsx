@@ -1,12 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { X, ChevronRight, Trash2 } from 'lucide-react';
+import { X, ChevronRight, Trash2, Plus, ChevronLeft } from 'lucide-react';
 import { supabase } from '@/shared/infrastructure/supabase';
-import { getCreatorCampaigns, getPendingApplications, getSubmittedVideos, removeCreatorCampaign, removeApplication, removeSubmittedVideo } from '@/shared/lib/useCreatorCampaigns';
+import { getCreatorCampaigns, getPendingApplications, getSubmittedVideos } from '@/shared/lib/useCreatorCampaigns';
 import { campaigns as staticCampaigns, sponsoredCampaigns } from '@/shared/data/campaignsData';
+import { normalizeStringArray } from '@/shared/lib/mapSupabaseCampaign';
+import {
+  loadVerifyModalHiddenCampaignIds,
+  saveVerifyModalHiddenCampaignIds,
+} from '@/shared/lib/verifyModalHiddenCampaigns';
 import instagramIcon from '@/shared/assets/instagram-card.svg';
 import tiktokIcon from '@/shared/assets/tiktok.svg';
 import youtubeIcon from '@/shared/assets/youtube.svg';
+import GrapeLoader from './GrapeLoader';
 
 const platformIconMap: Record<string, string> = {
   instagram: instagramIcon,
@@ -31,12 +38,48 @@ interface Props {
   hidePendingBadges?: boolean;
 }
 
+function mergePool(
+  accepted: CampaignItem[],
+  saved: CampaignItem[],
+  submitted: CampaignItem[],
+): CampaignItem[] {
+  const seen = new Set<string>();
+  const out: CampaignItem[] = [];
+  for (const c of accepted) {
+    if (seen.has(c.id)) continue;
+    seen.add(c.id);
+    out.push(c);
+  }
+  for (const c of saved) {
+    if (seen.has(c.id)) continue;
+    seen.add(c.id);
+    out.push(c);
+  }
+  for (const c of submitted) {
+    if (seen.has(c.id)) continue;
+    seen.add(c.id);
+    out.push(c);
+  }
+  return out;
+}
+
+const glassSquareBtn =
+  'w-9 h-9 shrink-0 rounded-xl flex items-center justify-center transition-all duration-200 hover:bg-white/[0.08] active:scale-95';
+
+const glassSquareStyle: CSSProperties = {
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid rgba(255,255,255,0.14)',
+  backdropFilter: 'blur(16px)',
+  WebkitBackdropFilter: 'blur(16px)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 4px 20px rgba(0,0,0,0.25)',
+};
+
 export default function VerifyVideoModal({ onClose, hidePendingBadges = false }: Props) {
   const navigate = useNavigate();
-  const [savedCampaigns, setSavedCampaigns] = useState<CampaignItem[]>([]);
-  const [acceptedCampaigns, setAcceptedCampaigns] = useState<CampaignItem[]>([]);
-  const [submittedCampaigns, setSubmittedCampaigns] = useState<CampaignItem[]>([]);
+  const [pool, setPool] = useState<CampaignItem[]>([]);
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => loadVerifyModalHiddenCampaignIds());
   const [loading, setLoading] = useState(true);
+  const [addPanelOpen, setAddPanelOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -67,10 +110,10 @@ export default function VerifyVideoModal({ onClose, hidePendingBadges = false }:
         }));
 
         const seenAccepted = new Set(activeItems.map((c) => c.id));
-        const deduped = [...activeItems, ...localAccepted.filter((a) => !seenAccepted.has(a.id))];
+        const dedupedAccepted = [...activeItems, ...localAccepted.filter((a) => !seenAccepted.has(a.id))];
 
         const localVideos = getSubmittedVideos();
-        const seenAll = new Set(deduped.map((c) => c.id));
+        const seenAll = new Set(dedupedAccepted.map((c) => c.id));
         const localSubmitted: CampaignItem[] = [];
         const seenSubmitted = new Set<string>();
         for (const v of localVideos) {
@@ -89,9 +132,7 @@ export default function VerifyVideoModal({ onClose, hidePendingBadges = false }:
           }
         }
 
-        setAcceptedCampaigns(deduped);
-        setSavedCampaigns([]);
-        setSubmittedCampaigns(localSubmitted);
+        setPool(mergePool(dedupedAccepted, [], localSubmitted));
         setLoading(false);
         return;
       }
@@ -122,7 +163,7 @@ export default function VerifyVideoModal({ onClose, hidePendingBadges = false }:
 
       const acceptedItems: CampaignItem[] = ((appsResult.data ?? []) as unknown as Array<{
         campaign_id: string;
-        campaigns: { id: string; name: string; photo_url: string; platforms: string[]; user_id: string } | null;
+        campaigns: { id: string; name: string; photo_url: string | null; platforms: unknown; user_id: string } | null;
       }>)
         .filter((a) => a.campaigns)
         .map((a) => {
@@ -132,13 +173,15 @@ export default function VerifyVideoModal({ onClose, hidePendingBadges = false }:
             name: c.name,
             brand: '',
             photo: c.photo_url ?? '',
-            platforms: c.platforms ?? [],
+            platforms: normalizeStringArray(c.platforms),
             pendingCount: pendingCounts[c.id] ?? 0,
             source: 'accepted' as const,
           };
         });
 
-      const savedIds: string[] = savedResult.data?.saved_campaign_ids ?? [];
+      const savedIds: string[] = Array.isArray(savedResult.data?.saved_campaign_ids)
+        ? (savedResult.data.saved_campaign_ids as string[])
+        : [];
       const acceptedIds = new Set(acceptedItems.map((c) => c.id));
 
       let savedItems: CampaignItem[] = [];
@@ -153,7 +196,7 @@ export default function VerifyVideoModal({ onClose, hidePendingBadges = false }:
           name: c.name,
           brand: '',
           photo: c.photo_url ?? '',
-          platforms: c.platforms ?? [],
+          platforms: normalizeStringArray(c.platforms),
           pendingCount: pendingCounts[c.id] ?? 0,
           source: 'saved' as const,
         }));
@@ -196,114 +239,167 @@ export default function VerifyVideoModal({ onClose, hidePendingBadges = false }:
         }
       });
 
-      setAcceptedCampaigns(acceptedItems);
-      setSavedCampaigns(savedItems);
-      setSubmittedCampaigns(submittedItems);
+      setPool(mergePool(acceptedItems, savedItems, submittedItems));
       setLoading(false);
     })();
   }, []);
+
+  const visibleCampaigns = useMemo(
+    () => pool.filter((c) => !hiddenIds.has(c.id)),
+    [pool, hiddenIds],
+  );
+
+  const hiddenCampaigns = useMemo(
+    () => pool.filter((c) => hiddenIds.has(c.id)),
+    [pool, hiddenIds],
+  );
+
+  const persistHidden = (next: Set<string>) => {
+    saveVerifyModalHiddenCampaignIds(next);
+    setHiddenIds(next);
+  };
 
   const handleSelect = (id: string) => {
     onClose();
     navigate(`/campagne/${id}/verification`);
   };
 
-  const handleRemove = async (campaign: CampaignItem) => {
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (user) {
-      if (campaign.source === 'saved') {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('saved_campaign_ids')
-          .eq('id', user.id)
-          .maybeSingle();
-        const current: string[] = profile?.saved_campaign_ids ?? [];
-        await supabase
-          .from('profiles')
-          .update({ saved_campaign_ids: current.filter((id) => id !== campaign.id) })
-          .eq('id', user.id);
-      } else if (campaign.source === 'accepted') {
-        await supabase
-          .from('campaign_applications')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('campaign_id', campaign.id);
-      } else if (campaign.source === 'submitted') {
-        await supabase
-          .from('video_submissions')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('campaign_id', campaign.id);
-      }
-    } else {
-      if (campaign.source === 'accepted') {
-        removeCreatorCampaign(campaign.id);
-        removeApplication(campaign.id);
-      } else if (campaign.source === 'submitted') {
-        const videos = getSubmittedVideos().filter((v) => v.campaignId === campaign.id);
-        videos.forEach((v) => removeSubmittedVideo(v.id));
-      }
-    }
-
-    setSavedCampaigns((prev) => prev.filter((c) => c.id !== campaign.id));
-    setAcceptedCampaigns((prev) => prev.filter((c) => c.id !== campaign.id));
-    setSubmittedCampaigns((prev) => prev.filter((c) => c.id !== campaign.id));
+  /** Retire uniquement de cette modale (pas de suppression candidature / video / enregistre en base). */
+  const handleHideFromList = (campaign: CampaignItem) => {
+    const next = new Set(hiddenIds);
+    next.add(campaign.id);
+    persistHidden(next);
   };
 
-  const allCampaigns = [
-    ...acceptedCampaigns,
-    ...savedCampaigns,
-    ...submittedCampaigns,
-  ].filter((c, i, arr) => arr.findIndex((x) => x.id === c.id) === i);
+  const handleRestore = (campaignId: string) => {
+    const next = new Set(hiddenIds);
+    next.delete(campaignId);
+    persistHidden(next);
+  };
 
-  const isEmpty = !loading && allCampaigns.length === 0;
+  const isTotallyEmpty = !loading && pool.length === 0;
+  const isMainEmptyVisible = !loading && pool.length > 0 && visibleCampaigns.length === 0;
 
-  return (
+  const modal = (
     <div
-      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-6"
+      className="fixed inset-0 z-[280] flex items-end sm:items-center justify-center p-0 sm:p-6 pointer-events-auto"
       style={{ backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      role="presentation"
     >
       <div
-        className="w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl overflow-hidden"
+        className="w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl overflow-hidden relative z-[1] pointer-events-auto"
         style={{
           background: 'rgba(255,255,255,0.055)',
           border: '1px solid rgba(255,255,255,0.1)',
           boxShadow: '0 24px 80px rgba(0,0,0,0.9)',
         }}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Verifier ma video"
       >
-        <div className="flex items-center justify-between px-6 pt-6 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-          <div>
-            <h2 className="text-base font-bold text-white">Verifier ma video</h2>
-            <p className="text-xs text-white/40 mt-0.5">Selectionne la campagne concernee</p>
+        <div
+          className="flex items-center justify-between gap-3 px-4 sm:px-6 pt-6 pb-4 relative z-10"
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}
+        >
+          {addPanelOpen ? (
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <button
+                type="button"
+                onClick={() => setAddPanelOpen(false)}
+                className={`${glassSquareBtn} shrink-0`}
+                style={glassSquareStyle}
+                aria-label="Retour"
+              >
+                <ChevronLeft className="w-4 h-4 text-white/85" />
+              </button>
+              <div className="min-w-0">
+                <h2 className="text-base font-bold text-white truncate">Ajouter une campagne</h2>
+                <p className="text-xs text-white/40 mt-0.5 truncate">Campagnes masquees — touche pour reafficher</p>
+              </div>
+            </div>
+          ) : (
+            <div className="min-w-0 flex-1">
+              <h2 className="text-base font-bold text-white">Verifier ma video</h2>
+              <p className="text-xs text-white/40 mt-0.5">Acceptees, video envoyee, enregistrees</p>
+            </div>
+          )}
+          <div className="flex items-center gap-2 shrink-0 relative z-20">
+            {!addPanelOpen && pool.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setAddPanelOpen(true)}
+                className={glassSquareBtn}
+                style={glassSquareStyle}
+                title="Rajouter une campagne masquee"
+                aria-label="Rajouter une campagne"
+              >
+                <Plus className="w-4 h-4 text-white/90" strokeWidth={2.5} />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onClose();
+              }}
+              className="w-10 h-10 flex items-center justify-center rounded-full transition-colors hover:bg-white/10 touch-manipulation"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+              aria-label="Fermer"
+            >
+              <X className="w-5 h-5 text-white/80" />
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full transition-colors hover:bg-white/10"
-          >
-            <X className="w-4 h-4 text-white/60" />
-          </button>
         </div>
 
         <div className="px-4 py-3 max-h-[60vh] overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-10">
-              <div className="w-5 h-5 rounded-full border-2 border-white/20 border-t-white/70 animate-spin" />
+              <GrapeLoader size="md" />
             </div>
-          ) : isEmpty ? (
+          ) : addPanelOpen ? (
+            hiddenCampaigns.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-2">
+                <p className="text-sm text-white/35 text-center">Aucune campagne masquee pour l&apos;instant.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {hiddenCampaigns.map((c) => (
+                  <RestoreRow
+                    key={c.id}
+                    campaign={c}
+                    hidePendingBadges={hidePendingBadges}
+                    onRestore={() => handleRestore(c.id)}
+                  />
+                ))}
+              </div>
+            )
+          ) : isTotallyEmpty ? (
             <div className="flex flex-col items-center justify-center py-10 gap-2">
-              <p className="text-sm text-white/30 text-center">Aucune campagne active.<br />Rejoins ou enregistre une campagne pour soumettre tes videos.</p>
+              <p className="text-sm text-white/30 text-center">
+                Aucune campagne ici.<br />
+                Postule et sois accepte, envoie une video, ou enregistre une campagne.
+              </p>
+            </div>
+          ) : isMainEmptyVisible ? (
+            <div className="flex flex-col items-center justify-center py-10 gap-3 px-2">
+              <p className="text-sm text-white/40 text-center">
+                Toutes les campagnes sont masquees. Touche le bouton + en haut a droite pour les rajouter.
+              </p>
             </div>
           ) : (
             <div className="space-y-2">
-              {allCampaigns.map((c) => (
+              {visibleCampaigns.map((c) => (
                 <CampaignRow
                   key={c.id}
                   campaign={c}
                   hidePendingBadges={hidePendingBadges}
                   onSelect={handleSelect}
-                  onRemove={handleRemove}
+                  onRemove={handleHideFromList}
                 />
               ))}
             </div>
@@ -315,6 +411,9 @@ export default function VerifyVideoModal({ onClose, hidePendingBadges = false }:
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(modal, document.body);
 }
 
 function CampaignRow({ campaign, hidePendingBadges, onSelect, onRemove }: {
@@ -323,37 +422,32 @@ function CampaignRow({ campaign, hidePendingBadges, onSelect, onRemove }: {
   onSelect: (id: string) => void;
   onRemove: (campaign: CampaignItem) => void;
 }) {
+  const rowHeightClass = 'h-[4.75rem] min-h-[4.75rem] max-h-[4.75rem]';
+
   return (
-    <div className="flex items-center gap-2">
+    <div className={`flex items-center gap-2 ${rowHeightClass}`}>
       <button
+        type="button"
         onClick={(e) => {
           e.stopPropagation();
           onRemove(campaign);
         }}
-        className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
+        className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 self-center"
         style={{
           background: 'rgba(255,255,255,0.05)',
           border: '1px solid rgba(255,255,255,0.15)',
           backdropFilter: 'blur(12px)',
         }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-          e.currentTarget.style.border = '1px solid rgba(255,255,255,0.25)';
-          const icon = e.currentTarget.querySelector('svg');
-          if (icon) icon.style.color = 'rgba(160,160,160,1)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-          e.currentTarget.style.border = '1px solid rgba(255,255,255,0.15)';
-          const icon = e.currentTarget.querySelector('svg');
-          if (icon) icon.style.color = '';
-        }}
+        title="Masquer de cette liste"
+        aria-label="Masquer de la liste"
       >
         <Trash2 className="w-3.5 h-3.5 text-white/40" />
       </button>
       <button
+        type="button"
+        title={campaign.name}
         onClick={() => onSelect(campaign.id)}
-        className="flex-1 flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 text-left group hover:scale-[1.01] active:scale-[0.98]"
+        className={`flex-1 min-w-0 flex items-center gap-3 px-3 rounded-xl transition-all duration-200 text-left group hover:scale-[1.01] active:scale-[0.98] overflow-hidden ${rowHeightClass}`}
         style={{
           background: 'rgba(255,255,255,0.055)',
           border: '1px solid rgba(255,255,255,0.10)',
@@ -363,13 +457,76 @@ function CampaignRow({ campaign, hidePendingBadges, onSelect, onRemove }: {
       >
         <img
           src={campaign.photo}
-          alt={campaign.name}
+          alt=""
           className="w-11 h-11 rounded-xl object-cover shrink-0"
           style={{ border: '1px solid rgba(255,255,255,0.08)' }}
         />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-white truncate">{campaign.name}</p>
-          <div className="flex items-center mt-1" style={{ gap: 0 }}>
+        <div className="flex-1 min-w-0 overflow-hidden flex flex-col justify-center gap-1">
+          <p className="text-sm font-semibold text-white truncate whitespace-nowrap overflow-hidden text-ellipsis">{campaign.name}</p>
+          <div className="flex items-center shrink-0 overflow-hidden" style={{ gap: 0 }}>
+            {campaign.platforms.filter((p) => platformIconMap[p]).map((p, i, arr) => (
+              <div key={p} style={{
+                width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+              }}>
+                <img src={platformIconMap[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+              </div>
+            ))}
+          </div>
+        </div>
+        {!hidePendingBadges && campaign.pendingCount > 0 && (
+          <span
+            className="text-[9px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap"
+            style={{ background: 'rgba(255,166,114,0.12)', color: '#FFA672', border: '1px solid rgba(255,166,114,0.25)' }}
+          >
+            video en attente
+          </span>
+        )}
+        <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-white/50 transition-colors shrink-0" />
+      </button>
+    </div>
+  );
+}
+
+function RestoreRow({ campaign, hidePendingBadges, onRestore }: {
+  campaign: CampaignItem;
+  hidePendingBadges: boolean;
+  onRestore: () => void;
+}) {
+  const rowHeightClass = 'h-[4.75rem] min-h-[4.75rem] max-h-[4.75rem]';
+
+  return (
+    <div className={`flex items-center gap-2 ${rowHeightClass}`}>
+      <button
+        type="button"
+        onClick={onRestore}
+        className={`${glassSquareBtn} self-center`}
+        style={glassSquareStyle}
+        title="Rajouter a la liste"
+        aria-label="Rajouter"
+      >
+        <Plus className="w-4 h-4 text-white/90" strokeWidth={2.5} />
+      </button>
+      <button
+        type="button"
+        onClick={onRestore}
+        className={`flex-1 min-w-0 flex items-center gap-3 px-3 rounded-xl transition-all duration-200 text-left group hover:scale-[1.01] active:scale-[0.98] overflow-hidden ${rowHeightClass}`}
+        style={{
+          background: 'rgba(255,255,255,0.055)',
+          border: '1px solid rgba(255,255,255,0.10)',
+        }}
+      >
+        <img
+          src={campaign.photo}
+          alt=""
+          className="w-11 h-11 rounded-xl object-cover shrink-0"
+          style={{ border: '1px solid rgba(255,255,255,0.08)' }}
+        />
+        <div className="flex-1 min-w-0 overflow-hidden flex flex-col justify-center gap-1">
+          <p className="text-sm font-semibold text-white truncate whitespace-nowrap overflow-hidden text-ellipsis">{campaign.name}</p>
+          <div className="flex items-center shrink-0 overflow-hidden" style={{ gap: 0 }}>
             {campaign.platforms.filter((p) => platformIconMap[p]).map((p, i, arr) => (
               <div key={p} style={{
                 width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',

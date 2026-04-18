@@ -30,6 +30,14 @@ interface UserProfile {
   instagram_handle: string;
   tiktok_handle: string;
   youtube_handle: string;
+  hidden_stats: string[] | null;
+}
+
+function normalizeHiddenStats(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.filter((x): x is string => typeof x === 'string');
+  }
+  return [];
 }
 
 export default function UserProfilePage() {
@@ -62,9 +70,10 @@ export default function UserProfilePage() {
   useEffect(() => {
     if (!username) return;
     setLoading(true);
+    setProfile(null);
     supabase
       .from('profiles')
-      .select('id, username, display_name, bio, avatar_url, banner_url, content_tags, website, created_at, instagram_handle, tiktok_handle, youtube_handle')
+      .select('id, username, display_name, bio, avatar_url, banner_url, content_tags, website, created_at, instagram_handle, tiktok_handle, youtube_handle, hidden_stats')
       .eq('username', username)
       .eq('is_public', true)
       .maybeSingle()
@@ -74,32 +83,39 @@ export default function UserProfilePage() {
       });
   }, [username]);
 
-  if (loading) {
+  if (!profile) {
     return (
       <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
         <Sidebar activePage="home" onOpenSearch={() => {}} />
-        <div className="flex-1 flex items-center justify-center">
-          <GrapeLoader />
+        <div className="flex-1 flex flex-col items-center justify-center px-4">
+          {loading ? (
+            <GrapeLoader size="md" />
+          ) : (
+            <>
+              <p className="text-xl font-semibold mb-4">Utilisateur introuvable</p>
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="px-6 py-3 rounded-full bg-white text-black font-semibold text-sm hover:bg-white/90 transition-colors"
+              >
+                Retour
+              </button>
+            </>
+          )}
         </div>
       </div>
     );
   }
 
-  if (!profile) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-white" style={{ backgroundColor: '#050404' }}>
-        <p className="text-xl font-semibold mb-4">Utilisateur introuvable</p>
-        <button
-          onClick={() => navigate(-1)}
-          className="px-6 py-3 rounded-full bg-white text-black font-semibold text-sm hover:bg-white/90 transition-colors"
-        >
-          Retour
-        </button>
-      </div>
-    );
-  }
-
   const joinedDate = new Date(profile.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  const hiddenStats = normalizeHiddenStats(profile.hidden_stats);
+
+  const visibleSocialPlatforms = socialPlatforms.filter((p) => {
+    const handle = (profile[`${p.key}_handle` as keyof UserProfile] as string) || '';
+    if (!handle) return false;
+    if (hiddenStats.includes(`platform_${p.key}`)) return false;
+    return true;
+  });
 
   return (
     <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
@@ -231,11 +247,10 @@ export default function UserProfilePage() {
           ))}
         </div>
 
-        {socialPlatforms.some((p) => profile[`${p.key}_handle` as keyof UserProfile]) && (
+        {visibleSocialPlatforms.length > 0 && (
           <div className="flex items-center gap-2.5 mb-6">
-            {socialPlatforms.map((p) => {
+            {visibleSocialPlatforms.map((p) => {
               const handle = (profile[`${p.key}_handle` as keyof UserProfile] as string) || '';
-              if (!handle) return null;
               const clean = handle.replace(/^@/, '');
               const url = `${p.baseUrl}${clean}`;
               return (
@@ -255,16 +270,18 @@ export default function UserProfilePage() {
           </div>
         )}
 
-        <div className="flex items-center gap-3 mb-6">
-          <div
-            className="flex items-center gap-2.5 px-4 py-3 rounded-xl"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-          >
-            <Video className="w-4 h-4 text-white/40" />
-            <span className="text-sm font-bold text-white">0</span>
-            <span className="text-sm text-white/40">videos</span>
+        {!hiddenStats.includes('videos') && (
+          <div className="flex items-center gap-3 mb-6">
+            <div
+              className="flex items-center gap-2.5 px-4 py-3 rounded-xl"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+            >
+              <Video className="w-4 h-4 text-white/40" />
+              <span className="text-sm font-bold text-white">0</span>
+              <span className="text-sm text-white/40">videos</span>
+            </div>
           </div>
-        </div>
+        )}
 
         {profile.website && (
           <a

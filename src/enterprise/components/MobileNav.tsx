@@ -224,7 +224,7 @@ export default function MobileNav() {
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 pt-3 pb-8">
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-4 pt-3 pb-8">
 
             {!searchQuery.trim() && recentSearches.length > 0 && (
               <div className="flex items-center justify-between mb-3">
@@ -445,7 +445,7 @@ export default function MobileNav() {
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-2 pb-8 pt-1 space-y-0.5">
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-2 pb-8 pt-1 space-y-0.5">
             {notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24">
                 <Bell className="w-8 h-8 text-white/10 mb-3" />
@@ -521,7 +521,7 @@ export default function MobileNav() {
               isActive('/mes-campagnes') ? 'bg-white/10' : ''
             }`}
           >
-            <img src={globeIcon} alt="" className="w-6 h-6 brightness-0 invert" />
+            <img src={globeIcon} alt="" className="w-6 h-6 shrink-0" />
             <span className="text-[10px] text-white">Campagnes</span>
           </button>
 
@@ -548,7 +548,7 @@ export default function MobileNav() {
               isActive('/dashboard') ? 'bg-white/10' : ''
             }`}
           >
-            <img src={barChartIcon} alt="" className="w-6 h-6 brightness-0 invert" />
+            <img src={barChartIcon} alt="" className="w-6 h-6 shrink-0" />
             <span className="text-[10px] text-white">Dashboard</span>
           </button>
 
@@ -558,7 +558,7 @@ export default function MobileNav() {
               isActive('/validation-videos') ? 'bg-white/10' : ''
             }`}
           >
-            <img src={hourglassIcon} alt="" className="w-6 h-6 brightness-0 invert" />
+            <img src={hourglassIcon} alt="" className="w-6 h-6 shrink-0" />
             <span className="text-[10px] text-white">Validation</span>
           </button>
         </div>

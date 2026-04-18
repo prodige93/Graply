@@ -93,6 +93,8 @@ export default function CreatorAccessValidationPage() {
   useEffect(() => {
     const fetchData = async () => {
       if (!id) return;
+      setLoading(true);
+      setCampaign(null);
       const [campaignRes, appsRes] = await Promise.all([
         supabase.from('campaigns').select('id, name, photo_url, platforms, content_type').eq('id', id).maybeSingle(),
         supabase
@@ -180,27 +182,26 @@ export default function CreatorAccessValidationPage() {
   const pendingRequests = allRequests.filter((c) => !decisions[c.id]);
   const allDecided = pendingRequests.length === 0 && allRequests.length > 0;
 
-  if (loading) {
+  if (!campaign) {
     return (
       <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
         <Sidebar activePage="home" onOpenSearch={() => {}} />
-        <div className="flex-1 flex items-center justify-center">
-          <GrapeLoader />
+        <div className="flex-1 flex flex-col items-center justify-center px-4">
+          {loading ? (
+            <GrapeLoader size="md" />
+          ) : (
+            <>
+              <p className="text-xl font-semibold mb-4">Campagne introuvable</p>
+              <button
+                type="button"
+                onClick={() => navigate('/validation-videos')}
+                className="px-6 py-3 rounded-full bg-white text-black font-semibold text-sm hover:bg-white/90 transition-colors"
+              >
+                Retour
+              </button>
+            </>
+          )}
         </div>
-      </div>
-    );
-  }
-
-  if (!campaign) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-white" style={{ backgroundColor: '#050404' }}>
-        <p className="text-xl font-semibold mb-4">Campagne introuvable</p>
-        <button
-          onClick={() => navigate('/validation-videos')}
-          className="px-6 py-3 rounded-full bg-white text-black font-semibold text-sm hover:bg-white/90 transition-colors"
-        >
-          Retour
-        </button>
       </div>
     );
   }

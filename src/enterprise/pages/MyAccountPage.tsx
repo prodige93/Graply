@@ -8,7 +8,7 @@ import GrapeLoader from '../components/GrapeLoader';
 import rectangleGradient from '@/shared/assets/account-banner-gradient.svg';
 import certificationBtn from '@/shared/assets/certification-button-bg.svg';
 import { supabase } from '@/shared/infrastructure/supabase';
-import { useProfile, PROFILE_ID } from '@/shared/lib/useProfile';
+import { useProfile } from '@/shared/lib/useProfile';
 import jentrepriseIcon from '@/shared/assets/badge-enterprise-verified.png';
 import iphone17Img from '@/shared/assets/hero-slide-iphone17.jpeg';
 import bo7Img from '@/shared/assets/hero-slide-bo7.jpeg';
@@ -25,8 +25,10 @@ type SocialKey = SocialPlatform;
 const DEFAULT_BANNER = 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=1200';
 
 async function uploadFile(file: File, folder: string): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
   const ext = file.name.split('.').pop();
-  const fileName = `${folder}/${PROFILE_ID}-${Date.now()}.${ext}`;
+  const fileName = `${folder}/${user.id}-${Date.now()}.${ext}`;
   const { error } = await supabase.storage.from('avatars').upload(fileName, file, { upsert: true, contentType: file.type });
   if (error) {
     console.error('Upload error:', error.message);
@@ -108,8 +110,9 @@ export default function MyAccountPage() {
     updateProfile({ avatar_url: localPreview });
     setUploadingAvatar(true);
     const url = await uploadFile(file, 'profile-pics');
-    if (url) {
-      await supabase.from('profiles').update({ avatar_url: url, updated_at: new Date().toISOString() }).eq('id', PROFILE_ID);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (url && user?.id) {
+      await supabase.from('profiles').update({ avatar_url: url, updated_at: new Date().toISOString() }).eq('id', user.id);
       updateProfile({ avatar_url: url });
     }
     setUploadingAvatar(false);
@@ -123,8 +126,9 @@ export default function MyAccountPage() {
     updateProfile({ banner_url: localPreview });
     setUploadingBanner(true);
     const url = await uploadFile(file, 'banners');
-    if (url) {
-      await supabase.from('profiles').update({ banner_url: url, updated_at: new Date().toISOString() }).eq('id', PROFILE_ID);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (url && user?.id) {
+      await supabase.from('profiles').update({ banner_url: url, updated_at: new Date().toISOString() }).eq('id', user.id);
       updateProfile({ banner_url: url });
     }
     setUploadingBanner(false);
@@ -142,8 +146,9 @@ export default function MyAccountPage() {
   }
 
   async function saveBio() {
+    if (!profile?.id) return;
     setSavingBio(true);
-    await supabase.from('profiles').update({ bio: newBio.trim(), updated_at: new Date().toISOString() }).eq('id', PROFILE_ID);
+    await supabase.from('profiles').update({ bio: newBio.trim(), updated_at: new Date().toISOString() }).eq('id', profile.id);
     updateProfile({ bio: newBio.trim() });
     setSavingBio(false);
     setEditingBio(false);
@@ -154,8 +159,9 @@ export default function MyAccountPage() {
       setEditingUsername(false);
       return;
     }
+    if (!profile?.id) return;
     setSavingUsername(true);
-    await supabase.from('profiles').update({ username: newUsername.trim(), updated_at: new Date().toISOString() }).eq('id', PROFILE_ID);
+    await supabase.from('profiles').update({ username: newUsername.trim(), updated_at: new Date().toISOString() }).eq('id', profile.id);
     updateProfile({ username: newUsername.trim() });
     setSavingUsername(false);
     setEditingUsername(false);

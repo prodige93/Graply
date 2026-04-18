@@ -8,6 +8,21 @@ import instagramIcon from '@/shared/assets/instagram-card.svg';
 import tiktokIcon from '@/shared/assets/tiktok.svg';
 import youtubeIcon from '@/shared/assets/youtube.svg';
 import { supabase } from '@/shared/infrastructure/supabase';
+import { campaigns as staticCampaignsList, sponsoredCampaigns as staticSponsoredList } from '@/shared/data/campaignsData';
+
+const staticCampaignPool = [...staticSponsoredList, ...staticCampaignsList];
+
+const CAMPAIGN_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function contentTypeForCampaignId(campaignId: string): string | undefined {
+  return staticCampaignPool.find((c) => c.id === campaignId)?.contentType;
+}
+
+function enrichVideoContentType(v: SubmittedVideo): SubmittedVideo {
+  if (v.contentType) return v;
+  const ct = contentTypeForCampaignId(v.campaignId);
+  return ct ? { ...v, contentType: ct } : v;
+}
 
 const platformIconMap: Record<string, string> = {
   instagram: instagramIcon,
@@ -26,16 +41,22 @@ export default function MyVideosPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPlatforms, setSelectedPlatforms] = useState<Set<string>>(new Set());
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [dbVideos, setDbVideos] = useState<SubmittedVideo[]>([]);
 
   const [, forceUpdate] = useState(0);
   const memoryVideos = getSubmittedVideos();
 
   const submittedVideos = useMemo(() => {
-    return [...dbVideos.map((dbV) => {
-      const mem = memoryVideos.find((m) => m.id === dbV.id);
-      return mem ?? dbV;
-    }), ...memoryVideos.filter((m) => !dbVideos.find((d) => d.id === m.id))];
+    const merged = [
+      ...dbVideos.map((dbV) => {
+        const mem = memoryVideos.find((m) => m.id === dbV.id);
+        return mem ?? dbV;
+      }),
+      ...memoryVideos.filter((m) => !dbVideos.find((d) => d.id === m.id)),
+    ];
+    return merged.map(enrichVideoContentType);
   }, [dbVideos, memoryVideos]);
 
   useEffect(() => {
@@ -52,17 +73,31 @@ export default function MyVideosPage() {
         .order('submitted_at', { ascending: false });
       if (cancelled) return;
       if (data) {
-        setDbVideos(data.map((row) => ({
-          id: row.id,
-          campaignId: row.campaign_id,
-          campaignName: row.campaign_name,
-          brand: row.brand,
-          campaignPhoto: row.campaign_photo,
-          platform: row.platform,
-          videoUrl: row.video_url,
-          submittedAt: new Date(row.submitted_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }),
-          status: row.status as SubmittedVideo['status'],
-        })));
+        const uuidIds = [...new Set(data.map((r) => r.campaign_id).filter((id) => CAMPAIGN_UUID_RE.test(id)))];
+        const dbContentTypes = new Map<string, string>();
+        if (uuidIds.length > 0) {
+          const { data: campRows } = await supabase.from('campaigns').select('id, content_type').in('id', uuidIds);
+          (campRows ?? []).forEach((row: { id: string; content_type: string | null }) => {
+            dbContentTypes.set(row.id, row.content_type ?? '');
+          });
+        }
+        setDbVideos(
+          data.map((row) => ({
+            id: row.id,
+            campaignId: row.campaign_id,
+            campaignName: row.campaign_name,
+            brand: row.brand,
+            campaignPhoto: row.campaign_photo,
+            platform: row.platform,
+            videoUrl: row.video_url,
+            submittedAt: new Date(row.submitted_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }),
+            status: row.status as SubmittedVideo['status'],
+            contentType:
+              contentTypeForCampaignId(row.campaign_id) ??
+              dbContentTypes.get(row.campaign_id) ??
+              undefined,
+          })),
+        );
       }
       setLoading(false);
     }
@@ -83,6 +118,12 @@ export default function MyVideosPage() {
     }
   };
 
+  const statusLabelToValue: Record<string, SubmittedVideo['status']> = {
+    'En attente': 'in_review',
+    Approuvee: 'approved',
+    Refusee: 'rejected',
+  };
+
   const filteredVideos = submittedVideos.filter((v) => {
     const matchesPlatform =
       selectedPlatforms.size === 0 || selectedPlatforms.has(v.platform);
@@ -90,19 +131,13 @@ export default function MyVideosPage() {
       !searchQuery.trim() ||
       v.campaignName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       v.brand.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesPlatform && matchesSearch;
+    const matchesStatus =
+      !selectedStatus || v.status === statusLabelToValue[selectedStatus];
+    const matchesCategory =
+      !selectedCategory ||
+      (v.contentType ?? '').toLowerCase() === selectedCategory.toLowerCase();
+    return matchesPlatform && matchesSearch && matchesStatus && matchesCategory;
   });
-
-  if (loading) {
-    return (
-      <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
-        <Sidebar activePage="home" onOpenSearch={() => {}} />
-        <div className="flex-1 flex items-center justify-center">
-          <GrapeLoader />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
@@ -120,59 +155,74 @@ export default function MyVideosPage() {
             <div className="flex-1 min-w-0">
               <h1 className="text-xl lg:text-2xl font-bold text-white">Videos en cours de verification</h1>
               <p className="text-sm text-white/40 mt-0.5">
-                {filteredVideos.length} video{filteredVideos.length !== 1 ? 's' : ''} soumise{filteredVideos.length !== 1 ? 's' : ''}
+                {loading ? 'Chargement…' : `${filteredVideos.length} video${filteredVideos.length !== 1 ? 's' : ''} soumise${filteredVideos.length !== 1 ? 's' : ''}`}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="px-4 sm:px-6 pt-5 lg:pt-8">
-          <VideosFilterBar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            selectedPlatforms={selectedPlatforms}
-            onTogglePlatform={(p) => {
-              setSelectedPlatforms((prev) => {
-                const next = new Set(prev);
-                next.has(p) ? next.delete(p) : next.add(p);
-                return next;
-              });
-            }}
-            onResetAll={() => {
-              setSearchQuery('');
-              setSelectedPlatforms(new Set());
-            }}
-          />
-        </div>
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <GrapeLoader size="md" />
+          </div>
+        ) : (
+          <>
+            <div className="px-4 sm:px-6 pt-5 lg:pt-8">
+              <VideosFilterBar
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                selectedPlatforms={selectedPlatforms}
+                onTogglePlatform={(p) => {
+                  setSelectedPlatforms((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(p)) next.delete(p);
+                    else next.add(p);
+                    return next;
+                  });
+                }}
+                selectedStatus={selectedStatus}
+                onStatusChange={setSelectedStatus}
+                selectedCategory={selectedCategory}
+                onCategoryChange={setSelectedCategory}
+                onResetAll={() => {
+                  setSearchQuery('');
+                  setSelectedPlatforms(new Set());
+                  setSelectedStatus(null);
+                  setSelectedCategory(null);
+                }}
+              />
+            </div>
 
-        <div className="px-4 sm:px-6 mt-6 pb-12">
-          {filteredVideos.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div
-                className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
-              >
-                <Video className="w-6 h-6 text-white/25" />
-              </div>
-              <p className="text-white/40 text-sm font-medium">Aucune vidéo trouvée</p>
-              <p className="text-white/20 text-xs mt-1">Essayez de modifier vos filtres</p>
+            <div className="px-4 sm:px-6 mt-6 pb-12">
+              {filteredVideos.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                  <div
+                    className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  >
+                    <Video className="w-6 h-6 text-white/25" />
+                  </div>
+                  <p className="text-white/40 text-sm font-medium">Aucune vidéo trouvée</p>
+                  <p className="text-white/20 text-xs mt-1">Essayez de modifier vos filtres</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredVideos.map((video) => (
+                    <VideoCard
+                      key={video.id}
+                      video={video}
+                      onDelete={
+                        video.status !== 'in_review'
+                          ? () => handleDelete(video)
+                          : undefined
+                      }
+                    />
+                  ))}
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="space-y-3">
-              {filteredVideos.map((video) => (
-                <VideoCard
-                  key={video.id}
-                  video={video}
-                  onDelete={
-                    video.status !== 'in_review'
-                      ? () => handleDelete(video)
-                      : undefined
-                  }
-                />
-              ))}
-            </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -299,13 +349,25 @@ interface VideosFilterBarProps {
   onSearchChange: (q: string) => void;
   selectedPlatforms: Set<string>;
   onTogglePlatform: (p: string) => void;
+  selectedStatus: string | null;
+  onStatusChange: (s: string | null) => void;
+  selectedCategory: string | null;
+  onCategoryChange: (c: string | null) => void;
   onResetAll: () => void;
 }
 
-function VideosFilterBar({ searchQuery, onSearchChange, selectedPlatforms, onTogglePlatform, onResetAll }: VideosFilterBarProps) {
+function VideosFilterBar({
+  searchQuery,
+  onSearchChange,
+  selectedPlatforms,
+  onTogglePlatform,
+  selectedStatus,
+  onStatusChange,
+  selectedCategory,
+  onCategoryChange,
+  onResetAll,
+}: VideosFilterBarProps) {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-  const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -334,8 +396,8 @@ function VideosFilterBar({ searchQuery, onSearchChange, selectedPlatforms, onTog
   );
 
   const resetAll = () => {
-    setSelectedStatus(null);
-    setSelectedCategory(null);
+    onStatusChange(null);
+    onCategoryChange(null);
     setOpenDropdown(null);
     onResetAll();
   };
@@ -350,7 +412,7 @@ function VideosFilterBar({ searchQuery, onSearchChange, selectedPlatforms, onTog
 
   return (
     <div ref={dropdownRef}>
-      <div className="hidden lg:flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         {['Statut', 'Categories'].map((filter) => (
           <div key={filter} className="relative">
             <div className="flex items-center">
@@ -391,7 +453,7 @@ function VideosFilterBar({ searchQuery, onSearchChange, selectedPlatforms, onTog
                     <button
                       key={option}
                       onClick={() => {
-                        setSelectedStatus(option === 'Tous' ? null : option);
+                        onStatusChange(option === 'Tous' ? null : option);
                         setOpenDropdown(null);
                       }}
                       className="w-full flex items-center justify-between px-3 py-3 text-sm font-semibold transition-all duration-200"
@@ -423,7 +485,7 @@ function VideosFilterBar({ searchQuery, onSearchChange, selectedPlatforms, onTog
                   return (
                     <button
                       key={option}
-                      onClick={() => { setSelectedCategory(isSelected ? null : option); setOpenDropdown(null); }}
+                      onClick={() => { onCategoryChange(isSelected ? null : option); setOpenDropdown(null); }}
                       className="w-full flex items-center justify-between px-3 py-3 mx-0 text-sm font-semibold transition-all duration-200 group"
                       style={{ color: isSelected ? color : 'rgba(255,255,255,0.85)' }}
                       onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = color; }}
@@ -453,43 +515,10 @@ function VideosFilterBar({ searchQuery, onSearchChange, selectedPlatforms, onTog
           </button>
         )}
 
-        <div className="flex-1" />
+        <div className="hidden lg:block flex-1 min-w-[1rem]" />
 
-        <div className="flex items-center gap-2">
-          <div className="relative w-44">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Rechercher..."
-              className="w-full pl-9 pr-4 py-2.5 rounded-full text-sm text-white placeholder-white/40 border border-white/30 focus:border-white/60 focus:outline-none transition-colors"
-              style={{ backgroundColor: '#050404' }}
-            />
-          </div>
-          {[
-            { key: 'instagram', icon: instagramIcon, label: 'Instagram' },
-            { key: 'tiktok', icon: tiktokIcon, label: 'TikTok' },
-            { key: 'youtube', icon: youtubeIcon, label: 'YouTube' },
-          ].map(({ key, icon, label }) => (
-            <button
-              key={key}
-              onClick={() => onTogglePlatform(key)}
-              className={`w-10 h-10 shrink-0 rounded-full border flex items-center justify-center transition-all duration-200 ${
-                selectedPlatforms.has(key)
-                  ? 'border-white bg-white/15 ring-1 ring-white/30'
-                  : 'border-white/30 hover:border-white/60 hover:bg-white/5'
-              }`}
-            >
-              <img src={icon} alt={label} className="w-5 h-5 social-icon" />
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="lg:hidden">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="relative flex-1">
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+          <div className="relative flex-1 min-w-[10rem] lg:w-44 lg:flex-none">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
             <input
               type="text"

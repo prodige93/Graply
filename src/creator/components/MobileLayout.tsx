@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
-import { Video, Clock } from 'lucide-react'
+import { Clock } from 'lucide-react'
 import chCircleIcon from '@/shared/assets/creator-hub-mark.svg'
 import MobileNav from './MobileNav'
 import { getSubmittedVideos } from '@/shared/lib/useCreatorCampaigns'

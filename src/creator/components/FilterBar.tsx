@@ -88,7 +88,8 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
 
   const togglePlatform = (p: string) => {
     const next = new Set(selectedPlatforms);
-    next.has(p) ? next.delete(p) : next.add(p);
+    if (next.has(p)) next.delete(p);
+    else next.add(p);
     onChange({ selectedPlatforms: next });
   };
 

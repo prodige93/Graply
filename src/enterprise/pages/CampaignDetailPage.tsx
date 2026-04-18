@@ -2,7 +2,9 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { renderAmount } from '@/shared/utils/chartUtils';
 import { useParams, useLocation, useNavigate as useRawNavigate } from 'react-router-dom';
 import { useEnterpriseNavigate } from '@/enterprise/lib/useEnterpriseNavigate';
-import { ArrowLeft, Users, Eye, DollarSign, Send, CheckCircle, ScrollText, FileDown, Download, MoreVertical, Flag, ShieldBan, X, Lock, Pencil, Pause, Play, Trash2, Share2, Bookmark } from 'lucide-react';
+import type { CampaignData } from '@/enterprise/components/CampaignCard';
+import { ArrowLeft, Users, Eye, DollarSign, Send, CheckCircle, ScrollText, FileDown, Download, MoreVertical, Flag, ShieldBan, X, Lock, Pencil, Pause, Play, Trash2, Share2, BookmarkX } from 'lucide-react';
+import bookmarkIcon from '@/shared/assets/bookmark-filled.svg';
 import { campaigns, sponsoredCampaigns, enterprises } from '@/shared/data/campaignsData';
 import { supabase } from '@/shared/infrastructure/supabase';
 import { useSavedCampaigns } from '@/enterprise/contexts/SavedCampaignsContext';
@@ -58,8 +60,14 @@ export default function CampaignDetailPage() {
   const rawNavigate = useRawNavigate();
   const location = useLocation();
   const { isSaved, toggle } = useSavedCampaigns();
+  const backTo = (location.state as { from?: string } | null)?.from ?? '/campagnes';
 
-  const goCreatorMode = () => rawNavigate(`/campagne/${id}`);
+  const goBackToCreatorCampaignList = () => {
+    rawNavigate(backTo === '/enregistre' ? '/enregistre' : '/campagnes');
+  };
+
+  const goCreatorMode = () =>
+    rawNavigate(`/campagne/${id}`, { state: { from: '/campagnes' } });
   const allCampaigns = [...sponsoredCampaigns, ...campaigns];
   const staticCampaign = allCampaigns.find((c) => c.id === id);
   const [supabaseCampaign, setSupabaseCampaign] = useState<SupabaseCampaign | null>(null);
@@ -124,7 +132,7 @@ export default function CampaignDetailPage() {
     return (
       <SupabaseCampaignDetail
         campaign={supabaseCampaign}
-        onBack={() => navigate('/campagnes')}
+        onBack={goBackToCreatorCampaignList}
         onEdit={(id) => navigate(`/modifier-campagne/${id}`, { state: { from: `/campagne/${id}` } })}
         onNavigate={navigate}
       />
@@ -142,7 +150,7 @@ export default function CampaignDetailPage() {
       <div className="min-h-screen flex flex-col items-center justify-center text-white" style={{ backgroundColor: '#050404' }}>
         <p className="text-xl font-semibold mb-4">Campagne introuvable</p>
         <button
-          onClick={() => navigate('/campagnes')}
+          onClick={goBackToCreatorCampaignList}
           className="px-6 py-3 rounded-full bg-white text-black font-semibold text-sm hover:bg-white/90 transition-colors"
         >
           Retour aux campagnes
@@ -163,7 +171,7 @@ export default function CampaignDetailPage() {
         />
         <div className="absolute top-6 left-6 z-10">
           <button
-            onClick={() => navigate('/campagnes')}
+            onClick={goBackToCreatorCampaignList}
             className="flex items-center justify-center w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors"
           >
             <ArrowLeft className="w-5 h-5 text-white" />
@@ -426,16 +434,31 @@ export default function CampaignDetailPage() {
               >
                 <Share2 className="w-4 h-4 text-white" />
               </button>
-              <button
-                onClick={() => id && toggle(id)}
-                className="w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
-                style={{
-                  background: id && isSaved(id) ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.07)',
-                  border: id && isSaved(id) ? '1px solid rgba(255,255,255,0.4)' : '1px solid rgba(255,255,255,0.14)',
-                }}
-              >
-                <Bookmark className="w-4 h-4 transition-colors" style={{ color: id && isSaved(id) ? '#fff' : 'rgba(255,255,255,0.7)', fill: id && isSaved(id) ? 'rgba(255,255,255,0.9)' : 'none' }} />
-              </button>
+              {id && backTo === '/enregistre' ? (
+                <button
+                  onClick={() => { if (id) { toggle(id, campaign as CampaignData); navigate('/enregistre'); } }}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-200 hover:brightness-110 active:scale-95"
+                  style={{
+                    background: 'rgba(239,68,68,0.1)',
+                    border: '1px solid rgba(239,68,68,0.25)',
+                    color: '#f87171',
+                  }}
+                >
+                  <BookmarkX className="w-4 h-4" />
+                  Retirer
+                </button>
+              ) : (
+                <button
+                  onClick={() => id && toggle(id, campaign as CampaignData)}
+                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
+                  style={{
+                    background: id && isSaved(id) ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.07)',
+                    border: id && isSaved(id) ? '1px solid rgba(255,255,255,0.4)' : '1px solid rgba(255,255,255,0.14)',
+                  }}
+                >
+                  <img src={bookmarkIcon} alt="Enregistrer" className={`w-4 h-4 transition-opacity ${id && isSaved(id) ? 'opacity-100' : 'opacity-70'}`} />
+                </button>
+              )}
             </div>
           </div>
         ) : applied ? (
@@ -488,16 +511,31 @@ export default function CampaignDetailPage() {
               >
                 <Share2 className="w-4 h-4 text-white" />
               </button>
-              <button
-                onClick={() => id && toggle(id)}
-                className="w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
-                style={{
-                  background: id && isSaved(id) ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.07)',
-                  border: id && isSaved(id) ? '1px solid rgba(255,255,255,0.4)' : '1px solid rgba(255,255,255,0.14)',
-                }}
-              >
-                <Bookmark className="w-4 h-4 transition-colors" style={{ color: id && isSaved(id) ? '#fff' : 'rgba(255,255,255,0.7)', fill: id && isSaved(id) ? 'rgba(255,255,255,0.9)' : 'none' }} />
-              </button>
+              {id && backTo === '/enregistre' ? (
+                <button
+                  onClick={() => { if (id) { toggle(id, campaign as CampaignData); navigate('/enregistre'); } }}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-200 hover:brightness-110 active:scale-95"
+                  style={{
+                    background: 'rgba(239,68,68,0.1)',
+                    border: '1px solid rgba(239,68,68,0.25)',
+                    color: '#f87171',
+                  }}
+                >
+                  <BookmarkX className="w-4 h-4" />
+                  Retirer
+                </button>
+              ) : (
+                <button
+                  onClick={() => id && toggle(id, campaign as CampaignData)}
+                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
+                  style={{
+                    background: id && isSaved(id) ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.07)',
+                    border: id && isSaved(id) ? '1px solid rgba(255,255,255,0.4)' : '1px solid rgba(255,255,255,0.14)',
+                  }}
+                >
+                  <img src={bookmarkIcon} alt="Enregistrer" className={`w-4 h-4 transition-opacity ${id && isSaved(id) ? 'opacity-100' : 'opacity-70'}`} />
+                </button>
+              )}
             </div>
           </div>
         )}

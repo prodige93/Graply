@@ -36,6 +36,8 @@ export interface CampaignData {
   requireApplication?: boolean;
   rules?: string[];
   documents?: { name: string; size: string; type: string }[];
+  /** Créateur de la campagne (Supabase) — utile pour masquer « enregistrer » si c’est la sienne, ex. app entreprise. */
+  ownerUserId?: string | null;
 }
 
 const socialIcons: Record<string, JSX.Element> = {
@@ -70,11 +72,17 @@ export default function CampaignCard({ data, from }: { data: CampaignData; from?
 
   const handleSave = (e: React.MouseEvent) => {
     e.stopPropagation();
-    toggle(data.id);
+    toggle(data.id, data);
+  };
+
+  const prefetchCampaignDetail = () => {
+    void import('@/creator/pages/CampaignDetailPage.tsx');
   };
 
   return (
     <div
+      onMouseEnter={prefetchCampaignDetail}
+      onFocus={prefetchCampaignDetail}
       onClick={() => navigate(`/campagne/${data.id}`, { state: { from: from ?? '/campagnes' } })}
       className="rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.04] hover:-translate-y-1 group h-full flex flex-col cursor-pointer relative"
       style={{

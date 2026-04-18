@@ -1,6 +1,8 @@
+import { Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
+import GrapeLoader from './GrapeLoader';
 
 type ActivePage = 'home' | 'mes-campagnes' | 'validation-videos' | 'dashboard' | 'messagerie' | 'mon-compte' | 'parametres' | 'enregistre';
 
@@ -24,7 +26,15 @@ export default function AppLayout() {
     <div className="min-h-screen text-white flex" style={{ background: '#050404' }}>
       <Sidebar activePage={activePage} />
       <div className="flex-1 min-h-screen overflow-x-hidden flex flex-col relative" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 4rem)' }}>
-        <Outlet />
+        <Suspense
+          fallback={(
+            <div className="flex-1 flex items-center justify-center py-20 min-h-[40vh]">
+              <GrapeLoader size="md" />
+            </div>
+          )}
+        >
+          <Outlet />
+        </Suspense>
       </div>
       <MobileNav />
     </div>

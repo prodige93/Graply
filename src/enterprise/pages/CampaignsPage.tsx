@@ -58,7 +58,8 @@ function FilterBar({ instagramIcon, tiktokIcon, youtubeIcon }: { instagramIcon: 
   const togglePlatform = (p: string) => {
     setSelectedPlatforms((prev) => {
       const next = new Set(prev);
-      next.has(p) ? next.delete(p) : next.add(p);
+      if (next.has(p)) next.delete(p);
+      else next.add(p);
       return next;
     });
   };
@@ -394,18 +395,21 @@ export default function CampaignsPage() {
 
   return (
     <div className="text-white" style={{ backgroundColor: '#050404' }}>
-      <div className="relative w-full h-72 overflow-hidden">
+      <div
+        className="relative w-full overflow-hidden transition-[height] duration-500 ease-out"
+        style={{ height: '66.67dvh', minHeight: '220px', maxHeight: '85dvh' }}
+      >
         {slides.map((slide, index) => (
           <div
             key={slide.id}
-            className={`absolute inset-0 transition-opacity duration-1000 ${
+            className={`absolute inset-0 overflow-hidden transition-opacity duration-1000 ${
               index === currentSlide ? 'opacity-100' : 'opacity-0'
             }`}
           >
             <img
               src={slide.image}
               alt={slide.title}
-              className="w-full h-full object-cover"
+              className="absolute inset-0 h-full w-full object-cover object-center block"
             />
             <div
               className="absolute bottom-0 left-0 right-0 h-40"

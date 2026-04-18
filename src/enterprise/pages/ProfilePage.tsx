@@ -3,12 +3,12 @@ import { useEnterpriseNavigate } from '@/enterprise/lib/useEnterpriseNavigate';
 import { MessageCircle, Users, Megaphone, Globe, Camera, Lock, Unlock, Pencil, Check, ChevronDown, ArrowLeft, MessageSquareOff, MessageSquare, Bookmark, Plus, X } from 'lucide-react';
 import GrapeLoader from '../components/GrapeLoader';
 import { supabase } from '@/shared/infrastructure/supabase';
-import { useProfile, PROFILE_ID } from '@/shared/lib/useProfile';
+import { useProfile } from '@/shared/lib/useProfile';
 import { useSavedCampaigns } from '@/enterprise/contexts/SavedCampaignsContext';
 import { useMyCampaigns } from '@/enterprise/contexts/MyCampaignsContext';
 import { useCampaignTab } from '@/enterprise/contexts/CampaignTabContext';
-import { campaigns as allCampaignsData, sponsoredCampaigns } from '@/shared/data/campaignsData';
-import CampaignCard from '../components/CampaignCard';
+import CampaignCard, { type CampaignData } from '../components/CampaignCard';
+import { resolveSavedCampaignsList } from '@/shared/lib/resolveSavedCampaignsList';
 import ActiveCampaignCard from '../components/campaign-cards/ActiveCampaignCard';
 import DraftCard from '../components/campaign-cards/DraftCard';
 import SavedCampaignCard from '../components/campaign-cards/SavedCampaignCard';
@@ -27,8 +27,6 @@ const platformIcons: Record<string, string> = {
 
 const brandSocials = ['instagram', 'tiktok', 'youtube'];
 
-const allCampaignsList = [...allCampaignsData, ...sponsoredCampaigns];
-
 const AVAILABLE_TAGS = [
   'Technologie', 'Gaming', 'Lifestyle', 'Fitness', 'Mode', 'Beauté',
   'Cuisine', 'Voyage', 'Musique', 'Sport', 'Entertainment', 'Crypto',
@@ -36,8 +34,10 @@ const AVAILABLE_TAGS = [
 ];
 
 async function uploadFile(file: File, folder: string): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
   const ext = file.name.split('.').pop();
-  const fileName = `${folder}/${PROFILE_ID}-${Date.now()}.${ext}`;
+  const fileName = `${folder}/${user.id}-${Date.now()}.${ext}`;
   const { error } = await supabase.storage.from('avatars').upload(fileName, file, {
     upsert: true,
     contentType: file.type,
@@ -54,6 +54,7 @@ export default function ProfilePage() {
   const navigate = useEnterpriseNavigate();
   const { savedIds, toggle } = useSavedCampaigns();
   const { campaigns, pausedCampaigns, drafts, loading, deleteDraft, deleteActiveCampaign } = useMyCampaigns();
+  const [dbSavedCampaigns, setDbSavedCampaigns] = useState<CampaignData[]>([]);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
@@ -82,13 +83,14 @@ export default function ProfilePage() {
   }
 
   async function saveProfile() {
+    if (!profile?.id) return;
     setSavingProfile(true);
     await supabase.from('profiles').update({
       bio: editBio,
       website: editWebsite,
       content_tags: editTags,
       updated_at: new Date().toISOString(),
-    }).eq('id', PROFILE_ID);
+    }).eq('id', profile.id);
     updateProfile({ bio: editBio, website: editWebsite, content_tags: editTags });
     setSavingProfile(false);
     setEditing(false);
@@ -124,8 +126,9 @@ export default function ProfilePage() {
     updateProfile({ avatar_url: localPreview });
     setUploadingAvatar(true);
     const url = await uploadFile(file, 'profile-pics');
-    if (url) {
-      await supabase.from('profiles').update({ avatar_url: url, updated_at: new Date().toISOString() }).eq('id', PROFILE_ID);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (url && user?.id) {
+      await supabase.from('profiles').update({ avatar_url: url, updated_at: new Date().toISOString() }).eq('id', user.id);
       updateProfile({ avatar_url: url });
     }
     setUploadingAvatar(false);
@@ -139,8 +142,9 @@ export default function ProfilePage() {
     updateProfile({ banner_url: localPreview });
     setUploadingBanner(true);
     const url = await uploadFile(file, 'banners');
-    if (url) {
-      await supabase.from('profiles').update({ banner_url: url, updated_at: new Date().toISOString() }).eq('id', PROFILE_ID);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (url && user?.id) {
+      await supabase.from('profiles').update({ banner_url: url, updated_at: new Date().toISOString() }).eq('id', user.id);
       updateProfile({ banner_url: url });
     }
     setUploadingBanner(false);
@@ -151,7 +155,7 @@ export default function ProfilePage() {
     if (!profile) return;
     setTogglingVisibility(true);
     const newValue = !profile.is_public;
-    await supabase.from('profiles').update({ is_public: newValue, updated_at: new Date().toISOString() }).eq('id', PROFILE_ID);
+    await supabase.from('profiles').update({ is_public: newValue, updated_at: new Date().toISOString() }).eq('id', profile.id);
     updateProfile({ is_public: newValue });
     setTogglingVisibility(false);
   }
@@ -160,12 +164,21 @@ export default function ProfilePage() {
     if (!profile) return;
     setTogglingMessaging(true);
     const newValue = !profile.messaging_enabled;
-    await supabase.from('profiles').update({ messaging_enabled: newValue, updated_at: new Date().toISOString() }).eq('id', PROFILE_ID);
+    await supabase.from('profiles').update({ messaging_enabled: newValue, updated_at: new Date().toISOString() }).eq('id', profile.id);
     updateProfile({ messaging_enabled: newValue });
     setTogglingMessaging(false);
   }
 
-  const savedCampaignsList = allCampaignsList.filter((c) => savedIds.includes(c.id));
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const list = await resolveSavedCampaignsList(savedIds);
+      if (!cancelled) setDbSavedCampaigns(list as CampaignData[]);
+    })();
+    return () => { cancelled = true; };
+  }, [savedIds]);
+
+  const savedCampaignsList = dbSavedCampaigns;
 
   const displayBanner = profile?.banner_url || DEFAULT_BANNER;
   const displayUsername = profile?.username || 'username';

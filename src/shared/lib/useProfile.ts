@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/shared/infrastructure/supabase';
 
+/** @deprecated Utiliser `profile?.id` depuis `useProfile()` — l’id réel vient de l’utilisateur connecté. */
 export const PROFILE_ID = '00000000-0000-0000-0000-000000000001';
 
 export interface Profile {
@@ -32,16 +33,35 @@ function notifyListeners(p: Profile | null) {
 }
 
 async function loadProfile(): Promise<Profile | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    cachedProfile = null;
+    return null;
+  }
   const { data } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', PROFILE_ID)
+    .eq('id', user.id)
     .maybeSingle();
   cachedProfile = data;
   return data;
 }
 
+let authListenerStarted = false;
+
+function ensureAuthProfileReload() {
+  if (authListenerStarted) return;
+  authListenerStarted = true;
+  supabase.auth.onAuthStateChange(() => {
+    fetchPromise = null;
+    cachedProfile = null;
+    fetchPromise = loadProfile();
+    fetchPromise.then((d) => notifyListeners(d));
+  });
+}
+
 export function prefetchProfile() {
+  ensureAuthProfileReload();
   if (!fetchPromise) {
     fetchPromise = loadProfile();
   }
@@ -52,6 +72,7 @@ export function useProfile() {
   const [profile, setProfile] = useState<Profile | null>(cachedProfile);
 
   useEffect(() => {
+    ensureAuthProfileReload();
     const handler = (p: Profile | null) => setProfile(p);
     listeners.add(handler);
 

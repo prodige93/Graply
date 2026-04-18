@@ -22,6 +22,9 @@ export default function SavedCampaignCard({ campaign, onRemove }: { campaign: Ca
 
   return (
     <button
+      onMouseEnter={() => {
+        void import('@/creator/pages/CampaignDetailPage.tsx');
+      }}
       onClick={() => navigate(`/campagne/${campaign.id}`, { state: { from: '/mes-campagnes' } })}
       className="w-full rounded-2xl overflow-hidden text-left transition-all duration-200 hover:scale-[1.003] relative group"
       style={glassCard}

@@ -71,7 +71,8 @@ function FilterBar({
 
   const togglePlatform = (p: string) => {
     const next = new Set(selectedPlatforms);
-    next.has(p) ? next.delete(p) : next.add(p);
+    if (next.has(p)) next.delete(p);
+    else next.add(p);
     onChange({ selectedPlatforms: next });
   };
 
@@ -455,9 +456,9 @@ export default function CampaignsPage() {
 
       <div className="flex-1 overflow-y-auto pb-24 lg:pb-10 overscroll-none">
       <div
-        className="relative w-full overflow-hidden select-none cursor-pointer shrink-0"
-        style={{ height: '288px', minHeight: '288px', maxHeight: '288px' }}
-        onClick={() => navigate(`/campaign/${slides[currentSlide].campaignId}`)}
+        className="relative w-full overflow-hidden select-none cursor-pointer shrink-0 transition-[height] duration-500 ease-out"
+        style={{ height: '66.67dvh', minHeight: '220px', maxHeight: '85dvh' }}
+        onClick={() => navigate(`/campagne/${slides[currentSlide].campaignId}`)}
       >
         <button
           onClick={(e) => { e.stopPropagation(); navigate('/home'); }}
@@ -476,7 +477,7 @@ export default function CampaignsPage() {
             <img
               src={slide.image}
               alt={slide.title}
-              className="w-full h-full object-cover pointer-events-none"
+              className="absolute inset-0 h-full w-full object-cover object-center block pointer-events-none"
               draggable={false}
             />
             <div className="absolute bottom-0 left-0 right-0 h-40 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent 0%, #050404 100%)' }} />
@@ -488,7 +489,7 @@ export default function CampaignsPage() {
           <h2 className="text-3xl font-bold">{slides[currentSlide].title}</h2>
           <p className="text-gray-300 mt-1">{slides[currentSlide].subtitle}</p>
           <button
-            onClick={(e) => { e.stopPropagation(); navigate(`/campaign/${slides[currentSlide].campaignId}`); }}
+            onClick={(e) => { e.stopPropagation(); navigate(`/campagne/${slides[currentSlide].campaignId}`); }}
             className="mt-3 flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]"
             style={{
               background: 'rgba(255,255,255,0.12)',

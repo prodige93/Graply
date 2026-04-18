@@ -1,14 +1,13 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useEnterpriseNavigate } from '@/enterprise/lib/useEnterpriseNavigate';
-import { ArrowLeft, Bookmark, Trash2, Search, ChevronDown, Check, X } from 'lucide-react';
+import { Bookmark, Trash2, Search, ChevronDown, Check, X } from 'lucide-react';
 import CampaignCard, { type CampaignData } from '../components/CampaignCard';
-import { campaigns, sponsoredCampaigns } from '@/shared/data/campaignsData';
+import GrapeLoader from '../components/GrapeLoader';
 import { useSavedCampaigns } from '@/enterprise/contexts/SavedCampaignsContext';
+import { resolveSavedCampaignsList, mergeSavedCampaignsInOrder } from '@/shared/lib/resolveSavedCampaignsList';
 import instagramIcon from '@/shared/assets/instagram-card.svg';
 import tiktokIcon from '@/shared/assets/tiktok.svg';
 import youtubeIcon from '@/shared/assets/youtube.svg';
-
-const allCampaigns = [...campaigns, ...sponsoredCampaigns];
 
 const platformIconMap: Record<string, string> = {
   instagram: instagramIcon,
@@ -54,7 +53,8 @@ function FilterBar({
 
   const togglePlatform = (p: string) => {
     const next = new Set(selectedPlatforms);
-    next.has(p) ? next.delete(p) : next.add(p);
+    if (next.has(p)) next.delete(p);
+    else next.add(p);
     onChange({ selectedPlatforms: next });
   };
 
@@ -386,7 +386,9 @@ function SavedCardMobile({ data, onRemove }: { data: CampaignData; onRemove: () 
 
 export default function SavedCampaignsPage() {
   const navigate = useEnterpriseNavigate();
-  const { savedIds, toggle } = useSavedCampaigns();
+  const { savedIds, previewById, toggle } = useSavedCampaigns();
+  const [savedCampaigns, setSavedCampaigns] = useState<CampaignData[]>([]);
+  const [listLoading, setListLoading] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
     searchQuery: '',
     selectedCategory: null,
@@ -404,7 +406,29 @@ export default function SavedCampaignsPage() {
     window.scrollTo(0, 0);
   }, []);
 
-  const savedCampaigns = allCampaigns.filter((c) => savedIds.includes(c.id));
+  useEffect(() => {
+    let cancelled = false;
+    if (savedIds.length === 0) {
+      setSavedCampaigns([]);
+      setListLoading(false);
+      return () => { cancelled = true; };
+    }
+    setListLoading(true);
+    (async () => {
+      const resolved = await resolveSavedCampaignsList(savedIds);
+      if (!cancelled) {
+        setSavedCampaigns(
+          mergeSavedCampaignsInOrder<CampaignData>(
+            savedIds,
+            resolved as CampaignData[],
+            previewById as Record<string, CampaignData | undefined>,
+          ),
+        );
+        setListLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [savedIds, previewById]);
 
   const { searchQuery, selectedCategory, selectedContent, budgetMin, budgetMax, selectedPlatforms } = filters;
 
@@ -436,7 +460,8 @@ export default function SavedCampaignsPage() {
       <div className="px-4 sm:px-6 lg:px-8 pt-8 pb-6" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <h1 className="text-xl lg:text-2xl font-bold text-white">Enregistre</h1>
         <p className="text-sm text-white/40 mt-0.5">
-          {savedCampaigns.length} campagne{savedCampaigns.length !== 1 ? 's' : ''} sauvegardee{savedCampaigns.length !== 1 ? 's' : ''}
+          {savedIds.length} campagne{savedIds.length !== 1 ? 's' : ''} sauvegardee{savedIds.length !== 1 ? 's' : ''}
+          {listLoading && savedIds.length > 0 ? ' · chargement…' : ''}
         </p>
       </div>
 
@@ -445,50 +470,63 @@ export default function SavedCampaignsPage() {
       </div>
 
       <div className="px-4 sm:px-6 lg:px-8 pt-6">
-        <div className="hidden sm:block">
-          {savedCampaigns.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-32 gap-4">
-              <div
-                className="w-16 h-16 rounded-2xl flex items-center justify-center"
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
-              >
-                <Bookmark className="w-7 h-7 text-white/25" />
-              </div>
-              <div className="text-center">
-                <p className="text-white/50 font-semibold">Aucune campagne enregistree</p>
-                <p className="text-white/25 text-sm mt-1">Les campagnes que vous sauvegardez apparaitront ici</p>
-              </div>
-              <button
-                onClick={() => navigate('/campagnes')}
-                className="mt-2 px-6 py-2.5 rounded-full text-sm font-semibold text-black bg-white hover:bg-white/90 transition-colors"
-              >
-                Explorer les campagnes
-              </button>
+        {listLoading && savedIds.length > 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-4">
+            <GrapeLoader size="md" />
+            <p className="text-sm text-white/35">Chargement des campagnes…</p>
+          </div>
+        ) : savedCampaigns.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-32 gap-4">
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+            >
+              <Bookmark className="w-7 h-7 text-white/25" />
             </div>
-          ) : filteredCampaigns.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-2">
-              <p className="text-white/40 text-sm font-medium">Aucune campagne trouvée</p>
-              <p className="text-white/20 text-xs">Essayez de modifier vos filtres</p>
+            <div className="text-center max-w-sm">
+              {savedIds.length > 0 ? (
+                <>
+                  <p className="text-white/50 font-semibold">Enregistrement detecte mais campagnes introuvables</p>
+                  <p className="text-white/25 text-sm mt-1">
+                    Les IDs sont sur ton profil entreprise ; recharge ou verifie que les campagnes existent encore.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-white/50 font-semibold">Aucune campagne enregistree</p>
+                  <p className="text-white/25 text-sm mt-1">Les campagnes sauvegardees dans l&apos;app entreprise apparaissent ici</p>
+                </>
+              )}
             </div>
-          ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-10">
+            <button
+              onClick={() => navigate('/campagnes')}
+              className="mt-2 px-6 py-2.5 rounded-full text-sm font-semibold text-black bg-white hover:bg-white/90 transition-colors"
+            >
+              Explorer les campagnes
+            </button>
+          </div>
+        ) : filteredCampaigns.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-2">
+            <p className="text-white/40 text-sm font-medium">Aucune campagne trouvee</p>
+            <p className="text-white/20 text-xs">Modifiez les filtres</p>
+          </div>
+        ) : (
+          <>
+            <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-10">
               {filteredCampaigns.map((campaign) => (
                 <CampaignCard key={campaign.id} data={campaign} from="/enregistre" />
               ))}
             </div>
-          )}
-        </div>
-
-        {savedCampaigns.length > 0 && (
-          <div className="sm:hidden space-y-3 pb-10">
-            {filteredCampaigns.map((campaign) => (
-              <SavedCardMobile
-                key={campaign.id}
-                data={campaign}
-                onRemove={() => toggle(campaign.id)}
-              />
-            ))}
-          </div>
+            <div className="sm:hidden space-y-3 pb-10">
+              {filteredCampaigns.map((campaign) => (
+                <SavedCardMobile
+                  key={campaign.id}
+                  data={campaign}
+                  onRemove={() => toggle(campaign.id)}
+                />
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>

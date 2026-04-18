@@ -3,16 +3,20 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Users, Eye, DollarSign, Send, CheckCircle, ScrollText, FileDown, Download, MoreVertical, Flag, ShieldBan, X, Share2, BookmarkX } from 'lucide-react';
 import bookmarkIcon from '@/shared/assets/bookmark-filled.svg';
 import { useSavedCampaigns } from '@/creator/contexts/SavedCampaignsContext';
+import { useMyCampaigns } from '@/creator/contexts/MyCampaignsContext';
 import { campaigns, sponsoredCampaigns, enterprises } from '@/shared/data/campaignsData';
 import { supabase } from '@/shared/infrastructure/supabase';
-import { mapSupabaseCampaign, enrichCampaignsWithProfiles } from '@/shared/lib/mapSupabaseCampaign';
+import {
+  mapSupabaseCampaign,
+  enrichCampaignsWithProfiles,
+  type SupabaseCampaign,
+} from '@/shared/lib/mapSupabaseCampaign';
+import GrapeLoader from '../components/GrapeLoader';
 import verifiedIcon from '@/shared/assets/badge-enterprise-verified.png';
 import instagramIcon from '@/shared/assets/instagram-card.svg';
 import tiktokIcon from '@/shared/assets/tiktok.svg';
 import checkIcon from '@/shared/assets/check.svg';
 import chCircleIcon from '@/shared/assets/creator-hub-mark.svg';
-import rectangleBg from '@/shared/assets/campaign-message-bg.svg';
-import sentBg from '@/shared/assets/campaign-sent-panel-bg.svg';
 import StatsChart from '../components/StatsChart';
 import { generateChartData } from '@/shared/utils/chartUtils';
 import Sidebar from '../components/Sidebar';
@@ -39,11 +43,28 @@ const socialIcons: Record<string, (size?: string) => JSX.Element> = {
 
 const medalColors = ['#FFD700', '#C0C0C0', '#CD7F32'];
 
+type ApplicationUiStatus = 'unknown' | 'none' | 'pending' | 'accepted';
+
+function isCampaignUuid(id: string | undefined): boolean {
+  if (!id) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+}
+
 export default function CampaignDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const backTo: string = (location.state as { from?: string })?.from ?? '/campagnes';
+  /** Retour explicite : après « Mode créateur » depuis l’app entreprise, `navigate(-1)` renverrait sous `/app-entreprise`. */
+  const navigateBackFromCampaignDetail = () => {
+    if (backTo === '/mes-campagnes') navigate('/mes-campagnes');
+    else if (backTo === '/profil') navigate('/profil');
+    else if (backTo === '/enregistre') navigate('/enregistre');
+    else if (backTo.startsWith('/')) navigate(backTo.startsWith('/app-entreprise') ? '/campagnes' : backTo);
+    else navigate('/campagnes');
+  };
+  /** Depuis « Mes campagnes » ou le profil (campagnes en cours), on affiche la fiche sans redirection forcée vers la vérification. */
+  const skipAutoVerificationRedirect = backTo === '/mes-campagnes' || backTo === '/profil';
   const allCampaigns = [...sponsoredCampaigns, ...campaigns];
   const staticCampaign = allCampaigns.find((c) => c.id === id);
   const [campaign, setCampaign] = useState(staticCampaign ?? null);
@@ -52,7 +73,8 @@ export default function CampaignDetailPage() {
   const [chartPeriod, setChartPeriod] = useState<string>('6m');
   const [activePlatform, setActivePlatform] = useState<string | null>(null);
   const { isSaved, toggle } = useSavedCampaigns();
-  const [applied, setApplied] = useState(false);
+  const { refresh: refreshMyCampaigns } = useMyCampaigns();
+  const [applicationStatus, setApplicationStatus] = useState<ApplicationUiStatus>('unknown');
   const [applying, setApplying] = useState(false);
   const [showCampaignMenu, setShowCampaignMenu] = useState(false);
   const [campaignModal, setCampaignModal] = useState<{ type: 'report' | 'block' } | null>(null);
@@ -65,21 +87,53 @@ export default function CampaignDetailPage() {
 
   useEffect(() => {
     if (!id) return;
-    const localApplied = JSON.parse(localStorage.getItem('applied_campaigns') || '[]') as string[];
-    if (localApplied.includes(id)) { setApplied(true); return; }
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(id)) return;
+    if (!isCampaignUuid(id)) {
+      setApplicationStatus('none');
+      return;
+    }
+    let cancelled = false;
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
+      if (cancelled) return;
+      if (!user) {
+        setApplicationStatus('none');
+        return;
+      }
       supabase
         .from('campaign_applications')
-        .select('id')
+        .select('id, status')
         .eq('campaign_id', id)
         .eq('user_id', user.id)
         .maybeSingle()
-        .then(({ data }) => { if (data) setApplied(true); });
+        .then(({ data }) => {
+          if (cancelled) return;
+          if (!data) {
+            const localApplied = JSON.parse(localStorage.getItem('applied_campaigns') || '[]') as string[];
+            setApplicationStatus(localApplied.includes(id) ? 'pending' : 'none');
+            return;
+          }
+          if (data.status === 'accepted') {
+            setApplicationStatus('accepted');
+            return;
+          }
+          if (data.status === 'pending') {
+            setApplicationStatus('pending');
+            return;
+          }
+          setApplicationStatus('none');
+        });
     });
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
+
+  /** Candidature acceptée → ouverture depuis la découverte : envoi direct vers la vérification vidéo. */
+  useEffect(() => {
+    if (skipAutoVerificationRedirect) return;
+    if (loading || !campaign || !id) return;
+    if (applicationStatus !== 'accepted') return;
+    navigate(`/campagne/${id}/verification`, { replace: true, state: { from: location.pathname } });
+  }, [skipAutoVerificationRedirect, loading, campaign, applicationStatus, id, navigate, location.pathname]);
 
   useEffect(() => {
     if (staticCampaign || !id) return;
@@ -89,13 +143,20 @@ export default function CampaignDetailPage() {
       .select('*')
       .eq('id', id)
       .maybeSingle()
-      .then(async ({ data }) => {
-        if (data) {
+      .then(async ({ data, error }) => {
+        if (error || !data) {
+          setLoading(false);
+          return;
+        }
+        try {
           const [enriched] = await enrichCampaignsWithProfiles([data]);
-          setCampaign(mapSupabaseCampaign(enriched));
+          setCampaign(mapSupabaseCampaign(enriched as SupabaseCampaign));
+        } catch {
+          setCampaign(null);
         }
         setLoading(false);
-      });
+      })
+      .catch(() => setLoading(false));
   }, [id, staticCampaign]);
 
   useEffect(() => {
@@ -118,24 +179,34 @@ export default function CampaignDetailPage() {
     ? enterprises.find((e) => e.name.toLowerCase() === campaign.brand.toLowerCase())?.id
     : undefined;
 
+  const sidebarActivePage =
+    backTo === '/mes-campagnes' ? 'mes-campagnes' : backTo === '/profil' ? 'mon-compte' : 'home';
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#050404' }}>
-        <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+      <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
+        <Sidebar activePage={sidebarActivePage} onOpenSearch={() => {}} />
+        <div className="flex-1 flex items-center justify-center py-16">
+          <GrapeLoader size="md" />
+        </div>
       </div>
     );
   }
 
   if (!campaign) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-white" style={{ backgroundColor: '#050404' }}>
-        <p className="text-xl font-semibold mb-4">Campagne introuvable</p>
-        <button
-          onClick={() => navigate(-1)}
-          className="px-6 py-3 rounded-full bg-white text-black font-semibold text-sm hover:bg-white/90 transition-colors"
-        >
-          Retour aux campagnes
-        </button>
+      <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
+        <Sidebar activePage={sidebarActivePage} onOpenSearch={() => {}} />
+        <div className="flex-1 flex flex-col items-center justify-center px-4">
+          <p className="text-xl font-semibold mb-4">Campagne introuvable</p>
+          <button
+            type="button"
+            onClick={navigateBackFromCampaignDetail}
+            className="px-6 py-3 rounded-full bg-white text-black font-semibold text-sm hover:bg-white/90 transition-colors"
+          >
+            Retour aux campagnes
+          </button>
+        </div>
       </div>
     );
   }
@@ -143,7 +214,7 @@ export default function CampaignDetailPage() {
   return (
     <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
       <Sidebar
-        activePage="home"
+        activePage={sidebarActivePage}
         onOpenSearch={() => {}}
       />
       <div className="flex-1 overflow-y-auto pb-24 lg:pb-10">
@@ -152,7 +223,7 @@ export default function CampaignDetailPage() {
         <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, transparent 60%, rgba(5,4,4,0.5) 75%, rgba(5,4,4,0.88) 88%, rgba(5,4,4,1) 100%)' }} />
         <div className="absolute top-6 left-6 z-10">
           <button
-            onClick={() => navigate(-1)}
+            onClick={navigateBackFromCampaignDetail}
             className="flex items-center justify-center w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors"
           >
             <ArrowLeft className="w-5 h-5 text-white" />
@@ -392,7 +463,22 @@ export default function CampaignDetailPage() {
         )}
 
         <div className="flex items-center gap-3 mb-10">
-          {campaign.isPublic ? (
+          {applicationStatus === 'unknown' && isCampaignUuid(id) ? (
+            <div className="h-11 w-44 rounded-xl shrink-0 animate-pulse" style={{ background: 'rgba(255,255,255,0.06)' }} />
+          ) : applicationStatus === 'accepted' ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/campagne/${campaign.id}/verification`, { state: { from: location.pathname } })}
+              className="group relative flex items-center justify-center py-2.5 px-4 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] overflow-hidden"
+              style={{ background: '#FFA672' }}
+            >
+              <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: 'rgba(255,255,255,0.1)' }} />
+              <span className="font-bold text-base relative z-10 text-white flex items-center gap-2">
+                <img src={chCircleIcon} alt="" className="w-4 h-4" />
+                Vérifier ma vidéo
+              </span>
+            </button>
+          ) : campaign.isPublic ? (
             <button
               onClick={() => navigate(`/campagne/${campaign.id}/verification`, { state: { from: location.pathname } })}
               className="group relative flex items-center justify-center py-2.5 px-4 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] overflow-hidden"
@@ -404,7 +490,7 @@ export default function CampaignDetailPage() {
               <span className="font-bold text-base relative z-10 text-white flex items-center gap-2"><img src={chCircleIcon} alt="" className="w-4 h-4" />Vérifier ma vidéo</span>
             </button>
           ) : campaign.requireApplication ? (
-            applied ? (
+            applicationStatus === 'pending' ? (
               <button
                 disabled
                 className="flex items-center gap-2 px-8 py-3 font-bold text-sm uppercase tracking-wide rounded-xl"
@@ -433,7 +519,7 @@ export default function CampaignDetailPage() {
                 Postuler
               </button>
             )
-          ) : applied ? (
+          ) : applicationStatus === 'pending' ? (
             <button
               disabled
               className="flex items-center gap-2 px-8 py-3 font-bold text-sm uppercase tracking-wide rounded-xl"
@@ -457,14 +543,17 @@ export default function CampaignDetailPage() {
                 if (isRealCampaign) {
                   const { data: { user } } = await supabase.auth.getUser();
                   if (user) {
-                    await supabase.from('campaign_applications').upsert({
+                    const { error } = await supabase.from('campaign_applications').upsert({
                       campaign_id: id,
                       user_id: user.id,
+                      motivation: '',
                       status: 'pending',
+                      updated_at: new Date().toISOString(),
                     }, { onConflict: 'campaign_id,user_id' });
+                    if (!error) void refreshMyCampaigns({ silent: true });
                   }
                 }
-                setApplied(true);
+                setApplicationStatus('pending');
                 setApplying(false);
                 const prev = JSON.parse(localStorage.getItem('applied_campaigns') || '[]') as string[];
                 if (id && !prev.includes(id)) localStorage.setItem('applied_campaigns', JSON.stringify([...prev, id]));
@@ -499,7 +588,7 @@ export default function CampaignDetailPage() {
 
           {id && backTo === '/enregistre' ? (
             <button
-              onClick={() => { toggle(id); navigate('/enregistre'); }}
+              onClick={() => { toggle(id, campaign); navigate('/enregistre'); }}
               className="flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-200 hover:brightness-110 active:scale-95"
               style={{
                 background: 'rgba(239,68,68,0.1)',
@@ -512,7 +601,7 @@ export default function CampaignDetailPage() {
             </button>
           ) : (
             <button
-              onClick={() => id && toggle(id)}
+              onClick={() => id && toggle(id, campaign)}
               className="w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
               style={{
                 background: id && isSaved(id) ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.07)',

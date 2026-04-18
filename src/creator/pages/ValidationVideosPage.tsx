@@ -1,10 +1,12 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Megaphone, Video } from 'lucide-react';
 import chCircleIcon from '@/shared/assets/creator-hub-mark.svg';
 import Sidebar from '../components/Sidebar';
 import { openVerifyModal } from '@/shared/lib/verifyEvent';
 import { getSubmittedVideos, getAllApplications } from '@/shared/lib/useCreatorCampaigns';
+import { supabase } from '@/shared/infrastructure/supabase';
+import GrapeLoader from '../components/GrapeLoader';
 
 const glassCard: React.CSSProperties = {
   background: 'rgba(255,255,255,0.055)',
@@ -12,16 +14,77 @@ const glassCard: React.CSSProperties = {
   boxShadow: '0 8px 48px rgba(0,0,0,0.85), 0 0 0 0.5px rgba(255,255,255,0.06)',
 };
 
+type ValidationMetrics = {
+  pendingApplications: number;
+  totalApplications: number;
+  pendingVideos: number;
+  totalVideos: number;
+};
+
 export default function ValidationVideosPage() {
   const navigate = useNavigate();
+  const [metrics, setMetrics] = useState<ValidationMetrics | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const submittedVideos = getSubmittedVideos();
-  const allApplications = getAllApplications();
-  const pendingCount = allApplications.filter(a => a.status === 'pending').length;
+  const loadMetrics = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      const submittedVideos = getSubmittedVideos();
+      const allApplications = getAllApplications();
+      setMetrics({
+        pendingApplications: allApplications.filter((a) => a.status === 'pending').length,
+        totalApplications: allApplications.length,
+        pendingVideos: submittedVideos.filter((v) => v.status === 'in_review').length,
+        totalVideos: submittedVideos.length,
+      });
+      setLoading(false);
+      return;
+    }
+
+    const [appsRes, videosRes] = await Promise.all([
+      supabase.from('campaign_applications').select('id, status').eq('user_id', user.id),
+      supabase.from('video_submissions').select('id, status').eq('user_id', user.id),
+    ]);
+
+    const apps = appsRes.data ?? [];
+    const pendingApps = apps.filter((r) => r.status === 'pending').length;
+    const vids = videosRes.data ?? [];
+    const pendingVids = vids.filter((r) => r.status === 'in_review').length;
+
+    setMetrics({
+      pendingApplications: pendingApps,
+      totalApplications: apps.length,
+      pendingVideos: pendingVids,
+      totalVideos: vids.length,
+    });
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      await loadMetrics();
+      if (cancelled) return;
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadMetrics]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      void loadMetrics();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [loadMetrics]);
+
+  const pendingCount = metrics?.pendingApplications ?? 0;
+  const submittedVideosPending = metrics?.pendingVideos ?? 0;
+  const allApplicationsTotal = metrics?.totalApplications ?? 0;
+  const submittedVideosTotal = metrics?.totalVideos ?? 0;
 
   return (
     <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
@@ -32,7 +95,7 @@ export default function ValidationVideosPage() {
             <div className="flex-1 min-w-0">
               <h1 className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight">Validation campagne & video</h1>
               <p className="text-xs sm:text-sm text-white/35 mt-0.5">
-                Le statut de toutes vos validations
+                Candidatures et videos — les postulations apparaissent ici puis dans Mes candidatures
               </p>
             </div>
             <button
@@ -51,6 +114,11 @@ export default function ValidationVideosPage() {
           </div>
 
           <div className="px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8">
+          {loading ? (
+            <div className="flex items-center justify-center py-24">
+              <GrapeLoader size="md" />
+            </div>
+          ) : (
           <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-8 sm:mb-8">
             <div className="rounded-xl p-4 sm:p-7" style={glassCard}>
               <div className="flex items-center gap-2 sm:gap-2.5 mb-3 sm:mb-4">
@@ -79,13 +147,15 @@ export default function ValidationVideosPage() {
                 <p className="text-[10px] sm:text-xs text-white/60 font-semibold uppercase tracking-widest">Videos</p>
               </div>
               <div className="flex items-baseline gap-1.5 sm:gap-2">
-                <span className="text-3xl sm:text-5xl font-black tracking-tight text-white">{submittedVideos.length}</span>
+                <span className="text-3xl sm:text-5xl font-black tracking-tight text-white">{submittedVideosPending}</span>
                 <span className="text-[10px] sm:text-xs text-white/35 font-medium leading-tight">en attente</span>
               </div>
             </div>
           </div>
+          )}
 
-          <div className="space-y-3">
+          {!loading && (
+          <div className="space-y-3 pb-8">
             <button
               onClick={() => navigate('/mes-videos')}
               className="w-full rounded-xl overflow-hidden text-left transition-all duration-200 hover:scale-[1.003] group"
@@ -101,7 +171,8 @@ export default function ValidationVideosPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs sm:text-sm font-semibold text-white">Videos en cours de verification</p>
                   <p className="text-[10px] sm:text-xs text-white/30 mt-0.5 truncate">
-                    {submittedVideos.length} video{submittedVideos.length !== 1 ? 's' : ''} soumise{submittedVideos.length !== 1 ? 's' : ''} en attente
+                    {submittedVideosPending} video{submittedVideosPending !== 1 ? 's' : ''} en attente
+                    {submittedVideosTotal !== submittedVideosPending ? ` · ${submittedVideosTotal} au total` : ''}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -109,7 +180,7 @@ export default function ValidationVideosPage() {
                     className="px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold"
                     style={{ backgroundColor: 'rgba(255,255,255,0.1)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.3)' }}
                   >
-                    {submittedVideos.length}
+                    {submittedVideosPending}
                   </div>
                   <ChevronRight className="w-4 h-4 text-white/30 group-hover:text-white/60 transition-colors" />
                 </div>
@@ -139,13 +210,14 @@ export default function ValidationVideosPage() {
                     className="px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold"
                     style={{ backgroundColor: 'rgba(255,255,255,0.08)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.12)' }}
                   >
-                    {allApplications.length}
+                    {allApplicationsTotal}
                   </div>
                   <ChevronRight className="w-4 h-4 text-white/30 group-hover:text-white/60 transition-colors" />
                 </div>
               </div>
             </button>
           </div>
+          )}
           </div>
         </div>
       </div>

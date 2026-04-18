@@ -21,6 +21,8 @@ interface Campaign {
 
 interface CreatorApplication {
   id: string;
+  /** Présent quand la carte vient d’une ligne `video_submissions` (id = id soumission). */
+  profileUserId?: string;
   username: string;
   avatar: string;
   platform: 'instagram' | 'tiktok' | 'youtube';
@@ -32,6 +34,58 @@ interface CreatorApplication {
     handle: string;
     views: string;
   }[];
+}
+
+type ProfileLite = {
+  id: string;
+  username: string;
+  display_name?: string | null;
+  avatar_url?: string | null;
+  bio?: string | null;
+  instagram_handle?: string | null;
+  tiktok_handle?: string | null;
+  youtube_handle?: string | null;
+};
+
+function submissionToCreator(
+  row: { id: string; user_id: string; platform: string; video_url: string },
+  profile: ProfileLite | undefined,
+): CreatorApplication {
+  const username = profile?.username ?? 'createur';
+  const avatar =
+    profile?.avatar_url ||
+    'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=200';
+  const plat = (['instagram', 'tiktok', 'youtube'].includes(row.platform) ? row.platform : 'instagram') as
+    | 'instagram'
+    | 'tiktok'
+    | 'youtube';
+  const socials: CreatorApplication['socials'] = [];
+  const push = (platform: 'instagram' | 'tiktok' | 'youtube', h: string | null | undefined) => {
+    const t = (h ?? '').trim();
+    if (!t) return;
+    socials.push({
+      platform,
+      handle: t.startsWith('@') ? t : `@${t}`,
+      views: '—',
+    });
+  };
+  push('instagram', profile?.instagram_handle ?? null);
+  push('tiktok', profile?.tiktok_handle ?? null);
+  push('youtube', profile?.youtube_handle ?? null);
+  if (socials.length === 0) {
+    socials.push({ platform: plat, handle: `@${username}`, views: '—' });
+  }
+  return {
+    id: row.id,
+    profileUserId: row.user_id,
+    username,
+    avatar,
+    platform: plat,
+    verified: false,
+    bio: (profile?.bio ?? '').trim() || 'Profil créateur',
+    videoUrls: [{ url: row.video_url, label: 'Vidéo soumise' }],
+    socials,
+  };
 }
 
 const platformIcons: Record<string, string> = {
@@ -117,26 +171,55 @@ export default function CreatorVerificationsPage() {
   const [rejecting, setRejecting] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [decisions, setDecisions] = useState<Record<string, 'accepted' | 'rejected'>>({});
+  const [queueCreators, setQueueCreators] = useState<CreatorApplication[]>([]);
+  const [usingDbQueue, setUsingDbQueue] = useState(false);
 
   useEffect(() => {
-    const fetchCampaign = async () => {
-      if (!id) return;
+    if (!id) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setDecisions({});
       const { data, error } = await supabase
         .from('campaigns')
         .select('id, name, photo_url, platforms, content_type')
         .eq('id', id)
         .maybeSingle();
+      if (cancelled) return;
       if (!error && data) setCampaign(data);
-      setLoading(false);
-    };
-    fetchCampaign();
-  }, [id]);
 
-  useEffect(() => {
-    if (mockCreators.length > 0 && !selectedCreator) {
-      setSelectedCreator(mockCreators[0]);
-    }
-  }, []);
+      const { data: subs } = await supabase
+        .from('video_submissions')
+        .select('id, user_id, platform, video_url, campaign_id')
+        .eq('campaign_id', id)
+        .eq('status', 'in_review');
+      if (cancelled) return;
+
+      if (subs && subs.length > 0) {
+        const userIds = [...new Set(subs.map((s: { user_id: string }) => s.user_id))];
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, username, display_name, avatar_url, bio, instagram_handle, tiktok_handle, youtube_handle')
+          .in('id', userIds);
+        if (cancelled) return;
+        const pmap = new Map<string, ProfileLite>((profiles as ProfileLite[] | null)?.map((p) => [p.id, p]) ?? []);
+        const mapped = subs.map((row: { id: string; user_id: string; platform: string; video_url: string }) =>
+          submissionToCreator(row, pmap.get(row.user_id)),
+        );
+        setQueueCreators(mapped);
+        setUsingDbQueue(true);
+        setSelectedCreator(mapped[0] ?? null);
+      } else {
+        setQueueCreators(mockCreators);
+        setUsingDbQueue(false);
+        setSelectedCreator(mockCreators[0] ?? null);
+      }
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   const markDecision = (creatorId: string, decision: 'accepted' | 'rejected') => {
     const newDecisions = { ...decisions, [creatorId]: decision };
@@ -144,7 +227,7 @@ export default function CreatorVerificationsPage() {
     setRejecting(null);
     setRejectReason('');
 
-    const remaining = mockCreators.filter((c) => !newDecisions[c.id]);
+    const remaining = queueCreators.filter((c) => !newDecisions[c.id]);
     if (remaining.length > 0) {
       const nextPending = remaining.find((c) => c.id !== creatorId) || remaining[0];
       setSelectedCreator(nextPending);
@@ -153,20 +236,26 @@ export default function CreatorVerificationsPage() {
     }
   };
 
-  const handleAccept = (creatorId: string) => {
+  const handleAccept = async (creatorId: string) => {
+    if (usingDbQueue) {
+      await supabase.from('video_submissions').update({ status: 'approved' }).eq('id', creatorId);
+    }
     markDecision(creatorId, 'accepted');
   };
 
-  const handleReject = (creatorId: string) => {
+  const handleReject = async (creatorId: string) => {
     if (rejecting === creatorId && rejectReason.trim()) {
+      if (usingDbQueue) {
+        await supabase.from('video_submissions').update({ status: 'rejected' }).eq('id', creatorId);
+      }
       markDecision(creatorId, 'rejected');
     } else {
       setRejecting(creatorId);
     }
   };
 
-  const pendingCreators = mockCreators.filter((c) => !decisions[c.id]);
-  const allDecided = pendingCreators.length === 0 && mockCreators.length > 0;
+  const pendingCreators = queueCreators.filter((c) => !decisions[c.id]);
+  const allDecided = pendingCreators.length === 0 && queueCreators.length > 0;
 
   if (loading) {
     return (
@@ -293,7 +382,10 @@ export default function CreatorVerificationsPage() {
                       setSelectedCreator(c);
                       if (rejecting !== c.id) setRejecting(null);
                     }}
-                    onViewProfile={(c) => navigate(`/createur/${c.id}`, { state: { from: location.pathname, backState: { from: backTo } } })}
+                    onViewProfile={(c) =>
+                      navigate(`/createur/${c.profileUserId ?? c.id}`, {
+                        state: { from: location.pathname, backState: { from: backTo } },
+                      })}
                     onAccept={handleAccept}
                     onReject={handleReject}
                     onRejectReasonChange={setRejectReason}
@@ -304,7 +396,7 @@ export default function CreatorVerificationsPage() {
                   />
                 ))}
 
-                {mockCreators.length === 0 && (
+                {queueCreators.length === 0 && (
                   <div className="flex flex-col items-center justify-center py-20">
                     <p className="text-base font-semibold text-white/30 mb-2">Aucun createur a verifier</p>
                     <p className="text-sm text-white/15 text-center max-w-sm">
@@ -335,7 +427,10 @@ export default function CreatorVerificationsPage() {
                 {selectedCreator ? (
                   <CreatorProfilePreview
                     creator={selectedCreator}
-                    onViewProfile={(c) => navigate(`/createur/${c.id}`, { state: { from: location.pathname, backState: { from: backTo } } })}
+                    onViewProfile={(c) =>
+                      navigate(`/createur/${c.profileUserId ?? c.id}`, {
+                        state: { from: location.pathname, backState: { from: backTo } },
+                      })}
                   />
                 ) : (
                   <div

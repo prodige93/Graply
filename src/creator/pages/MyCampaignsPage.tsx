@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Hourglass, Bookmark, ChevronDown, Search, X, Check, CheckCircle, Trash2, AlertTriangle, Megaphone } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
-import { getPendingApplications, removeCreatorCampaign, type PendingApplication } from '@/shared/lib/useCreatorCampaigns';
+import GrapeLoader from '../components/GrapeLoader';
+import type { PendingApplication } from '@/shared/lib/useCreatorCampaigns';
 import { openVerifyModal } from '@/shared/lib/verifyEvent';
 import chCircleIcon from '@/shared/assets/creator-hub-mark.svg';
 import instagramIcon from '@/shared/assets/instagram-card.svg';
@@ -13,11 +14,7 @@ import SavedCampaignCard from '../components/campaign-cards/SavedCampaignCard';
 import { useSavedCampaigns } from '@/creator/contexts/SavedCampaignsContext';
 import { useCampaignTab, type CampaignTab } from '@/creator/contexts/CampaignTabContext';
 import { useMyCampaigns } from '@/creator/contexts/MyCampaignsContext';
-import { campaigns as staticCampaigns, sponsoredCampaigns } from '@/shared/data/campaignsData';
-import { supabase } from '@/shared/infrastructure/supabase';
-import { mapSupabaseCampaign, enrichCampaignsWithProfiles } from '@/shared/lib/mapSupabaseCampaign';
-
-const allCampaignsPool = [...staticCampaigns, ...sponsoredCampaigns];
+import { resolveSavedCampaignsList } from '@/shared/lib/resolveSavedCampaignsList';
 
 const campaignTabs: { key: CampaignTab; label: string }[] = [
   { key: 'active', label: 'Campagne en cours' },
@@ -73,11 +70,10 @@ const glassCard: React.CSSProperties = {
 
 export default function MyCampaignsPage() {
   const navigate = useNavigate();
-  const pendingApplications = getPendingApplications();
   const { savedIds, toggle: toggleSaved } = useSavedCampaigns();
   const { tab: sharedTab } = useCampaignTab();
   const displayTab = sharedTab === 'stats' ? 'active' : sharedTab;
-  const { activeCampaigns, pausedCampaigns, loading } = useMyCampaigns();
+  const { activeCampaigns, pausedCampaigns, pendingApplications, loading, refresh } = useMyCampaigns();
   const [confirmWithdrawId, setConfirmWithdrawId] = useState<string | null>(null);
   const [withdrawing, setWithdrawing] = useState(false);
 
@@ -88,23 +84,16 @@ export default function MyCampaignsPage() {
   }, []);
 
   useEffect(() => {
-    if (savedIds.length === 0) {
-      setDbSavedCampaigns([]);
-      return;
-    }
-    const fetchSaved = async () => {
-      const { data } = await supabase
-        .from('campaigns')
-        .select('*')
-        .in('id', savedIds);
-      const enriched = await enrichCampaignsWithProfiles(data ?? []);
-      const dbMapped = enriched.map(mapSupabaseCampaign);
-      const staticMapped = allCampaignsPool.filter((c) => savedIds.includes(c.id));
-      const allIds = new Set(dbMapped.map((c) => c.id));
-      const combined = [...dbMapped, ...staticMapped.filter((c) => !allIds.has(c.id))];
-      setDbSavedCampaigns(combined);
-    };
-    fetchSaved();
+    void refresh({ silent: true });
+  }, [refresh]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const list = await resolveSavedCampaignsList(savedIds);
+      if (!cancelled) setDbSavedCampaigns(list);
+    })();
+    return () => { cancelled = true; };
   }, [savedIds]);
 
   const displayedActive = [...activeCampaigns, ...pausedCampaigns];
@@ -200,12 +189,23 @@ export default function MyCampaignsPage() {
                   </button>
                   <button
                     disabled={withdrawing}
-                    onClick={() => {
+                    onClick={async () => {
                       if (!confirmWithdrawId) return;
                       setWithdrawing(true);
-                      removeCreatorCampaign(confirmWithdrawId);
-                      setConfirmWithdrawId(null);
-                      setWithdrawing(false);
+                      try {
+                        const { data: { user } } = await supabase.auth.getUser();
+                        if (user) {
+                          await supabase
+                            .from('campaign_applications')
+                            .delete()
+                            .eq('user_id', user.id)
+                            .eq('campaign_id', confirmWithdrawId);
+                        }
+                        await refresh();
+                      } finally {
+                        setConfirmWithdrawId(null);
+                        setWithdrawing(false);
+                      }
                     }}
                     className="flex-1 py-3 rounded-xl text-sm font-bold text-white transition-all duration-200 active:scale-95"
                     style={{ background: 'rgba(239,68,68,0.85)', border: '1px solid rgba(239,68,68,0.4)' }}
@@ -221,7 +221,7 @@ export default function MyCampaignsPage() {
           <section>
             {loading ? (
               <div className="flex items-center justify-center py-16">
-                <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                <GrapeLoader size="md" />
               </div>
             ) : displayedActive.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 gap-3">
@@ -311,6 +311,9 @@ export default function MyCampaignsPage() {
 function DbActiveCampaignCard({ campaign, onNavigate, onWithdraw }: { campaign: CampaignData; onNavigate: () => void; onWithdraw: () => void }) {
   return (
     <button
+      onMouseEnter={() => {
+        void import('@/creator/pages/CampaignDetailPage.tsx');
+      }}
       onClick={onNavigate}
       className="w-full group rounded-2xl overflow-hidden text-left transition-all duration-200 hover:scale-[1.005] flex flex-col relative"
       style={glassCard}
@@ -459,7 +462,8 @@ function MobileSearchBar({ instagramIcon, tiktokIcon, youtubeIcon }: { instagram
   const togglePlatform = (p: string) => {
     setSelectedPlatforms((prev) => {
       const next = new Set(prev);
-      next.has(p) ? next.delete(p) : next.add(p);
+      if (next.has(p)) next.delete(p);
+      else next.add(p);
       return next;
     });
   };
@@ -528,7 +532,8 @@ function FilterBar({ instagramIcon, tiktokIcon, youtubeIcon }: { instagramIcon: 
   const togglePlatform = (p: string) => {
     setSelectedPlatforms((prev) => {
       const next = new Set(prev);
-      next.has(p) ? next.delete(p) : next.add(p);
+      if (next.has(p)) next.delete(p);
+      else next.add(p);
       return next;
     });
   };

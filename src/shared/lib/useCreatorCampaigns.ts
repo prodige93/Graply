@@ -47,6 +47,8 @@ export interface SubmittedVideo {
   videoUrl: string;
   submittedAt: string;
   status: 'in_review' | 'approved' | 'rejected';
+  /** UGC / Clipping — pour filtres (campagnes statiques ou enrichissement Supabase). */
+  contentType?: string;
 }
 
 type Listener = () => void;

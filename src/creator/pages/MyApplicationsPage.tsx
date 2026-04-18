@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Search, ChevronDown, Check, X, Clock, CheckCircle, XCircle, Megaphone, Trash2, AlertTriangle } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import { supabase } from '@/shared/infrastructure/supabase';
+import { formatFirstPlatformPer1000Label } from '@/shared/lib/mapSupabaseCampaign';
 import GrapeLoader from '../components/GrapeLoader';
 import instagramIcon from '@/shared/assets/instagram-card.svg';
 import tiktokIcon from '@/shared/assets/tiktok.svg';
@@ -73,7 +74,7 @@ export default function MyApplicationsPage() {
             name,
             photo_url,
             platforms,
-            rate_per_view,
+            platform_budgets,
             content_type
           )
         `)
@@ -91,7 +92,7 @@ export default function MyApplicationsPage() {
           name: string;
           photo_url: string;
           platforms: string[];
-          rate_per_view: string;
+          platform_budgets: Record<string, { per1000?: string }> | null;
           content_type: string;
         } | null;
       }>)
@@ -108,7 +109,7 @@ export default function MyApplicationsPage() {
             photo: c.photo_url ?? '',
             platforms: c.platforms ?? [],
             category: c.content_type ?? 'UGC',
-            ratePerK: c.rate_per_view ?? '',
+            ratePerK: formatFirstPlatformPer1000Label(c.platforms, c.platform_budgets),
             appliedAt: formatted,
             applicantsCount: 0,
             status: (row.status as 'pending' | 'accepted' | 'rejected') ?? 'pending',
@@ -184,12 +185,7 @@ export default function MyApplicationsPage() {
   return (
     <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
       <Sidebar activePage="home" onOpenSearch={() => {}} />
-      {loading && (
-        <div className="flex-1 flex items-center justify-center">
-          <GrapeLoader />
-        </div>
-      )}
-      <div className={`flex-1 overflow-y-auto pb-24 lg:pb-10 ${loading ? 'hidden' : ''}`}>
+      <div className="flex-1 overflow-y-auto pb-24 lg:pb-10">
         <div className="px-4 sm:px-6 lg:px-8 pt-8 pb-6" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div className="flex items-center gap-4">
             <button
@@ -202,12 +198,18 @@ export default function MyApplicationsPage() {
             <div className="flex-1 min-w-0">
               <h1 className="text-xl lg:text-2xl font-bold text-white">Mes candidatures</h1>
               <p className="text-sm text-white/40 mt-0.5">
-                {pendingCount} en attente de reponse
+                {loading ? 'Chargement…' : `${pendingCount} en attente de reponse`}
               </p>
             </div>
           </div>
         </div>
 
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <GrapeLoader size="md" />
+          </div>
+        ) : (
+          <>
         <div className="px-4 sm:px-6 pt-5 lg:pt-8" ref={dropdownRef}>
           <div className="hidden lg:flex flex-wrap items-center gap-3">
             {['Statut', 'Categories'].map((filter) => (
@@ -473,6 +475,8 @@ export default function MyApplicationsPage() {
             </div>
           )}
         </div>
+          </>
+        )}
       </div>
     </div>
   );

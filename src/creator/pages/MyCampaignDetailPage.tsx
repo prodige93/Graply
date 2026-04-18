@@ -80,6 +80,8 @@ export default function MyCampaignDetailPage() {
   useEffect(() => {
     const fetchCampaign = async () => {
       if (!id) return;
+      setLoading(true);
+      setCampaign(null);
       const { data, error } = await supabase
         .from('campaigns')
         .select('*')
@@ -155,27 +157,26 @@ export default function MyCampaignDetailPage() {
     return val.toString();
   };
 
-  if (loading) {
-    return (
-      <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
-        <Sidebar activePage="home" onOpenSearch={() => {}} />
-        <div className="flex-1 flex items-center justify-center">
-          <GrapeLoader />
-        </div>
-      </div>
-    );
-  }
-
   if (!campaign) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-white" style={{ backgroundColor: '#050404' }}>
-        <p className="text-xl font-semibold mb-4">Campagne introuvable</p>
-        <button
-          onClick={() => navigate(-1)}
-          className="px-6 py-3 rounded-full bg-white text-black font-semibold text-sm hover:bg-white/90 transition-colors"
-        >
-          Retour
-        </button>
+      <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
+        <Sidebar activePage="mes-campagnes" onOpenSearch={() => {}} />
+        <div className="flex-1 flex flex-col items-center justify-center px-4">
+          {loading ? (
+            <GrapeLoader size="md" />
+          ) : (
+            <>
+              <p className="text-xl font-semibold mb-4">Campagne introuvable</p>
+              <button
+                type="button"
+                onClick={() => navigate('/mes-campagnes')}
+                className="px-6 py-3 rounded-full bg-white text-black font-semibold text-sm hover:bg-white/90 transition-colors"
+              >
+                Retour
+              </button>
+            </>
+          )}
+        </div>
       </div>
     );
   }
@@ -188,7 +189,7 @@ export default function MyCampaignDetailPage() {
     <>
     <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
       <Sidebar
-        activePage="home"
+        activePage="mes-campagnes"
         onOpenSearch={() => {}}
       />
       <div className="flex-1 overflow-y-auto pb-24 lg:pb-10">

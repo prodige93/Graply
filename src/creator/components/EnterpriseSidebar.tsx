@@ -157,7 +157,7 @@ export default function EnterpriseSidebar({ activePage }: EnterpriseSidebarProps
               <X className="w-4 h-4 text-white/60" />
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto px-6 pb-10 pt-3">
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-10 pt-3">
             <div className="max-w-2xl mx-auto space-y-1">
               {notifications.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-32">
@@ -208,7 +208,7 @@ export default function EnterpriseSidebar({ activePage }: EnterpriseSidebarProps
         style={{ background: 'transparent', borderRight: '1px solid rgba(255,255,255,0.05)' }}
       >
         <div
-          className="flex-1 flex flex-col p-5 overflow-y-auto"
+          className="flex-1 flex flex-col p-5 overflow-y-auto custom-scrollbar transition-all duration-200 ease-apple"
           style={{ filter: profileMenuOpen ? 'blur(6px) brightness(0.5)' : 'none', transition: 'filter 0.2s' }}
         >
           <div className="space-y-4 flex-1">

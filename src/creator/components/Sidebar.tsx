@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Bell, MessageCircle, User, Search, Settings, Home, X } from 'lucide-react';
 
 import { useProfile } from '@/shared/lib/useProfile';
+import { useSavedCampaigns } from '@/creator/contexts/SavedCampaignsContext';
+import { prefetchSavedCampaignsList } from '@/shared/lib/resolveSavedCampaignsList';
 import { openVerifyModal } from '@/shared/lib/verifyEvent';
 import globeIcon from '@/shared/assets/globe.svg';
 import chCircleIcon from '@/shared/assets/creator-hub-mark.svg';
@@ -32,6 +34,7 @@ export default function Sidebar({ activePage, onOpenSearch }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { profile } = useProfile();
+  const { savedIds } = useSavedCampaigns();
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [notifOpen, setNotifOpen] = useState(false);
@@ -62,12 +65,14 @@ export default function Sidebar({ activePage, onOpenSearch }: SidebarProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const navBtn = (page: ActivePage, path: string, icon: React.ReactNode, label: string) => {
+  const navBtn = (page: ActivePage, path: string, icon: React.ReactNode, label: string, onMouseEnter?: () => void) => {
     const isActive = activePage === page;
     return (
       <button
+        type="button"
         onClick={() => navigate(path)}
-        className={`w-full text-left px-4 py-3.5 rounded-lg transition-colors text-white flex items-center gap-3 ${isActive ? 'bg-white/[0.08] font-medium' : 'hover:bg-white/[0.08]'}`}
+        onMouseEnter={onMouseEnter}
+        className={`w-full text-left px-4 py-3.5 rounded-lg transition-colors duration-tap ease-apple text-white flex items-center gap-3 ${isActive ? 'bg-white/[0.08] font-medium' : 'hover:bg-white/[0.08]'}`}
       >
         {icon}
         {label}
@@ -80,7 +85,7 @@ export default function Sidebar({ activePage, onOpenSearch }: SidebarProps) {
     return (
       <button
         onClick={() => navigate(path)}
-        className={`w-full text-left px-4 py-3 rounded-lg transition-colors text-white flex items-center gap-3 ${isActive ? 'bg-white/[0.08] font-medium' : 'hover:bg-white/[0.06]'}`}
+        className={`w-full text-left px-4 py-3 rounded-lg transition-colors duration-tap ease-apple text-white flex items-center gap-3 ${isActive ? 'bg-white/[0.08] font-medium' : 'hover:bg-white/[0.06]'}`}
       >
         {icon}
         {label}
@@ -138,7 +143,7 @@ export default function Sidebar({ activePage, onOpenSearch }: SidebarProps) {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 pb-10 pt-3">
+        <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-10 pt-3">
           <div className="max-w-2xl mx-auto space-y-1">
             {notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-32">
@@ -185,7 +190,7 @@ export default function Sidebar({ activePage, onOpenSearch }: SidebarProps) {
     )}
     <aside className="hidden lg:flex w-80 shrink-0 sticky top-0 h-screen relative" style={{ background: 'transparent', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
       <div
-        className="flex-1 flex flex-col p-6 overflow-y-auto transition-all duration-300"
+        className="flex-1 flex flex-col p-6 overflow-y-auto custom-scrollbar transition-all duration-200 ease-apple"
         style={{ filter: profileMenuOpen ? 'blur(6px) brightness(0.5)' : 'none' }}
       >
       <div className="space-y-6 flex-1">
@@ -204,7 +209,7 @@ export default function Sidebar({ activePage, onOpenSearch }: SidebarProps) {
                 )}
               </div>
               <span onClick={() => setProfileMenuOpen((v) => !v)} className="text-sm font-semibold text-white cursor-pointer hover:text-white/80 transition-colors">@{profile?.username || 'username'}</span>
-              <img src={verifiedIcon} alt="Verified" className="w-[29px] h-[29px]" />
+              <img src={verifiedIcon} alt="Verified" className="w-[29px] h-[29px] shrink-0 object-contain" />
             </div>
             <button
               onClick={() => setNotifOpen((v) => !v)}
@@ -228,10 +233,10 @@ export default function Sidebar({ activePage, onOpenSearch }: SidebarProps) {
             <nav className="space-y-1.5">
               {navBtn('home', '/home', <Home className="w-5 h-5 text-white" />, 'Accueil')}
 
-              {navBtn('mes-campagnes', '/mes-campagnes', <img src={globeIcon} alt="Globe" className="w-5 h-5" />, 'Mes campagnes')}
+              {navBtn('mes-campagnes', '/mes-campagnes', <img src={globeIcon} alt="Globe" className="w-5 h-5 shrink-0 object-contain" />, 'Mes campagnes')}
 
-              {navBtn('validation-videos', '/validation-videos', <img src={hourglassIcon} alt="Verification" className="w-5 h-5" />, 'Validation')}
-              {navBtn('dashboard', '/dashboard', <img src={barChartIcon} alt="Dashboard" className="w-5 h-5" />, 'Mon dashboard')}
+              {navBtn('validation-videos', '/validation-videos', <img src={hourglassIcon} alt="Verification" className="w-5 h-5 shrink-0 object-contain" />, 'Validation')}
+              {navBtn('dashboard', '/dashboard', <img src={barChartIcon} alt="Dashboard" className="w-5 h-5 shrink-0 object-contain" />, 'Mon dashboard')}
               <button
                 onClick={() => { setSearchOpen(true); onOpenSearch?.(); }}
                 className="w-full text-left px-4 py-3.5 rounded-lg transition-colors text-white flex items-center gap-3 hover:bg-white/[0.08]"
@@ -240,7 +245,7 @@ export default function Sidebar({ activePage, onOpenSearch }: SidebarProps) {
                 <span>Rechercher</span>
               </button>
               {navBtn('messagerie', '/messagerie', <MessageCircle className="w-5 h-5 text-white" />, 'Messagerie')}
-              {navBtn('enregistre', '/enregistre', <img src={bookmarkIcon} alt="Enregistré" className="w-5 h-5" />, 'Enregistré')}
+              {navBtn('enregistre', '/enregistre', <img src={bookmarkIcon} alt="Enregistré" className="w-5 h-5 shrink-0 object-contain" />, 'Enregistré', () => prefetchSavedCampaignsList(savedIds))}
             </nav>
           </div>
         </div>
@@ -263,7 +268,7 @@ export default function Sidebar({ activePage, onOpenSearch }: SidebarProps) {
         >
           <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: 'rgba(255,255,255,0.1)' }} />
           <span className="font-bold text-base relative z-10 text-white flex items-center gap-2">
-            <img src={chCircleIcon} alt="" className="w-4 h-4" />
+            <img src={chCircleIcon} alt="" className="w-4 h-4 shrink-0 object-contain" />
             Vérifier ma vidéo
           </span>
         </button>

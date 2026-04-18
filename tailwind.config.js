@@ -3,6 +3,13 @@ export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      transitionTimingFunction: {
+        'out-quint': 'cubic-bezier(0.22, 1, 0.36, 1)',
+        'apple': 'cubic-bezier(0.32, 0.72, 0, 1)',
+      },
+      transitionDuration: {
+        'tap': '120ms',
+      },
       keyframes: {
         glassDrop: {
           '0%': { opacity: '0', transform: 'translateY(-8px) scale(0.97)' },

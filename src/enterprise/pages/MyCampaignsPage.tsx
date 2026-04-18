@@ -5,8 +5,8 @@ import { supabase } from '@/shared/infrastructure/supabase';
 import { useSavedCampaigns } from '@/enterprise/contexts/SavedCampaignsContext';
 import { useMyCampaigns } from '@/enterprise/contexts/MyCampaignsContext';
 import { useCampaignTab } from '@/enterprise/contexts/CampaignTabContext';
-import { campaigns as allCampaignsData, sponsoredCampaigns } from '@/shared/data/campaignsData';
-import CampaignCard from '../components/CampaignCard';
+import CampaignCard, { type CampaignData } from '../components/CampaignCard';
+import { resolveSavedCampaignsList } from '@/shared/lib/resolveSavedCampaignsList';
 import ActiveCampaignCard from '../components/campaign-cards/ActiveCampaignCard';
 import DraftCard from '../components/campaign-cards/DraftCard';
 import SavedCampaignCard from '../components/campaign-cards/SavedCampaignCard';
@@ -23,12 +23,11 @@ const contentOptions = ['Gaming', 'Produit', 'Personal Brand', 'Technologie', 'C
 const BUDGET_MIN = 0;
 const BUDGET_MAX = 10000;
 
-const allCampaignsList = [...allCampaignsData, ...sponsoredCampaigns];
-
 export default function MyCampaignsPage() {
   const navigate = useEnterpriseNavigate();
   const { savedIds, toggle } = useSavedCampaigns();
   const { campaigns, pausedCampaigns, drafts, loading, deleteDraft, deleteActiveCampaign } = useMyCampaigns();
+  const [dbSavedCampaigns, setDbSavedCampaigns] = useState<CampaignData[]>([]);
   const { tab: activeTab, setTab: setActiveTab } = useCampaignTab();
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -103,7 +102,16 @@ export default function MyCampaignsPage() {
 
   const filteredDrafts = useMemo(() => drafts.filter(filterCampaign), [drafts, searchQuery, selectedCategory, selectedContent, budgetMin, budgetMax, selectedPlatforms]);
 
-  const savedCampaignsList = allCampaignsList.filter((c) => savedIds.includes(c.id));
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const list = await resolveSavedCampaignsList(savedIds);
+      if (!cancelled) setDbSavedCampaigns(list as CampaignData[]);
+    })();
+    return () => { cancelled = true; };
+  }, [savedIds]);
+
+  const savedCampaignsList = dbSavedCampaigns;
 
   const filteredSaved = useMemo(() => {
     return savedCampaignsList.filter((c) => {

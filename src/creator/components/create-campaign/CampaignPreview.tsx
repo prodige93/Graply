@@ -41,7 +41,7 @@ export default function CampaignPreview({ name, photoPreview, contentType, categ
     : 0;
 
   return (
-    <div className="sticky top-10">
+    <div className="relative lg:sticky lg:top-10">
       <div className="flex items-center justify-center mb-8">
         <span
           className="px-5 py-2 rounded-xl text-xs font-semibold text-white uppercase tracking-widest"

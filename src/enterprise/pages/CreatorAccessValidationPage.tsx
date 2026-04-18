@@ -148,7 +148,8 @@ export default function CreatorAccessValidationPage() {
         }
       }
 
-      const combined = [...dbRequests, ...mockRequests];
+      /* Ne pas mélanger les mocks avec les vraies candidatures : accepter un mock n’écrit rien en base. */
+      const combined = dbRequests.length > 0 ? dbRequests : mockRequests;
       setAllRequests(combined);
       if (combined.length > 0) setSelectedCreator(combined[0]);
       setLoading(false);
@@ -159,7 +160,7 @@ export default function CreatorAccessValidationPage() {
   const markDecision = async (creatorId: string, decision: 'accepted' | 'rejected') => {
     const request = allRequests.find((r) => r.id === creatorId);
     if (request?.isFromDb) {
-      await supabase
+      const { error } = await supabase
         .from('campaign_applications')
         .update({
           status: decision,
@@ -167,6 +168,13 @@ export default function CreatorAccessValidationPage() {
           updated_at: new Date().toISOString(),
         })
         .eq('id', creatorId);
+      if (error) {
+        console.error('campaign_applications update', error);
+        return;
+      }
+      if (decision === 'accepted') {
+        window.dispatchEvent(new CustomEvent('graply:creators-accepted'));
+      }
     }
 
     const newDecisions = { ...decisions, [creatorId]: decision };
@@ -184,12 +192,12 @@ export default function CreatorAccessValidationPage() {
   };
 
   const handleAccept = (creatorId: string) => {
-    markDecision(creatorId, 'accepted');
+    void markDecision(creatorId, 'accepted');
   };
 
   const handleReject = (creatorId: string) => {
     if (rejecting === creatorId && rejectReason.trim()) {
-      markDecision(creatorId, 'rejected');
+      void markDecision(creatorId, 'rejected');
     } else {
       setRejecting(creatorId);
     }

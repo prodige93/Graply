@@ -37,6 +37,14 @@ interface UserProfile {
   instagram_handle: string;
   tiktok_handle: string;
   youtube_handle: string;
+  hidden_stats: string[] | null;
+}
+
+function normalizeHiddenStats(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.filter((x): x is string => typeof x === 'string');
+  }
+  return [];
 }
 
 export default function UserProfilePage() {
@@ -67,7 +75,7 @@ export default function UserProfilePage() {
     setLoading(true);
     supabase
       .from('profiles')
-      .select('id, username, display_name, bio, avatar_url, banner_url, content_tags, website, created_at, instagram_handle, tiktok_handle, youtube_handle')
+      .select('id, username, display_name, bio, avatar_url, banner_url, content_tags, website, created_at, instagram_handle, tiktok_handle, youtube_handle, hidden_stats')
       .eq('username', username)
       .eq('is_public', true)
       .maybeSingle()
@@ -109,6 +117,15 @@ export default function UserProfilePage() {
   }
 
   const joinedDate = new Date(profile.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  const hiddenStats = normalizeHiddenStats(profile.hidden_stats);
+
+  const visibleSocialKeys = socialPlatformKeys.filter((key) => {
+    const handleKey = `${key}_handle` as keyof UserProfile;
+    const handle = (profile[handleKey] as string) || '';
+    if (!handle) return false;
+    if (hiddenStats.includes(`platform_${key}`)) return false;
+    return true;
+  });
 
   return (
     <div className="text-white" style={{ backgroundColor: '#050404' }}>
@@ -203,15 +220,11 @@ export default function UserProfilePage() {
           <p className="text-sm text-white leading-relaxed max-w-2xl mb-6">{profile.bio}</p>
         )}
 
-        {socialPlatformKeys.some((key) => {
-          const handleKey = `${key}_handle` as keyof UserProfile;
-          return !!(profile[handleKey]);
-        }) && (
+        {visibleSocialKeys.length > 0 && (
           <div className="flex items-center gap-2.5 mb-5">
-            {socialPlatformKeys.map((key) => {
+            {visibleSocialKeys.map((key) => {
               const handleKey = `${key}_handle` as keyof UserProfile;
               const handle = (profile[handleKey] as string) || '';
-              if (!handle) return null;
               const clean = handle.replace(/^@/, '');
               const url = `${platformBaseUrls[key]}${clean}`;
               return (

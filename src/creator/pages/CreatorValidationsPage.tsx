@@ -10,6 +10,7 @@ import tiktokIcon from '@/shared/assets/tiktok.svg';
 import youtubeIcon from '@/shared/assets/youtube.svg';
 import chCircleIcon from '@/shared/assets/creator-hub-mark.svg';
 import { supabase } from '@/shared/infrastructure/supabase';
+import { formatFirstPlatformPer1000Label } from '@/shared/lib/mapSupabaseCampaign';
 
 const platformIconMap: Record<string, string> = {
   instagram: instagramIcon,
@@ -169,7 +170,7 @@ export default function CreatorValidationsPage() {
             name,
             photo_url,
             platforms,
-            rate_per_view
+            platform_budgets
           )
         `)
         .eq('user_id', user.id)
@@ -184,7 +185,7 @@ export default function CreatorValidationsPage() {
           name: string;
           photo_url: string;
           platforms: string[];
-          rate_per_view: string;
+          platform_budgets: Record<string, { per1000?: string }> | null;
         } | null;
       }>)
         .filter((row) => row.campaigns)
@@ -198,7 +199,7 @@ export default function CreatorValidationsPage() {
             brand: '',
             photo: c.photo_url ?? '',
             platforms: c.platforms ?? [],
-            ratePerK: c.rate_per_view ?? '',
+            ratePerK: formatFirstPlatformPer1000Label(c.platforms, c.platform_budgets),
             applicantsCount: 0,
             appliedAt: formatted,
             appStatus: (row.status as 'pending' | 'accepted' | 'rejected') ?? 'pending',
@@ -234,17 +235,6 @@ export default function CreatorValidationsPage() {
     });
   }, [dbApplications, searchQuery, selectedPlatforms]);
 
-  if (loading) {
-    return (
-      <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
-        <Sidebar activePage="validation-videos" onOpenSearch={() => {}} />
-        <div className="flex-1 flex items-center justify-center">
-          <GrapeLoader />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
       <Sidebar activePage="validation-videos" onOpenSearch={() => {}} />
@@ -253,7 +243,9 @@ export default function CreatorValidationsPage() {
           <div className="flex items-center gap-4">
             <div className="flex-1 min-w-0">
               <h1 className="text-xl lg:text-2xl font-bold text-white">Mes validations</h1>
-              <p className="text-sm text-white/40 mt-0.5">Videos soumises et candidatures en cours</p>
+              <p className="text-sm text-white/40 mt-0.5">
+                {loading ? 'Chargement…' : 'Videos soumises et candidatures en cours'}
+              </p>
               <button
                 onClick={() => openVerifyModal()}
                 className="lg:hidden group relative flex items-center justify-center gap-2 py-2 px-4 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] overflow-hidden mt-5"
@@ -274,6 +266,11 @@ export default function CreatorValidationsPage() {
           </div>
         </div>
 
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <GrapeLoader size="md" />
+          </div>
+        ) : (
         <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8">
 
           <div className="mb-6">
@@ -417,6 +414,7 @@ export default function CreatorValidationsPage() {
           </div>
 
         </div>
+        )}
       </div>
     </div>
   );

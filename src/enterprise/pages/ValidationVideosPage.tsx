@@ -16,6 +16,7 @@ interface Campaign {
   platforms: string[] | null;
   budget: string | null;
   content_type: string | null;
+  categories: string[] | null;
   platform_budgets: Record<string, { amount: string; per1000: string; min: string; max: string }> | null;
   require_review: boolean;
 }
@@ -89,38 +90,7 @@ function FilterBar({
 
   return (
     <div ref={dropdownRef}>
-      <div className="sm:hidden flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Rechercher..."
-            className="w-full pl-9 pr-4 py-2.5 rounded-full text-sm text-white placeholder-white/40 border border-white/30 focus:border-white/60 focus:outline-none transition-colors"
-            style={{ backgroundColor: '#050404' }}
-          />
-        </div>
-        {[
-          { key: 'instagram', icon: instagramIcon, label: 'Instagram' },
-          { key: 'tiktok', icon: tiktokIcon, label: 'TikTok' },
-          { key: 'youtube', icon: youtubeIcon, label: 'YouTube' },
-        ].map(({ key, icon, label }) => (
-          <button
-            key={key}
-            onClick={() => togglePlatform(key)}
-            className={`w-10 h-10 shrink-0 rounded-full border flex items-center justify-center transition-all duration-200 ${
-              selectedPlatforms.has(key)
-                ? 'border-white bg-white/15 ring-1 ring-white/30'
-                : 'border-white/30 hover:border-white/60 hover:bg-white/5'
-            }`}
-          >
-            <img src={icon} alt={label} className="w-5 h-5 social-icon" />
-          </button>
-        ))}
-      </div>
-
-      <div className="hidden sm:flex items-center gap-3 overflow-x-auto no-scrollbar">
+      <div className="flex flex-wrap items-center gap-3 overflow-x-auto no-scrollbar">
         {['Catégories', 'Contenu', 'Budget'].map((filter) => (
           <div key={filter} className="relative">
             <div className="flex items-center">
@@ -295,10 +265,10 @@ function FilterBar({
           </button>
         )}
 
-        <div className="flex-1" />
+        <div className="flex-1 min-w-[1rem]" />
 
-        <div className="flex items-center gap-2">
-          <div className="relative w-44 sm:w-44 flex-1 sm:flex-none">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <div className="relative w-full sm:w-44 flex-1 min-w-[10rem]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
             <input
               type="text"
@@ -373,29 +343,43 @@ export default function ValidationVideosPage() {
   const [selectedContent, setSelectedContent] = useState<string | null>(null);
   const [budgetMin, setBudgetMin] = useState(BUDGET_MIN_FB);
   const [budgetMax, setBudgetMax] = useState(BUDGET_MAX_FB);
-  const [videosExpanded, setVideosExpanded] = useState(false);
-  const [creatorsExpanded, setCreatorsExpanded] = useState(false);
+  const [videosExpanded, setVideosExpanded] = useState(true);
+  const [creatorsExpanded, setCreatorsExpanded] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
+    let cancelled = false;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        if (!cancelled) {
+          setVideoCampaigns([]);
+          setCreatorCampaigns([]);
+        }
+        return;
+      }
+      const selectCols =
+        'id, name, photo_url, status, platforms, budget, content_type, categories, platform_budgets, require_review';
       const [videoRes, creatorRes] = await Promise.all([
         supabase
           .from('campaigns')
-          .select('id, name, photo_url, status, platforms, budget, content_type, platform_budgets, require_review')
+          .select(selectCols)
+          .eq('user_id', user.id)
           .in('status', ['published', 'paused'])
           .order('created_at', { ascending: false }),
         supabase
           .from('campaigns')
-          .select('id, name, photo_url, status, platforms, budget, content_type, platform_budgets, require_review')
+          .select(selectCols)
+          .eq('user_id', user.id)
           .in('status', ['published', 'paused'])
           .eq('require_review', true)
           .order('created_at', { ascending: false }),
       ]);
 
+      if (cancelled) return;
       setVideoCampaigns(videoRes.data || []);
       setCreatorCampaigns(creatorRes.data || []);
-    };
-    fetchData();
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const pendingVerifications = 2;
@@ -423,9 +407,25 @@ export default function ValidationVideosPage() {
 
   const filterCampaigns = (list: Campaign[]) =>
     list.filter((c) => {
-      const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesPlatform = selectedPlatforms.size === 0 || (c.platforms && c.platforms.some((p) => selectedPlatforms.has(p)));
-      return matchesSearch && matchesPlatform;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        if (!c.name.toLowerCase().includes(q)) return false;
+      }
+      if (selectedCategory) {
+        if (c.content_type?.toLowerCase() !== selectedCategory.toLowerCase()) return false;
+      }
+      if (selectedContent) {
+        if (!(c.categories ?? []).some((cat) => cat.toLowerCase() === selectedContent.toLowerCase())) return false;
+      }
+      if (budgetMin > BUDGET_MIN_FB || budgetMax < BUDGET_MAX_FB) {
+        const budgetNum = parseFloat((c.budget ?? '').replace(/[^0-9.]/g, '')) || 0;
+        if (budgetNum < budgetMin || budgetNum > budgetMax) return false;
+      }
+      if (selectedPlatforms.size > 0) {
+        const hasPlatform = (c.platforms ?? []).some((p) => selectedPlatforms.has(p));
+        if (!hasPlatform) return false;
+      }
+      return true;
     });
 
   const filteredVideoCampaigns = filterCampaigns(videoCampaigns);

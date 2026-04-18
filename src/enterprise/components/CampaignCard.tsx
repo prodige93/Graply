@@ -1,8 +1,11 @@
-import { Trash2, Bookmark } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Trash2 } from 'lucide-react';
+import bookmarkIcon from '@/shared/assets/bookmark-filled.svg';
 import jentrepriseIcon from '@/shared/assets/badge-enterprise-verified.png';
 import { enterprises } from '@/shared/data/campaignsData';
 import { useSavedCampaigns } from '@/enterprise/contexts/SavedCampaignsContext';
 import { useEnterpriseNavigate } from '@/enterprise/lib/useEnterpriseNavigate';
+import { supabase } from '@/shared/infrastructure/supabase';
 
 export interface CampaignData {
   id: string;
@@ -32,6 +35,7 @@ export interface CampaignData {
   isPublic?: boolean;
   rules?: string[];
   documents?: { name: string; size: string; type: string }[];
+  ownerUserId?: string | null;
 }
 
 const socialIcons: Record<string, JSX.Element> = {
@@ -60,6 +64,16 @@ export default function CampaignCard({ data, from }: { data: CampaignData; from?
   const { isSaved, toggle } = useSavedCampaigns();
   const saved = isSaved(data.id);
   const isSavedPage = from === '/enregistre';
+  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setSessionUserId(data.user?.id ?? null));
+  }, []);
+
+  const isOwnCampaign = Boolean(
+    sessionUserId && data.ownerUserId != null && data.ownerUserId === sessionUserId,
+  );
+  const showSaveControls = isSavedPage || !isOwnCampaign;
 
   const enterpriseId = enterprises.find(
     (e) => e.name.toLowerCase() === data.brand.toLowerCase()
@@ -74,7 +88,7 @@ export default function CampaignCard({ data, from }: { data: CampaignData; from?
 
   const handleSave = (e: React.MouseEvent) => {
     e.stopPropagation();
-    toggle(data.id);
+    toggle(data.id, data);
   };
 
   return (
@@ -112,52 +126,64 @@ export default function CampaignCard({ data, from }: { data: CampaignData; from?
             background: 'linear-gradient(180deg, transparent 55%, rgba(10,10,15,0.6) 72%, rgba(10,10,15,0.92) 86%, rgba(10,10,15,1) 100%)',
           }}
         />
-        {isSavedPage ? (
-          <button
-            onClick={handleSave}
-            className="absolute top-2.5 left-2.5 z-30 w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 pointer-events-auto"
-            style={{
-              background: 'rgba(255,255,255,0.055)',
-              backdropFilter: 'blur(40px)',
-              WebkitBackdropFilter: 'blur(40px)',
-              border: '1px solid rgba(255,255,255,0.18)',
-              boxShadow: '0 8px 48px rgba(0,0,0,0.85), 0 0 0 0.5px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.13), inset 0 -1px 0 rgba(0,0,0,0.5)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.055)';
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)';
-            }}
-          >
-            <Trash2 className="w-4 h-4 text-white" />
-          </button>
-        ) : (
-          <button
-            onClick={handleSave}
-            className="absolute top-2.5 left-2.5 z-30 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 pointer-events-auto"
-            style={{
-              background: saved ? 'rgba(255,255,255,0.95)' : 'rgba(10,10,12,0.65)',
-              backdropFilter: 'blur(10px)',
-              border: saved ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.18)',
-              boxShadow: '0 2px 10px rgba(0,0,0,0.4)',
-            }}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              className="w-4 h-4 transition-all duration-200"
-              fill={saved ? 'black' : 'none'}
-              stroke={saved ? 'black' : 'white'}
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+        {showSaveControls ? (
+          isSavedPage ? (
+            <button
+              onClick={handleSave}
+              className="absolute top-2.5 left-2.5 z-30 w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 pointer-events-auto group/trash"
+              style={{
+                background: 'rgba(10,10,12,0.65)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255,255,255,0.18)',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.4)',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.12)';
+                (e.currentTarget as HTMLButtonElement).style.border = '1px solid rgba(255,255,255,0.3)';
+                (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 12px rgba(255,255,255,0.15)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'rgba(10,10,12,0.65)';
+                (e.currentTarget as HTMLButtonElement).style.border = '1px solid rgba(255,255,255,0.18)';
+                (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 2px 10px rgba(0,0,0,0.4)';
+              }}
             >
-              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-            </svg>
-          </button>
-        )}
+              <Trash2 className="w-3.5 h-3.5 text-white/70 group-hover/trash:text-white transition-colors duration-200" />
+            </button>
+          ) : (
+            <button
+              onClick={handleSave}
+              className="absolute top-2.5 left-2.5 z-30 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 pointer-events-auto group/bk"
+              style={{
+                background: saved ? 'rgba(255,255,255,0.95)' : 'rgba(10,10,12,0.65)',
+                backdropFilter: 'blur(10px)',
+                border: saved ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.18)',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.4)',
+              }}
+              onMouseEnter={(e) => {
+                if (!saved) {
+                  (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.12)';
+                  (e.currentTarget as HTMLButtonElement).style.border = '1px solid rgba(255,255,255,0.3)';
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 12px rgba(255,255,255,0.15)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!saved) {
+                  (e.currentTarget as HTMLButtonElement).style.background = 'rgba(10,10,12,0.65)';
+                  (e.currentTarget as HTMLButtonElement).style.border = '1px solid rgba(255,255,255,0.18)';
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 2px 10px rgba(0,0,0,0.4)';
+                }
+              }}
+            >
+              <img
+                src={bookmarkIcon}
+                alt="Enregistrer"
+                className="w-4 h-4 transition-all duration-200 group-hover/bk:scale-110"
+                style={{ filter: saved ? 'invert(1)' : 'brightness(0) invert(1)' }}
+              />
+            </button>
+          )
+        ) : null}
       </div>
 
       <div className="px-4 pt-3 pb-4 flex flex-col flex-1">

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { supabase } from '@/shared/infrastructure/supabase';
-import GrapeLoader from './GrapeLoader';
+import AppShellFallback from '@/shared/components/AppShellFallback';
 
 export default function AuthGuard() {
   const [checking, setChecking] = useState(true);
@@ -20,7 +20,7 @@ export default function AuthGuard() {
     return () => subscription.unsubscribe();
   }, []);
 
-  if (checking) return <GrapeLoader />;
+  if (checking) return <AppShellFallback />;
   if (!authenticated) return <Navigate to="/connexion" replace />;
   return <Outlet />;
 }

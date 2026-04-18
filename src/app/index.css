@@ -28,11 +28,15 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 #root {
   overflow: auto;
   -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
   position: fixed;
   top: 0;
   left: 0;
@@ -81,10 +85,12 @@ html.lp-page #root {
 
 .marquee-track-left {
   animation: marquee-left 40s linear infinite;
+  will-change: transform;
 }
 
 .marquee-track-right {
   animation: marquee-right 40s linear infinite;
+  will-change: transform;
 }
 
 .marquee-track-left:hover,
@@ -258,6 +264,7 @@ html.lp-page #root {
   display: flex;
   align-items: center;
   justify-content: center;
+  will-change: transform;
 }
 
 @keyframes marquee-scroll {
@@ -268,6 +275,7 @@ html.lp-page #root {
 .marquee-track {
   animation: marquee-scroll 40s linear infinite;
   width: max-content;
+  will-change: transform;
 }
 
 .marquee-track:hover {
@@ -282,6 +290,7 @@ html.lp-page #root {
 .creator-avatars-track {
   animation: avatars-scroll 25s linear infinite;
   width: max-content;
+  will-change: transform;
 }
 
 ::selection {
@@ -315,5 +324,19 @@ html.lp-page #root {
     user-select: none;
     -webkit-user-select: none;
     pointer-events: none;
+  }
+}
+
+/* Défilement plus fluide sur les panneaux internes (app créateur / entreprise) */
+#root .overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #root,
+  #root .overflow-y-auto,
+  html.lp-page {
+    scroll-behavior: auto !important;
   }
 }

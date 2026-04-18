@@ -5,7 +5,11 @@ import GrapeLoader from '../components/GrapeLoader';
 import Sidebar from '../components/Sidebar';
 import { campaigns, sponsoredCampaigns } from '@/shared/data/campaignsData';
 import { supabase } from '@/shared/infrastructure/supabase';
-import { mapSupabaseCampaign, enrichCampaignsWithProfiles } from '@/shared/lib/mapSupabaseCampaign';
+import {
+  mapSupabaseCampaign,
+  enrichCampaignsWithProfiles,
+  type SupabaseCampaign,
+} from '@/shared/lib/mapSupabaseCampaign';
 import { addSubmittedVideo } from '@/shared/lib/useCreatorCampaigns';
 import verifiedIcon from '@/shared/assets/badge-enterprise-verified.png';
 import chCircleIcon from '@/shared/assets/creator-hub-mark.svg';
@@ -37,33 +41,42 @@ export default function VideoVerificationPage() {
       .select('*')
       .eq('id', id)
       .maybeSingle()
-      .then(async ({ data }) => {
-        if (data) {
+      .then(async ({ data, error }) => {
+        if (error || !data) {
+          setLoading(false);
+          return;
+        }
+        try {
           const [enriched] = await enrichCampaignsWithProfiles([data]);
-          setCampaign(mapSupabaseCampaign(enriched));
+          setCampaign(mapSupabaseCampaign(enriched as SupabaseCampaign));
+        } catch {
+          setCampaign(null);
         }
         setLoading(false);
-      });
+      })
+      .catch(() => setLoading(false));
   }, [id, staticCampaign]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#050404' }}>
-        <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-      </div>
-    );
-  }
 
   if (!campaign) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-white" style={{ backgroundColor: '#050404' }}>
-        <p className="text-xl font-semibold mb-4">Campagne introuvable</p>
-        <button
-          onClick={() => navigate(-1)}
-          className="px-6 py-3 rounded-full bg-white text-black font-semibold text-sm hover:bg-white/90 transition-colors"
-        >
-          Retour aux campagnes
-        </button>
+      <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
+        <Sidebar activePage="home" onOpenSearch={() => {}} />
+        <div className="flex-1 flex flex-col items-center justify-center px-4">
+          {loading ? (
+            <GrapeLoader size="md" />
+          ) : (
+            <>
+              <p className="text-xl font-semibold mb-4">Campagne introuvable</p>
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="px-6 py-3 rounded-full bg-white text-black font-semibold text-sm hover:bg-white/90 transition-colors"
+              >
+                Retour aux campagnes
+              </button>
+            </>
+          )}
+        </div>
       </div>
     );
   }
