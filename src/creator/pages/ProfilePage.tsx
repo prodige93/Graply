@@ -8,7 +8,7 @@ import { useProfile } from '@/shared/lib/useProfile';
 import { profileUsernameDisplayLabel } from '@/shared/lib/profileUsername';
 import { useSavedCampaigns } from '@/creator/contexts/SavedCampaignsContext';
 import { useCampaignTab, type CampaignTab } from '@/creator/contexts/CampaignTabContext';
-import { getPendingApplications, type CreatorCampaign, type PendingApplication } from '@/shared/lib/useCreatorCampaigns';
+import { type CreatorCampaign, type PendingApplication } from '@/shared/lib/useCreatorCampaigns';
 import { useMyCampaigns } from '@/creator/contexts/MyCampaignsContext';
 import { campaigns as allCampaignsData, sponsoredCampaigns } from '@/shared/data/campaignsData';
 import { mapSupabaseCampaign, enrichCampaignsWithProfiles } from '@/shared/lib/mapSupabaseCampaign';
@@ -93,8 +93,7 @@ async function uploadFile(file: File, folder: string, ownerId: string): Promise<
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { savedIds, toggle } = useSavedCampaigns();
-  const { activeCampaigns: dbActive, pausedCampaigns: dbPaused, loading: campaignsLoading } = useMyCampaigns();
-  const pendingApplications = getPendingApplications();
+  const { activeCampaigns: dbActive, pausedCampaigns: dbPaused, pendingApplications, loading: campaignsLoading } = useMyCampaigns();
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Hourglass, Bookmark, ChevronDown, Search, X, Check, CheckCircle, Trash2, AlertTriangle, Megaphone } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
-import { getPendingApplications, removeCreatorCampaign, type PendingApplication } from '@/shared/lib/useCreatorCampaigns';
+import type { PendingApplication } from '@/shared/lib/useCreatorCampaigns';
 import { openVerifyModal } from '@/shared/lib/verifyEvent';
 import chCircleIcon from '@/shared/assets/creator-hub-mark.svg';
 import instagramIcon from '@/shared/assets/instagram-card.svg';
@@ -73,11 +73,10 @@ const glassCard: React.CSSProperties = {
 
 export default function MyCampaignsPage() {
   const navigate = useNavigate();
-  const pendingApplications = getPendingApplications();
   const { savedIds, toggle: toggleSaved } = useSavedCampaigns();
   const { tab: sharedTab } = useCampaignTab();
   const displayTab = sharedTab === 'stats' ? 'active' : sharedTab;
-  const { activeCampaigns, pausedCampaigns, loading } = useMyCampaigns();
+  const { activeCampaigns, pausedCampaigns, pendingApplications, loading, refresh } = useMyCampaigns();
   const [confirmWithdrawId, setConfirmWithdrawId] = useState<string | null>(null);
   const [withdrawing, setWithdrawing] = useState(false);
 
@@ -200,12 +199,20 @@ export default function MyCampaignsPage() {
                   </button>
                   <button
                     disabled={withdrawing}
-                    onClick={() => {
+                    onClick={async () => {
                       if (!confirmWithdrawId) return;
                       setWithdrawing(true);
-                      removeCreatorCampaign(confirmWithdrawId);
+                      const { data: { user } } = await supabase.auth.getUser();
+                      if (user) {
+                        await supabase
+                          .from('campaign_applications')
+                          .delete()
+                          .eq('campaign_id', confirmWithdrawId)
+                          .eq('user_id', user.id);
+                      }
                       setConfirmWithdrawId(null);
                       setWithdrawing(false);
+                      await refresh();
                     }}
                     className="flex-1 py-3 rounded-xl text-sm font-bold text-white transition-all duration-200 active:scale-95"
                     style={{ background: 'rgba(239,68,68,0.85)', border: '1px solid rgba(239,68,68,0.4)' }}
@@ -250,11 +257,27 @@ export default function MyCampaignsPage() {
 
           {displayTab === 'pending' && (
           <section>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-              {pendingApplications.map((a) => (
-                <PendingCard key={a.id} application={a} />
-              ))}
-            </div>
+            {loading ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+              </div>
+            ) : pendingApplications.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-3">
+                <div
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                >
+                  <Hourglass className="w-5 h-5 text-white/25" />
+                </div>
+                <p className="text-white/40 text-sm font-medium">Aucune candidature en attente</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                {pendingApplications.map((a) => (
+                  <PendingCard key={a.id} application={a} />
+                ))}
+              </div>
+            )}
           </section>
           )}
 

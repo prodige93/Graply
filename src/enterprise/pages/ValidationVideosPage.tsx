@@ -378,16 +378,24 @@ export default function ValidationVideosPage() {
 
   useEffect(() => {
     const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setVideoCampaigns([]);
+        setCreatorCampaigns([]);
+        return;
+      }
       const [videoRes, creatorRes] = await Promise.all([
         supabase
           .from('campaigns')
           .select('id, name, photo_url, status, platforms, budget, content_type, platform_budgets, require_review')
           .in('status', ['published', 'paused'])
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false }),
         supabase
           .from('campaigns')
           .select('id, name, photo_url, status, platforms, budget, content_type, platform_budgets, require_review')
           .in('status', ['published', 'paused'])
+          .eq('user_id', user.id)
           .eq('require_review', true)
           .order('created_at', { ascending: false }),
       ]);

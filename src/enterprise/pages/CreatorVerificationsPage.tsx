@@ -121,10 +121,17 @@ export default function CreatorVerificationsPage() {
   useEffect(() => {
     const fetchCampaign = async () => {
       if (!id) return;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setCampaign(null);
+        setLoading(false);
+        return;
+      }
       const { data, error } = await supabase
         .from('campaigns')
         .select('id, name, photo_url, platforms, content_type')
         .eq('id', id)
+        .eq('user_id', user.id)
         .maybeSingle();
       if (!error && data) setCampaign(data);
       setLoading(false);

@@ -111,8 +111,20 @@ export default function CreatorAccessValidationPage() {
   useEffect(() => {
     const fetchData = async () => {
       if (!id) return;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setCampaign(null);
+        setAllRequests([]);
+        setLoading(false);
+        return;
+      }
       const [campaignRes, appsRes] = await Promise.all([
-        supabase.from('campaigns').select('id, name, photo_url, platforms, content_type').eq('id', id).maybeSingle(),
+        supabase
+          .from('campaigns')
+          .select('id, name, photo_url, platforms, content_type')
+          .eq('id', id)
+          .eq('user_id', user.id)
+          .maybeSingle(),
         supabase
           .from('campaign_applications')
           .select('id, user_id, motivation, status')

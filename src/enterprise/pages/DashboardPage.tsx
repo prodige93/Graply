@@ -71,10 +71,16 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const fetchCampaigns = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setCampaigns([]);
+        return;
+      }
       const { data, error } = await supabase
         .from('campaigns')
         .select('*')
-        .eq('status', 'published')
+        .in('status', ['published', 'paused'])
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       if (!error && data) setCampaigns(data);
     };
