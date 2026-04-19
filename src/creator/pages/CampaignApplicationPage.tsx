@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Send, Upload, FileText, X } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
@@ -12,22 +12,45 @@ import {
 } from '@/shared/lib/mapSupabaseCampaign';
 import { useMyCampaigns } from '@/creator/contexts/MyCampaignsContext';
 
+type CandidatureLocationState = { from?: string; campaignPreview?: CampaignData };
+
+function readCampaignPreview(state: unknown, routeId: string | undefined): CampaignData | undefined {
+  if (!routeId) return undefined;
+  const preview = (state as CandidatureLocationState | null)?.campaignPreview;
+  return preview?.id === routeId ? preview : undefined;
+}
+
 export default function CampaignApplicationPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const backTo = (location.state as { from?: string } | null)?.from ?? `/campagne/${id}`;
+  const backTo = (location.state as CandidatureLocationState | null)?.from ?? `/campagne/${id}`;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const allCampaigns = [...sponsoredCampaigns, ...campaigns];
   const staticCampaign = allCampaigns.find((c) => c.id === id);
-  const [campaign, setCampaign] = useState<CampaignData | undefined>(staticCampaign);
+  const previewFromNav = useMemo(
+    () => readCampaignPreview(location.state, id),
+    [location.state, id],
+  );
+  const [campaign, setCampaign] = useState<CampaignData | undefined>(
+    () => staticCampaign ?? readCampaignPreview(location.state, id),
+  );
   const [message, setMessage] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const { refresh: refreshMyCampaigns } = useMyCampaigns();
+
+  useEffect(() => {
+    const next = staticCampaign ?? previewFromNav;
+    if (next) {
+      setCampaign(next);
+      return;
+    }
+    setCampaign((prev) => (prev && prev.id === id ? prev : undefined));
+  }, [id, staticCampaign, previewFromNav, location.key]);
 
   useEffect(() => {
     if (!id || staticCampaign) return;
@@ -107,15 +130,14 @@ export default function CampaignApplicationPage() {
 
       <div className="flex-1 relative flex items-center justify-center overflow-hidden">
         {campaign?.image && (
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage: `url(${campaign.image})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              filter: 'blur(12px) brightness(0.45)',
-              transform: 'scale(1.05)',
-            }}
+          <img
+            src={campaign.image}
+            alt=""
+            aria-hidden
+            decoding="async"
+            fetchPriority="high"
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none scale-[1.05]"
+            style={{ filter: 'blur(12px) brightness(0.45)' }}
           />
         )}
 

@@ -10,8 +10,7 @@ import CampaignCard from '../components/CampaignCard';
 import type { CampaignData } from '../components/CampaignCard';
 import { campaigns as staticCampaigns, sponsoredCampaigns, enterprises } from '@/shared/data/campaignsData';
 import jentrepriseIcon from '@/shared/assets/badge-enterprise-verified.png';
-import { supabase } from '@/shared/infrastructure/supabase';
-import { mapSupabaseCampaign, enrichCampaignsWithProfiles } from '@/shared/lib/mapSupabaseCampaign';
+import { usePublishedCampaignsFeed } from '@/shared/lib/usePublishedCampaignsFeed';
 
 const slides = [
   {
@@ -357,7 +356,7 @@ function FilterBar({ instagramIcon, tiktokIcon, youtubeIcon }: { instagramIcon: 
 export default function CampaignsPage() {
   const navigate = useEnterpriseNavigate();
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [dbCampaigns, setDbCampaigns] = useState<CampaignData[]>([]);
+  const dbCampaigns = usePublishedCampaignsFeed();
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -368,21 +367,6 @@ export default function CampaignsPage() {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
     }, 4000);
     return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    const fetchPublished = async () => {
-      const { data } = await supabase
-        .from('campaigns')
-        .select('*')
-        .eq('status', 'published')
-        .order('created_at', { ascending: false });
-      if (data) {
-        const enriched = await enrichCampaignsWithProfiles(data);
-        setDbCampaigns(enriched.map(mapSupabaseCampaign));
-      }
-    };
-    fetchPublished();
   }, []);
 
   const campaigns = useMemo(() => [...dbCampaigns, ...staticCampaigns], [dbCampaigns]);

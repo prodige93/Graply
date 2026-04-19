@@ -63,8 +63,6 @@ export default function CampaignDetailPage() {
     else if (backTo.startsWith('/')) navigate(backTo.startsWith('/app-entreprise') ? '/campagnes' : backTo);
     else navigate('/campagnes');
   };
-  /** Depuis « Mes campagnes » ou le profil (campagnes en cours), on affiche la fiche sans redirection forcée vers la vérification. */
-  const skipAutoVerificationRedirect = backTo === '/mes-campagnes' || backTo === '/profil';
   const allCampaigns = [...sponsoredCampaigns, ...campaigns];
   const staticCampaign = allCampaigns.find((c) => c.id === id);
   const [campaign, setCampaign] = useState(staticCampaign ?? null);
@@ -127,13 +125,11 @@ export default function CampaignDetailPage() {
     };
   }, [id]);
 
-  /** Candidature acceptée → ouverture depuis la découverte : envoi direct vers la vérification vidéo. */
+  /** Précharge la page candidature pour un clic « Postuler » sans attente du lazy chunk. */
   useEffect(() => {
-    if (skipAutoVerificationRedirect) return;
-    if (loading || !campaign || !id) return;
-    if (applicationStatus !== 'accepted') return;
-    navigate(`/campagne/${id}/verification`, { replace: true, state: { from: location.pathname } });
-  }, [skipAutoVerificationRedirect, loading, campaign, applicationStatus, id, navigate, location.pathname]);
+    if (!campaign?.id) return;
+    void import('@/creator/pages/CampaignApplicationPage.tsx');
+  }, [campaign?.id]);
 
   useEffect(() => {
     if (staticCampaign || !id) return;
@@ -506,7 +502,11 @@ export default function CampaignDetailPage() {
               </button>
             ) : (
               <button
-                onClick={() => navigate(`/campagne/${campaign.id}/candidature`, { state: { from: location.pathname } })}
+                onClick={() =>
+                  navigate(`/campagne/${campaign.id}/candidature`, {
+                    state: { from: location.pathname, campaignPreview: campaign },
+                  })
+                }
                 className="flex items-center gap-2 px-8 py-3 font-bold text-sm uppercase tracking-wide rounded-xl transition-all duration-300 hover:brightness-110 active:scale-[0.97]"
                 style={{
                   background: '#FFFFFF',

@@ -94,7 +94,7 @@ export default function CampaignCard({ data, from }: { data: CampaignData; from?
   return (
     <div
       onClick={() => navigate(`/campagne/${data.id}`)}
-      className="rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.04] hover:-translate-y-1 group h-full flex flex-col cursor-pointer relative"
+      className="rounded-2xl overflow-hidden transition-[transform,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_16px_48px_rgba(0,0,0,0.55)] group h-full flex flex-col cursor-pointer relative"
       style={{
         background: 'rgba(10,10,15,1)',
         border: '1px solid rgba(255,255,255,0.12)',
@@ -114,18 +114,21 @@ export default function CampaignCard({ data, from }: { data: CampaignData; from?
           Rejoindre
         </span>
       </div>
-      <div className="relative h-36 overflow-hidden">
-        <img
-          src={data.image}
-          alt={data.title}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-        />
-        <div
-          className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(180deg, transparent 55%, rgba(10,10,15,0.6) 72%, rgba(10,10,15,0.92) 86%, rgba(10,10,15,1) 100%)',
-          }}
-        />
+      <div className="relative h-36 overflow-hidden isolate">
+        <div className="absolute inset-0 z-0 origin-center transition-transform duration-500 ease-out will-change-transform group-hover:scale-[1.06]">
+          <img
+            src={data.image}
+            alt={data.title}
+            className="absolute inset-0 h-full w-full object-cover"
+            draggable={false}
+          />
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: 'linear-gradient(180deg, transparent 55%, rgba(10,10,15,0.6) 72%, rgba(10,10,15,0.92) 86%, rgba(10,10,15,1) 100%)',
+            }}
+          />
+        </div>
         {showSaveControls ? (
           isSavedPage ? (
             <button
