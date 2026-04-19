@@ -38,7 +38,8 @@ export function useSocialConnections() {
   }, [refetch]);
 
   function isConnected(platform: DashboardSocialPlatform): boolean {
-    return platform in usernames;
+    const u = usernames[platform];
+    return u != null && String(u).trim() !== '';
   }
 
   function displayUsername(platform: DashboardSocialPlatform): string | null {

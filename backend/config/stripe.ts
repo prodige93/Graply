@@ -1,7 +1,17 @@
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-    apiVersion: '2026-02-25.clover',
-});
+const secret = process.env.STRIPE_SECRET_KEY?.trim();
+
+const stripe = secret
+  ? new Stripe(secret, {
+      apiVersion: "2026-02-25.clover",
+    })
+  : null;
+
+if (!stripe) {
+  console.warn(
+    "[backend] STRIPE_SECRET_KEY manquant — checkout et webhooks Stripe sont désactivés.",
+  );
+}
 
 export default stripe;

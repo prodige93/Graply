@@ -5,6 +5,10 @@ import "dotenv/config";
 import checkoutRouter from "./routes/checkout";
 import enterpriseCheckoutRouter from "./routes/enterpriseCheckout";
 import webhookRouter from "./routes/webhook";
+import {
+  getMetaInstagramWebhook,
+  postMetaInstagramWebhook,
+} from "./routes/metaInstagramWebhook";
 
 const app = express();
 
@@ -24,6 +28,14 @@ app.use(
   webhookRouter,
 );
 
+/** Instagram / Meta — Webhooks (corps brut pour X-Hub-Signature-256). @see metaInstagramWebhook.ts */
+app.get("/api/webhooks/meta", getMetaInstagramWebhook);
+app.post(
+  "/api/webhooks/meta",
+  express.raw({ type: "application/json" }),
+  postMetaInstagramWebhook,
+);
+
 app.use(express.json());
 
 app.get("/api", (_req, res) => {
@@ -33,7 +45,7 @@ app.get("/api", (_req, res) => {
 app.use("/api", checkoutRouter);
 app.use("/api", enterpriseCheckoutRouter);
 
-const PORT = process.env.PORT || 3300;
-app.listen(PORT, () => {
-  console.log(`Backend Graply démarré sur http://localhost:${PORT}`);
+const PORT = Number(process.env.PORT) || 3300;
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Backend Graply démarré sur le port ${PORT}`);
 });

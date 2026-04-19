@@ -26,6 +26,10 @@ router.post(
   "/",
   // express.raw() est appliqué dans server.ts uniquement pour cette route
   async (req: Request, res: Response) => {
+    if (!stripe) {
+      return res.status(503).send("Stripe non configuré");
+    }
+
     const sig = req.headers["stripe-signature"] as string;
 
     let event;

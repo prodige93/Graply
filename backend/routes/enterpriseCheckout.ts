@@ -17,6 +17,9 @@ const FRONTEND = process.env.FRONTEND_URL || "http://localhost:5173";
  */
 router.post("/enterprise-checkout", async (req: Request, res: Response) => {
   try {
+    if (!stripe) {
+      return res.status(503).json({ error: "Paiement indisponible (Stripe non configuré)." });
+    }
     if (!supabaseAdmin) {
       return res.status(503).json({ error: "Service indisponible (configuration serveur)." });
     }
@@ -113,6 +116,10 @@ router.post("/enterprise-checkout", async (req: Request, res: Response) => {
  */
 router.get("/enterprise-checkout/session", async (req: Request, res: Response) => {
   try {
+    if (!stripe) {
+      return res.status(503).json({ error: "Paiement indisponible (Stripe non configuré)." });
+    }
+
     const sessionId = req.query.session_id as string | undefined;
     if (!sessionId) {
       return res.status(400).json({ error: "session_id requis." });

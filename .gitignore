@@ -30,6 +30,10 @@ coverage
 .env
 .env.*
 !.env.example
+render-env-values.local.txt
+
+# SQL one-shot Vault (secrets) — ne jamais committer
+**/*.vault.local.sql
 
 # Supabase CLI (secrets locaux)
 .branches

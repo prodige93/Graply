@@ -13,7 +13,7 @@ import { useSocialConnections, type DashboardSocialPlatform } from '@/shared/lib
 import jentrepriseIcon from '@/shared/assets/badge-enterprise-verified.png';
 import iphone17Img from '@/shared/assets/hero-slide-iphone17.jpeg';
 import bo7Img from '@/shared/assets/hero-slide-bo7.jpeg';
-import { type SocialPlatform, getSocialOAuthUrl } from '@/shared/lib/socialOAuth';
+import { type SocialPlatform, getSocialOAuthUrl, INSTAGRAM_PRO_ACCOUNT_CONNECT_HINT } from '@/shared/lib/socialOAuth';
 import TikTokConnectModal from '@/shared/components/TikTokConnectModal';
 import EnterpriseRegistrationModal from '../components/EnterpriseRegistrationModal';
 import {
@@ -543,7 +543,14 @@ export default function MyAccountPage() {
                           ) : null}
                         </div>
                       ) : (
-                        <p className="text-xs text-white/30 mt-0.5">Non connecté</p>
+                        <>
+                          <p className="text-xs text-white/30 mt-0.5">Non connecté</p>
+                          {key === 'instagram' && (
+                            <p className="text-[11px] text-white/22 mt-1 leading-snug max-w-[14rem] sm:max-w-none">
+                              {INSTAGRAM_PRO_ACCOUNT_CONNECT_HINT}
+                            </p>
+                          )}
+                        </>
                       )}
                     </div>
 

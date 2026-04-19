@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { DollarSign, TrendingUp, ArrowUpRight, Play, X, ArrowDownLeft, ExternalLink, Loader2, CalendarDays } from 'lucide-react';
 import StatsChart from '../components/StatsChart';
 import Sidebar from '../components/Sidebar';
@@ -111,10 +111,12 @@ interface DashboardVideo {
   thumb: string;
   permalink: string;
   publishedAt: string;
+  viewCount?: number;
 }
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [chartPeriod, setChartPeriod] = useState('6m');
 
   useEffect(() => {
@@ -196,6 +198,24 @@ export default function DashboardPage() {
     refetch: refetchLinkedVideos,
   } = useLinkedPlatformVideos();
   const { loading: socialLoading, refetch: refetchSocialConnections, isConnected: isSocialConnected, displayUsername } = useSocialConnections();
+
+  useEffect(() => {
+    if (!location.state?.fromSocialOAuth) return;
+    void Promise.all([
+      refetchSocialConnections(),
+      refetchLinkedVideos(),
+      loadDashboardProfile(),
+    ]);
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [
+    location.pathname,
+    location.state?.fromSocialOAuth,
+    navigate,
+    refetchSocialConnections,
+    refetchLinkedVideos,
+    loadDashboardProfile,
+  ]);
+
   const [disconnectingSocial, setDisconnectingSocial] = useState<SocialPlatform | null>(null);
   const [chartMetric, setChartMetric] = useState<'views' | 'earned'>('views');
   const [metricsSort, setMetricsSort] = useState<'desc' | 'asc'>('desc');
@@ -289,6 +309,7 @@ export default function DashboardPage() {
       thumb: v.thumb,
       permalink: v.permalink,
       publishedAt: v.publishedAt,
+      viewCount: v.viewCount,
     }));
   }, [linkedVideos]);
 
@@ -704,11 +725,16 @@ export default function DashboardPage() {
 
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold truncate" style={{ color: 'rgba(255,255,255,0.85)' }}>{video.title}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                           {platformIcons[video.platform] && (
                             <img src={platformIcons[video.platform]} alt={platformNames[video.platform] || video.platform} className="w-3 h-3 opacity-60" />
                           )}
-                          <p className="text-[10px] text-white/30">{video.date}</p>
+                          {video.viewCount != null && (
+                            <span className="text-[10px] text-white/45 tabular-nums">
+                              {video.viewCount.toLocaleString('fr-FR')} vues ·{' '}
+                            </span>
+                          )}
+                          <span className="text-[10px] text-white/30">{video.date}</span>
                         </div>
                       </div>
 

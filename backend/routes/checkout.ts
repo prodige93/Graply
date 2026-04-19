@@ -23,6 +23,10 @@ const router = Router();
  */
 router.post("/checkout", async (req: Request, res: Response) => {
     try {
+        if (!stripe) {
+            return res.status(503).json({ error: "Paiement indisponible (Stripe non configuré)." });
+        }
+
         const { amountInCents, creatorStripeAccountId, isSubscriptionPremium } = req.body;
 
         if (!amountInCents || !creatorStripeAccountId) {

@@ -295,7 +295,40 @@ export function InstagramDataInfoPage() {
       }
     >
       <Section>
-        <h2 className="text-lg font-bold text-white mb-3">1. Finalité de la connexion</h2>
+        <h2 className="text-lg font-bold text-white mb-3">1. Type de compte & API Meta</h2>
+        <P>
+          Graply s’appuie sur la <Em>plateforme Instagram</Em> pour les comptes <Em>professionnels</Em> Instagram
+          (profil Entreprise ou Créateur), comme le décrit la{' '}
+          <a
+            href="https://developers.facebook.com/docs/instagram-platform/overview"
+            className="text-emerald-400/90 underline underline-offset-2 hover:text-emerald-300"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            documentation Meta (Overview)
+          </a>
+          . Les comptes personnels classiques ne sont pas pris en charge par ce parcours API.
+        </P>
+        <P>
+          Le flux utilisé est la configuration <Em>Instagram API with Instagram Login</Em> (connexion avec tes
+          identifiants Instagram). Les requêtes vers les données du compte passent par l’hôte{' '}
+          <Em>graph.instagram.com</Em> (et non par le Graph Facebook réservé au scénario « Facebook Login » avec Page
+          liée). Pour le détail des autorisations et des produits à activer dans le Meta App Dashboard, voir la même
+          doc Overview et la page dédiée{' '}
+          <a
+            href="https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login"
+            className="text-emerald-400/90 underline underline-offset-2 hover:text-emerald-300"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Instagram API with Instagram Login
+          </a>
+          .
+        </P>
+      </Section>
+
+      <Section>
+        <h2 className="text-lg font-bold text-white mb-3">2. Finalité de la connexion</h2>
         <P>
           La connexion Instagram permet à Graply d’<Em>identifier ton compte créateur</Em>, d’afficher ton pseudo /
           handle sur ton profil, et, lorsque c’est activé dans l’app, de <Em>synchroniser des métadonnées de contenus</Em>{' '}
@@ -308,7 +341,7 @@ export function InstagramDataInfoPage() {
       </Section>
 
       <Section>
-        <h2 className="text-lg font-bold text-white mb-3">2. Données concernées</h2>
+        <h2 className="text-lg font-bold text-white mb-3">3. Données concernées</h2>
         <P>Selon les autorisations accordées lors de la connexion OAuth, peuvent être traitées notamment :</P>
         <BulletList
           items={[
@@ -324,7 +357,7 @@ export function InstagramDataInfoPage() {
       </Section>
 
       <Section>
-        <h2 className="text-lg font-bold text-white mb-3">3. Base légale & durée</h2>
+        <h2 className="text-lg font-bold text-white mb-3">4. Base légale & durée</h2>
         <P>
           Le traitement repose sur <Em>ton consentement</Em> lors de la connexion du compte et/ou sur l’exécution du
           service Graply (mise en relation marques / créateurs, suivi de campagnes).
@@ -336,7 +369,7 @@ export function InstagramDataInfoPage() {
       </Section>
 
       <Section>
-        <h2 className="text-lg font-bold text-white mb-3">4. Suppression des données utilisateur (Instagram)</h2>
+        <h2 className="text-lg font-bold text-white mb-3">5. Suppression des données utilisateur (Instagram)</h2>
         <P>
           Tu peux <Em>retirer l’accès Instagram</Em> depuis Graply (déconnexion du réseau social dans ton compte) : les
           jetons associés sont alors supprimés côté application et les synchronisations liées à Instagram sont
@@ -350,7 +383,7 @@ export function InstagramDataInfoPage() {
       </Section>
 
       <Section>
-        <h2 className="text-lg font-bold text-white mb-3">5. Le bouton « Supprimer mon compte »</h2>
+        <h2 className="text-lg font-bold text-white mb-3">6. Le bouton « Supprimer mon compte »</h2>
         <P>
           Le bouton <Em>« Supprimer mon compte »</Em> (à côté de « Se déconnecter » dans les paramètres) déclenche une{' '}
           <Em>suppression définitive</Em> de ton compte utilisateur Graply en base de données : profil, connexions

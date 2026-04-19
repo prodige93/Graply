@@ -9,10 +9,12 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/patch-netlify-redirects.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit -p tsconfig.app.json"
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "backend:install": "npm install --prefix backend",
+    "backend:dev": "npm run dev --prefix backend"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",

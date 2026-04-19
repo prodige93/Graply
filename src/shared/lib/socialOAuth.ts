@@ -41,18 +41,42 @@ function getRedirectUri(platform: SocialPlatform): string {
   return `${supabaseUrl}/storage/v1/object/public/oauth/redirect.html`;
 }
 
+/**
+ * Instagram Platform — parcours « Instagram API with Instagram Login » (Business Login for Instagram).
+ *
+ * Aligné sur l’Overview Meta : comptes **Instagram professionnels** (créateur ou entreprise) ; les appels
+ * Graph après obtention du jeton passent par **`graph.instagram.com`** (pas `graph.facebook.com`, réservé au
+ * Facebook Login for Business avec Page liée).
+ *
+ * Flux OAuth : `instagram.com/oauth/authorize` → code → échange côté serveur (`api.instagram.com/oauth/access_token`,
+ * puis jeton longue durée via `graph.instagram.com/access_token?grant_type=ig_exchange_token`). Jetons longue durée
+ * ~60 jours, rafraîchissables avant expiration (`refresh_access_token`).
+ *
+ * Scopes (doc Meta, permissions « Instagram login ») :
+ * - `instagram_business_basic` — profil + liste médias
+ * - `instagram_business_manage_insights` — Media Insights (vues, etc.) lorsque demandé à l’App Review
+ *
+ * @see https://developers.facebook.com/docs/instagram-platform/overview
+ * @see https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login
+ */
+/** Texte court pour l’UI (ex. Mon compte) — exigence Overview : compte professionnel. */
+export const INSTAGRAM_PRO_ACCOUNT_CONNECT_HINT =
+  'Compte Instagram professionnel requis (créateur ou entreprise).';
+
 export function buildInstagramOAuthUrl(): string {
   const clientId = import.meta.env.VITE_INSTAGRAM_CLIENT_ID;
   if (!clientId) throw new Error('VITE_INSTAGRAM_CLIENT_ID non configuré');
+  const scope =
+    import.meta.env.VITE_INSTAGRAM_OAUTH_SCOPES?.trim() ||
+    'instagram_business_basic,instagram_business_manage_insights';
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: getRedirectUri('instagram'),
     response_type: 'code',
-    scope: 'instagram_business_basic',
+    scope,
     state: oauthStateWithReturnOrigin('instagram'),
   });
-  // Doit être api.instagram.com (pas www.instagram.com) — sinon page « non disponible » côté Instagram
-  return `https://api.instagram.com/oauth/authorize?${params}`;
+  return `https://www.instagram.com/oauth/authorize?${params.toString()}`;
 }
 
 export function buildTikTokOAuthUrl(): string {

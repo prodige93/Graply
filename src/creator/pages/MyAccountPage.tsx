@@ -11,7 +11,7 @@ import Sidebar from '../components/Sidebar';
 import instagramIcon from '@/shared/assets/instagram-logo.svg';
 import youtubeIcon from '@/shared/assets/youtube-symbol.svg';
 import tiktokIcon from '@/shared/assets/tiktok.svg';
-import { type SocialPlatform, getSocialOAuthUrl } from '@/shared/lib/socialOAuth';
+import { type SocialPlatform, getSocialOAuthUrl, INSTAGRAM_PRO_ACCOUNT_CONNECT_HINT } from '@/shared/lib/socialOAuth';
 import TikTokConnectModal from '@/shared/components/TikTokConnectModal';
 import {
   PROFILE_USERNAME_DEFAULT_LABEL,
@@ -448,7 +448,14 @@ export default function MyAccountPage() {
                           ) : null}
                         </div>
                       ) : (
-                        <p className="text-xs text-white/30 mt-0.5">Non connecté</p>
+                        <>
+                          <p className="text-xs text-white/30 mt-0.5">Non connecté</p>
+                          {key === 'instagram' && (
+                            <p className="text-[11px] text-white/22 mt-1 leading-snug max-w-[14rem] sm:max-w-none">
+                              {INSTAGRAM_PRO_ACCOUNT_CONNECT_HINT}
+                            </p>
+                          )}
+                        </>
                       )}
                     </div>
 

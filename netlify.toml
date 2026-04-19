@@ -1,0 +1,10 @@
+# Netlify — build Vite + proxy /api vers Express (voir scripts/patch-netlify-redirects.mjs)
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Définir dans Netlify : Site settings → Environment variables
+# BACKEND_PUBLIC_URL = URL publique HTTPS du backend Node (Render, Fly, VPS, etc.), sans slash final.
+# Exemples : https://api.graply.io  ou  https://graply-backend.onrender.com
+#
+# Sans variable, le build utilise le défaut https://api.graply.io (à faire pointer vers ton Express).

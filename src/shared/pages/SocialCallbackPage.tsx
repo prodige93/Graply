@@ -59,12 +59,17 @@ export default function SocialCallbackPage() {
         return;
       }
 
-      setConnectedName(data?.username || '');
+      const payload = data as { username?: string } | null | undefined;
+      const uname =
+        typeof payload?.username === 'string' ? payload.username : '';
+      setConnectedName(uname);
       setStatus('success');
 
       const { data: userData } = await supabase.auth.getUser();
       const role = userData?.user?.user_metadata?.role;
-      const accountPath = role === 'enterprise' ? '/app-entreprise/mon-compte' : '/mon-compte';
+      // Créateurs : retour dashboard (synchro vidéos) ; entreprise : mon compte.
+      const accountPath =
+        role === 'enterprise' ? '/app-entreprise/mon-compte' : '/dashboard';
 
       setTimeout(() => {
         navigate(accountPath, { replace: true, state: { fromSocialOAuth: true } });

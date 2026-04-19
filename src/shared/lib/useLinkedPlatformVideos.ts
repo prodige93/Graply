@@ -11,6 +11,8 @@ export interface LinkedVideo {
   permalink: string;
   date: string;
   publishedAt: string;
+  /** Vues (Instagram / TikTok / YouTube) quand synchronisées */
+  viewCount?: number;
 }
 
 function formatShortDate(isoDate: string): string {
@@ -97,44 +99,50 @@ export function useLinkedPlatformVideos() {
     const merged: LinkedVideo[] = [];
 
     for (const m of igRows.data || []) {
-      const row = m as Record<string, string>;
-      const ts = row.timestamp;
+      const row = m as Record<string, unknown>;
+      const ts = String(row.timestamp);
+      const vc = row.view_count != null ? Number(row.view_count) : undefined;
       merged.push({
-        id: row.id,
+        id: String(row.id),
         platform: 'instagram',
-        title: truncateTitle(row.caption),
-        thumb: row.thumbnail_url || row.media_url,
-        permalink: row.permalink,
+        title: truncateTitle(row.caption != null ? String(row.caption) : null),
+        thumb: String(row.thumbnail_url || row.media_url || ''),
+        permalink: String(row.permalink),
         date: formatShortDate(ts),
         publishedAt: ts,
+        viewCount: Number.isFinite(vc) ? vc : undefined,
       });
     }
 
     for (const m of ttRows.data || []) {
-      const row = m as Record<string, string>;
-      const ts = row.timestamp;
+      const row = m as Record<string, unknown>;
+      const ts = String(row.timestamp);
+      const vc = row.view_count != null ? Number(row.view_count) : undefined;
       merged.push({
-        id: row.id,
+        id: String(row.id),
         platform: 'tiktok',
-        title: truncateTitle(row.title),
-        thumb: row.cover_url,
-        permalink: row.share_url,
+        title: truncateTitle(row.title != null ? String(row.title) : null),
+        thumb: String(row.cover_url || ''),
+        permalink: String(row.share_url),
         date: formatShortDate(ts),
         publishedAt: ts,
+        viewCount: Number.isFinite(vc) ? vc : undefined,
       });
     }
 
     for (const m of ytRows.data || []) {
-      const row = m as Record<string, string>;
-      const ts = row.published_at;
+      const row = m as Record<string, unknown>;
+      const ts = String(row.published_at);
+      const vc = row.view_count != null ? Number(row.view_count) : undefined;
       merged.push({
-        id: row.id,
+        id: String(row.id),
         platform: 'youtube',
-        title: truncateTitle(row.title),
-        thumb: row.thumbnail_url,
-        permalink: row.watch_url,
+        title: truncateTitle(row.title != null ? String(row.title) : null),
+        thumb: String(row.thumbnail_url || ''),
+        permalink: String(row.watch_url),
         date: formatShortDate(ts),
         publishedAt: ts,
+        viewCount: Number.isFinite(vc) ? vc : undefined,
       });
     }
 
