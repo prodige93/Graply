@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Megaphone, ChevronRight, Users, Trash2 } from 'lucide-react';
+import { Megaphone, Users, Trash2, RotateCcw } from 'lucide-react';
 import { useEnterpriseNavigate } from '@/enterprise/lib/useEnterpriseNavigate';
 import { supabase } from '@/shared/infrastructure/supabase';
 import GrapeLoader from '../GrapeLoader';
@@ -44,9 +44,10 @@ const glassCard: React.CSSProperties = {
 interface ActiveCampaignCardProps {
   campaign: Campaign;
   onDelete?: (id: string) => Promise<void>;
+  from?: string;
 }
 
-export default function ActiveCampaignCard({ campaign, onDelete }: ActiveCampaignCardProps) {
+export default function ActiveCampaignCard({ campaign, onDelete, from }: ActiveCampaignCardProps) {
   const navigate = useEnterpriseNavigate();
   const [creatorCount, setCreatorCount] = useState(0);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -54,6 +55,7 @@ export default function ActiveCampaignCard({ campaign, onDelete }: ActiveCampaig
   const totalBudget = parseFloat(campaign.budget.replace(/[^0-9.]/g, '')) || 0;
   const budgetLabel = totalBudget > 0 ? `$${totalBudget.toLocaleString()}` : campaign.budget;
   const contentType = campaign.content_type || '';
+  const isCompleted = campaign.status === 'completed';
 
   useEffect(() => {
     supabase
@@ -85,62 +87,21 @@ export default function ActiveCampaignCard({ campaign, onDelete }: ActiveCampaig
     <>
       <div className="relative group">
         <button
-          onClick={onNavigate}
-          className="w-full rounded-2xl overflow-hidden text-left transition-all duration-200 hover:scale-[1.005] flex flex-col"
+          onClick={isCompleted ? undefined : onNavigate}
+          className={`w-full rounded-2xl overflow-hidden text-left transition-all duration-200 flex flex-col ${isCompleted ? 'cursor-default' : 'hover:scale-[1.005]'}`}
           style={glassCard}
         >
           <div className="flex lg:flex-col items-stretch">
             <div className="relative w-28 sm:w-36 lg:w-full shrink-0 lg:h-36">
               {campaign.photo_url ? (
-                <img src={campaign.photo_url} alt={campaign.name} className="w-full h-full object-cover" />
+                <img src={campaign.photo_url} alt={campaign.name} className="w-full h-full object-cover" style={isCompleted ? { filter: 'grayscale(100%)' } : undefined} />
               ) : (
                 <div className="w-full h-full min-h-[112px] lg:min-h-0 flex items-center justify-center" style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}>
                   <Megaphone className="w-8 h-8 text-white/15" />
                 </div>
               )}
-              <div className="absolute inset-0 lg:hidden" style={{ background: 'linear-gradient(90deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
-              <div className="absolute inset-0 hidden lg:block" style={{ background: 'linear-gradient(180deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
-              <div className="hidden lg:flex absolute top-2.5 right-2.5 items-center" style={{ gap: 0 }}>
-                {campaign.platforms.filter((p) => platformIcons[p]).map((p, i, arr) => (
-                  <div
-                    key={p}
-                    style={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: 'rgba(20,20,28,0.72)',
-                      backdropFilter: 'blur(12px)',
-                      WebkitBackdropFilter: 'blur(12px)',
-                      border: '1px solid rgba(255,255,255,0.18)',
-                      boxShadow: '0 2px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)',
-                      marginLeft: i === 0 ? 0 : -8,
-                      zIndex: arr.length - i,
-                      position: 'relative' as const,
-                      transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                      cursor: 'default',
-                    }}
-                    onMouseEnter={(e) => {
-                      const el = e.currentTarget as HTMLDivElement;
-                      el.style.transform = 'translateY(-3px) scale(1.15)';
-                      el.style.boxShadow = '0 6px 20px rgba(255,255,255,0.15), 0 2px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15)';
-                      el.style.zIndex = '99';
-                      el.style.background = 'rgba(40,40,55,0.88)';
-                    }}
-                    onMouseLeave={(e) => {
-                      const el = e.currentTarget as HTMLDivElement;
-                      el.style.transform = 'translateY(0) scale(1)';
-                      el.style.boxShadow = '0 2px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)';
-                      el.style.zIndex = String(arr.length - i);
-                      el.style.background = 'rgba(20,20,28,0.72)';
-                    }}
-                  >
-                    <img src={platformIcons[p]} alt={p} style={{ width: 11, height: 11, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.9 }} />
-                  </div>
-                ))}
-              </div>
+              <div className="absolute inset-0 -right-px lg:hidden" style={{ background: 'linear-gradient(90deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
+              <div className="absolute inset-0 -bottom-px hidden lg:block" style={{ background: 'linear-gradient(180deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
               {onDelete && (
                 <button
                   onClick={(e) => { e.stopPropagation(); setConfirmOpen(true); }}
@@ -159,25 +120,16 @@ export default function ActiveCampaignCard({ campaign, onDelete }: ActiveCampaig
               )}
             </div>
 
-            <div className="flex-1 px-4 py-4 flex flex-col gap-2 min-w-0">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold text-white/35 uppercase tracking-widest mb-0.5">
-                    {campaign.categories[0] || 'Campagne'}
-                  </p>
-                  <h3 className="text-sm font-bold text-white leading-snug line-clamp-2">{campaign.name}</h3>
-                </div>
-                <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-white/50 transition-colors shrink-0 mt-0.5" />
-              </div>
-
-              <div className="flex items-center gap-2 lg:hidden">
-                <div className="flex items-center" style={{ gap: 0 }}>
+            <div className="flex-1 px-4 py-3 flex flex-col gap-2 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-[10px] text-white/30 shrink-0">{timeAgo(campaign.created_at)}</span>
+                <div className="flex items-center ml-auto shrink-0" style={{ gap: 0 }}>
                   {campaign.platforms.filter((p) => platformIcons[p]).map((p, i, arr) => (
                     <div
                       key={p}
                       style={{
-                        width: 22,
-                        height: 22,
+                        width: 24,
+                        height: 24,
                         borderRadius: '50%',
                         display: 'flex',
                         alignItems: 'center',
@@ -192,25 +144,56 @@ export default function ActiveCampaignCard({ campaign, onDelete }: ActiveCampaig
                         position: 'relative' as const,
                       }}
                     >
-                      <img src={platformIcons[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+                      <img src={platformIcons[p]} alt={p} style={{ width: 11, height: 11, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.9 }} />
                     </div>
                   ))}
                 </div>
-                {contentType && (
-                  <span className="px-2 py-0.5 rounded-full text-[9px] font-semibold" style={contentBadgeStyle}>
-                    {contentType}
-                  </span>
-                )}
-                <span className="text-[10px] text-white/30 ml-auto">{timeAgo(campaign.created_at)}</span>
               </div>
 
-              <div className="hidden lg:flex items-center gap-2">
-                {contentType && (
-                  <span className="px-2 py-0.5 rounded-full text-[9px] font-semibold" style={contentBadgeStyle}>
-                    {contentType}
-                  </span>
-                )}
-                <span className="text-[10px] text-white/30 ml-auto">{timeAgo(campaign.created_at)}</span>
+              <h3 className="text-[13px] font-bold text-white leading-snug line-clamp-2">{campaign.name}</h3>
+
+              <div className="flex items-center" style={{ gap: 0 }}>
+                {(() => {
+                  const tags: string[] = [];
+                  if (contentType) tags.push(contentType);
+                  campaign.categories.forEach((c) => { if (!tags.includes(c)) tags.push(c); });
+                  const outline = '2px solid rgba(10,10,15,1)';
+                  return tags.map((tag, i, arr) => {
+                    const lower = tag.toLowerCase();
+                    let tagStyle: React.CSSProperties;
+                    if (lower === 'clipping') {
+                      tagStyle = { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)', outline };
+                    } else if (lower === 'ugc') {
+                      tagStyle = { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)', outline };
+                    } else {
+                      tagStyle = { background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.15)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 8px rgba(0,0,0,0.2)', outline };
+                    }
+                    return (
+                      <span key={tag} className="px-2.5 py-0.5 rounded-full text-[9px] font-semibold tracking-wide" style={{ ...tagStyle, marginLeft: i === 0 ? 0 : -6, zIndex: arr.length + 1 - i, position: 'relative' }}>
+                        {tag}
+                      </span>
+                    );
+                  });
+                })()}
+                <div
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-full"
+                  style={{
+                    background: 'rgba(255,255,255,0.08)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 8px rgba(0,0,0,0.2)',
+                    outline: '2px solid rgba(10,10,15,1)',
+                    marginLeft: -6,
+                    zIndex: 0,
+                    position: 'relative',
+                  }}
+                >
+                  <svg viewBox="0 0 16 16" className="w-2.5 h-2.5 fill-current text-white/40">
+                    <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm5 6a5 5 0 0 0-10 0h10z" />
+                  </svg>
+                  <span className="text-[9px] font-semibold text-white">{creatorCount}</span>
+                </div>
               </div>
 
               <div className="grid grid-cols-3 gap-2 mt-1">
@@ -245,6 +228,21 @@ export default function ActiveCampaignCard({ campaign, onDelete }: ActiveCampaig
                   />
                 </div>
               </div>
+
+              {isCompleted && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    navigate(`/modifier-campagne/${campaign.id}`, { state: { from: from || '/mes-campagnes', reactivate: true } });
+                  }}
+                  className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 hover:scale-[1.02] active:scale-[0.97]"
+                  style={{ background: '#fff', color: '#000' }}
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Réactiver
+                </button>
+              )}
             </div>
           </div>
         </button>

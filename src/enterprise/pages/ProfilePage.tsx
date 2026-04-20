@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useEnterpriseNavigate } from '@/enterprise/lib/useEnterpriseNavigate';
-import { MessageCircle, Users, Megaphone, Globe, Camera, Lock, Unlock, Pencil, Check, ChevronDown, ArrowLeft, MessageSquareOff, MessageSquare, Bookmark, Plus, X } from 'lucide-react';
+import { MessageCircle, Users, Megaphone, Globe, Camera, Lock, Unlock, Pencil, Check, ChevronDown, ArrowLeft, MessageSquareOff, MessageSquare, Bookmark, Plus, X, CheckCircle } from 'lucide-react';
 import GrapeLoader from '../components/GrapeLoader';
 import { supabase } from '@/shared/infrastructure/supabase';
 import { useProfile } from '@/shared/lib/useProfile';
@@ -53,7 +53,7 @@ async function uploadFile(file: File, folder: string): Promise<string | null> {
 export default function ProfilePage() {
   const navigate = useEnterpriseNavigate();
   const { savedIds, toggle } = useSavedCampaigns();
-  const { campaigns, pausedCampaigns, drafts, loading, deleteDraft, deleteActiveCampaign } = useMyCampaigns();
+  const { campaigns, pausedCampaigns, completedCampaigns, drafts, loading, deleteDraft, deleteActiveCampaign } = useMyCampaigns();
   const [dbSavedCampaigns, setDbSavedCampaigns] = useState<CampaignData[]>([]);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -517,6 +517,7 @@ export default function ProfilePage() {
             {([
               { key: 'active' as const, label: 'Campagne en cours' },
               { key: 'paused' as const, label: 'En pause' },
+              { key: 'completed' as const, label: 'Terminé' },
               { key: 'saved' as const, label: 'Enregistrées' },
               { key: 'drafts' as const, label: 'Brouillons' },
             ]).map((tab) => {
@@ -602,6 +603,29 @@ export default function ProfilePage() {
                   <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
                     {pausedCampaigns.map((c) => (
                       <ActiveCampaignCard key={c.id} campaign={c} onDelete={deleteActiveCampaign} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {profileTab === 'completed' && (
+            <div className="pb-12">
+              {loading ? (
+                <div className="flex items-center justify-center py-16">
+                  <GrapeLoader size="md" />
+                </div>
+              ) : completedCampaigns.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <CheckCircle className="w-10 h-10 text-white/10 mb-3" />
+                  <p className="text-sm text-white/30">Aucune campagne terminée</p>
+                </div>
+              ) : (
+                <div className="mt-6">
+                  <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
+                    {completedCampaigns.map((c) => (
+                      <ActiveCampaignCard key={c.id} campaign={c} onDelete={deleteActiveCampaign} from="/profil" />
                     ))}
                   </div>
                 </div>

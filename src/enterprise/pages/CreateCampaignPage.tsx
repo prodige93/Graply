@@ -33,7 +33,9 @@ export default function CreateCampaignPage() {
   const location = useLocation();
   const { refresh } = useMyCampaigns();
   const isEditMode = location.pathname.includes('/modifier-campagne');
-  const backPath = (location.state as { from?: string })?.from || (isEditMode ? '/mes-campagnes' : '/');
+  const locationState = location.state as { from?: string; reactivate?: boolean } | null;
+  const isReactivation = locationState?.reactivate === true;
+  const backPath = locationState?.from || (isEditMode ? '/mes-campagnes' : '/');
   const [step, setStep] = useState(0);
   const [loadingCampaign, setLoadingCampaign] = useState(!!editId);
 
@@ -93,6 +95,9 @@ export default function CreateCampaignPage() {
         setRequireReview(data.require_review || false);
       }
       setLoadingCampaign(false);
+      if (isReactivation) {
+        setStep(1);
+      }
     };
     load();
   }, [editId]);
@@ -204,7 +209,7 @@ export default function CreateCampaignPage() {
     setPhotoPreview(null);
   }, [photo]);
 
-  const isPublishedEdit = isEditMode && !isDraft;
+  const isPublishedEdit = isEditMode && !isDraft && !isReactivation;
 
   const hasAnyInput = !!(
     name.trim() ||
@@ -344,15 +349,15 @@ export default function CreateCampaignPage() {
       <div className="max-w-[1440px] mx-auto px-4 lg:px-8 py-6 lg:py-10">
         <div className="flex items-center gap-4 mb-10">
           <button
-            onClick={() => !isEditMode && !hasAnyInput ? navigate(backPath) : setShowExitModal(true)}
+            onClick={() => isReactivation ? navigate(backPath) : (!isEditMode && !hasAnyInput ? navigate(backPath) : setShowExitModal(true))}
             className="flex items-center justify-center w-10 h-10 rounded-full hover:bg-white/10 transition-colors shrink-0"
           >
             <ArrowLeft className="w-5 h-5 text-white" />
           </button>
           <div className="flex-1">
             <h1 className="text-xl font-bold tracking-tight">
-              <span className="sm:hidden">{isEditMode ? 'Modifier votre campagne' : 'Creer une campagne'}</span>
-              <span className="hidden sm:inline">{isEditMode ? 'Modifier votre campagne' : 'Creation de votre nouvelle campagne'}</span>
+              <span className="sm:hidden">{isReactivation ? 'Réactiver la campagne' : isEditMode ? 'Modifier votre campagne' : 'Creer une campagne'}</span>
+              <span className="hidden sm:inline">{isReactivation ? 'Réactiver votre campagne' : isEditMode ? 'Modifier votre campagne' : 'Creation de votre nouvelle campagne'}</span>
             </h1>
             <p className="text-xs text-white/40 mt-1">Les champs marques d'un <span style={{ color: '#F97316' }}>*</span> sont obligatoires.</p>
           </div>
@@ -427,7 +432,7 @@ export default function CreateCampaignPage() {
             </div>
 
             <div className="flex items-center justify-between mt-8">
-              {(!isEditMode || isDraft) ? (
+              {(!isEditMode || isDraft || isReactivation) ? (
                 <div
                   className="rounded-xl transition-all duration-200 hover:bg-white/[0.03]"
                   style={{ border: '1px solid rgba(255,255,255,0.08)' }}
@@ -519,7 +524,7 @@ export default function CreateCampaignPage() {
                           </>
                         )}
                       </span>
-                      <span className="hidden sm:inline">{publishing ? (isEditMode ? 'Mise a jour...' : 'Publication...') : (isEditMode ? 'Enregistrer les modifications' : 'Publier la campagne')}</span>
+                      <span className="hidden sm:inline">{publishing ? (isEditMode && !isReactivation ? 'Mise a jour...' : 'Publication...') : (isEditMode && !isReactivation ? 'Enregistrer les modifications' : 'Publier la campagne')}</span>
                       <span className="sm:hidden">{publishing ? '' : 'Publier'}</span>
                     </button>
                   </div>
@@ -559,7 +564,7 @@ export default function CreateCampaignPage() {
               <X className="w-4 h-4 text-white/40" />
             </button>
 
-            {isEditMode && !isDraft ? (
+            {isEditMode && !isDraft && !isReactivation ? (
               <>
                 <h3 className="text-lg font-bold text-white mb-2">Quitter la modification ?</h3>
                 <p className="text-sm text-white/50 mb-8 leading-relaxed">

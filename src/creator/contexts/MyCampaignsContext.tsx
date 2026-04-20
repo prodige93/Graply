@@ -13,6 +13,7 @@ import type { PendingApplication } from '@/shared/lib/useCreatorCampaigns';
 interface MyCampaignsContextValue {
   activeCampaigns: CampaignData[];
   pausedCampaigns: CampaignData[];
+  completedCampaigns: CampaignData[];
   pendingApplications: PendingApplication[];
   loading: boolean;
   /** Recharge les campagnes / candidatures. `silent`: pas de reset `loading` (évite un flash au retour sur Mes campagnes). */
@@ -33,6 +34,7 @@ function firstPlatformRateLabel(c: SupabaseCampaign): string {
 export function MyCampaignsProvider({ children }: { children: ReactNode }) {
   const [activeCampaigns, setActiveCampaigns] = useState<CampaignData[]>([]);
   const [pausedCampaigns, setPausedCampaigns] = useState<CampaignData[]>([]);
+  const [completedCampaigns, setCompletedCampaigns] = useState<CampaignData[]>([]);
   const [pendingApplications, setPendingApplications] = useState<PendingApplication[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -43,6 +45,7 @@ export function MyCampaignsProvider({ children }: { children: ReactNode }) {
     if (!user) {
       setActiveCampaigns([]);
       setPausedCampaigns([]);
+      setCompletedCampaigns([]);
       setPendingApplications([]);
       setLoading(false);
       return;
@@ -70,7 +73,7 @@ export function MyCampaignsProvider({ children }: { children: ReactNode }) {
     for (const row of acceptedRows) {
       const c = row.campaigns!;
       if (seenCampaign.has(c.id)) continue;
-      if (c.status !== 'published' && c.status !== 'paused') continue;
+      if (c.status !== 'published' && c.status !== 'paused' && c.status !== 'completed') continue;
       seenCampaign.add(c.id);
       acceptedCampaignsRaw.push(c);
     }
@@ -78,8 +81,10 @@ export function MyCampaignsProvider({ children }: { children: ReactNode }) {
     const enrichedAccepted = await enrichCampaignsWithProfiles(acceptedCampaignsRaw);
     const published = enrichedAccepted.filter((c) => c.status === 'published');
     const paused = enrichedAccepted.filter((c) => c.status === 'paused');
+    const completed = enrichedAccepted.filter((c) => c.status === 'completed');
     setActiveCampaigns(published.map(mapSupabaseCampaign));
     setPausedCampaigns(paused.map(mapSupabaseCampaign));
+    setCompletedCampaigns(completed.map(mapSupabaseCampaign));
 
     const pendingRows = ((pendingRes.data ?? []) as JoinRow[]).filter((r) => r.campaigns);
     const pendingCampaignsRaw = pendingRows.map((r) => r.campaigns!);
@@ -125,6 +130,7 @@ export function MyCampaignsProvider({ children }: { children: ReactNode }) {
       } else {
         setActiveCampaigns([]);
         setPausedCampaigns([]);
+        setCompletedCampaigns([]);
         setPendingApplications([]);
         setLoading(false);
       }
@@ -136,6 +142,7 @@ export function MyCampaignsProvider({ children }: { children: ReactNode }) {
       } else {
         setActiveCampaigns([]);
         setPausedCampaigns([]);
+        setCompletedCampaigns([]);
         setPendingApplications([]);
         setLoading(false);
       }
@@ -167,7 +174,7 @@ export function MyCampaignsProvider({ children }: { children: ReactNode }) {
 
   return (
     <MyCampaignsContext.Provider
-      value={{ activeCampaigns, pausedCampaigns, pendingApplications, loading, refresh }}
+      value={{ activeCampaigns, pausedCampaigns, completedCampaigns, pendingApplications, loading, refresh }}
     >
       {children}
     </MyCampaignsContext.Provider>
