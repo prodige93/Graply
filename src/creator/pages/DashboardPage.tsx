@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect, useCallback, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { DollarSign, TrendingUp, ArrowUpRight, Play, X, ArrowDownLeft, ExternalLink, Loader2, CalendarDays } from 'lucide-react';
+import { DollarSign, TrendingUp, ArrowUpRight, Play, X, ArrowDownLeft, ExternalLink, Loader2, CalendarDays, Eye } from 'lucide-react';
 import { supabase } from '@/shared/infrastructure/supabase';
 import { useLinkedPlatformVideos, type LinkedVideo } from '@/shared/lib/useLinkedPlatformVideos';
 import { useSocialConnections, type DashboardSocialPlatform } from '@/shared/lib/useSocialConnections';
@@ -33,14 +33,20 @@ function inDateRange(t: number, start: Date, end: Date): boolean {
   return t >= start.getTime() && t <= end.getTime();
 }
 
-/** Graphique : nombre de vidéos synchronisées par période (Instagram + TikTok + YouTube) */
+/**
+ * Graphique : somme des vues par période (Instagram + TikTok + YouTube).
+ * Vues issues de `view_count` remonté par les RPC `sync_*_videos`.
+ * Instagram : métrique `views` / `video_views` (Insights API — délai possible jusqu'à 48 h).
+ */
 function buildActivityChartPoints(
   period: string,
-  videos: { publishedAt: string }[],
+  videos: { publishedAt: string; viewCount?: number }[],
 ): { label: string; views: number; earned: number }[] {
   const now = new Date();
-  const countIn = (start: Date, end: Date) =>
-    videos.filter((v) => inDateRange(new Date(v.publishedAt).getTime(), start, end)).length;
+  const sumViewsIn = (start: Date, end: Date) =>
+    videos
+      .filter((v) => inDateRange(new Date(v.publishedAt).getTime(), start, end))
+      .reduce((s, v) => s + (Number.isFinite(v.viewCount) ? (v.viewCount as number) : 0), 0);
 
   if (period === 'all' || period === '6m') {
     return Array.from({ length: 6 }, (_, i) => {
@@ -48,7 +54,7 @@ function buildActivityChartPoints(
       const start = new Date(d.getFullYear(), d.getMonth(), 1);
       const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
       const label = i === 5 ? MONTH_NAMES[now.getMonth()] : MONTH_NAMES[d.getMonth()];
-      return { label, views: countIn(start, end), earned: 0 };
+      return { label, views: sumViewsIn(start, end), earned: 0 };
     });
   }
 
@@ -61,7 +67,7 @@ function buildActivityChartPoints(
       const end = new Date(d);
       end.setHours(23, 59, 59, 999);
       const label = i === 6 ? 'Auj.' : DAY_NAMES[d.getDay()] + ' ' + d.getDate();
-      return { label, views: countIn(start, end), earned: 0 };
+      return { label, views: sumViewsIn(start, end), earned: 0 };
     });
   }
 
@@ -74,7 +80,7 @@ function buildActivityChartPoints(
       start.setDate(start.getDate() - 6);
       start.setHours(0, 0, 0, 0);
       const label = i === 3 ? 'Auj.' : `${end.getDate()} ${MONTH_NAMES[end.getMonth()]}`;
-      return { label, views: countIn(start, end), earned: 0 };
+      return { label, views: sumViewsIn(start, end), earned: 0 };
     });
   }
 
@@ -84,7 +90,7 @@ function buildActivityChartPoints(
       const start = new Date(d.getFullYear(), d.getMonth(), 1);
       const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
       const label = i === 2 ? MONTH_NAMES[now.getMonth()] : MONTH_NAMES[d.getMonth()];
-      return { label, views: countIn(start, end), earned: 0 };
+      return { label, views: sumViewsIn(start, end), earned: 0 };
     });
   }
 
@@ -224,6 +230,7 @@ export default function DashboardPage() {
   const [tablePlatform, setTablePlatform] = useState<string | null>(null);
   const [tableSort, setTableSort] = useState<{ key: 'date'; dir: 'desc' | 'asc' } | null>(null);
   const [filterPlatform, setFilterPlatform] = useState<string | null>(null);
+  const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
   const chartRef = useRef<HTMLDivElement>(null);
 
   const videosForChart = useMemo(
@@ -783,11 +790,10 @@ export default function DashboardPage() {
               {!linkedLoading && dashboardVideos.length > 0 && (
                 <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
                   {filteredVideos.map((video, i) => (
-                    <a
+                    <button
                       key={video.id}
-                      href={video.permalink}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      type="button"
+                      onClick={() => setSelectedVideoId(video.id)}
                       className="w-full flex items-center gap-4 px-5 py-4 transition-all duration-200 text-left hover:bg-white/[0.03]"
                       style={{ background: 'transparent', borderLeft: '2px solid transparent' }}
                     >
@@ -818,7 +824,7 @@ export default function DashboardPage() {
                       <div className="shrink-0">
                         <ExternalLink className="w-4 h-4 text-white/20" />
                       </div>
-                    </a>
+                    </button>
                   ))}
                 </div>
               )}
@@ -827,6 +833,104 @@ export default function DashboardPage() {
 
         </div>
       </div>
+
+      {selectedVideoId && (() => {
+        const v = dashboardVideos.find((x) => x.id === selectedVideoId);
+        if (!v) return null;
+        const publishedLabel = new Date(v.publishedAt).toLocaleDateString('fr-FR', {
+          day: '2-digit', month: 'long', year: 'numeric',
+        });
+        const platformLabel = platformNames[v.platform] || v.platform;
+        return (
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center px-4"
+            style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)' }}
+            onClick={() => setSelectedVideoId(null)}
+          >
+            <div
+              className="relative w-full max-w-md rounded-2xl overflow-hidden"
+              style={{
+                background: '#121014',
+                border: '1px solid rgba(255,255,255,0.12)',
+                boxShadow: '0 24px 80px rgba(0,0,0,0.65)',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                aria-label="Fermer"
+                onClick={() => setSelectedVideoId(null)}
+                className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors"
+                style={{ background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.15)' }}
+              >
+                <X className="w-4 h-4 text-white/80" />
+              </button>
+
+              <div className="relative h-44 w-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                {v.thumb ? (
+                  <img src={v.thumb} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Play className="w-10 h-10 text-white/20" />
+                  </div>
+                )}
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(18,16,20,0.95) 0%, rgba(18,16,20,0.35) 55%, rgba(18,16,20,0) 100%)' }} />
+                <div className="absolute bottom-3 left-4 right-4 flex items-center gap-2">
+                  {platformIcons[v.platform] && (
+                    <img src={platformIcons[v.platform]} alt={platformLabel} className="w-5 h-5" />
+                  )}
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-white/80">{platformLabel}</span>
+                </div>
+              </div>
+
+              <div className="px-5 pt-4 pb-5 space-y-4">
+                <div>
+                  <p className="text-base font-bold text-white leading-snug">{v.title}</p>
+                  <p className="text-xs text-white/40 mt-1">Publiée le {publishedLabel}</p>
+                </div>
+
+                <div
+                  className="rounded-xl px-4 py-3 flex items-center gap-3"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                >
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center"
+                    style={{ background: 'rgba(255,120,42,0.15)', border: '1px solid rgba(255,120,42,0.35)' }}
+                  >
+                    <Eye className="w-4 h-4" style={{ color: '#FF782A' }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Vues</p>
+                    <p className="text-xl font-black text-white tabular-nums leading-tight">
+                      {v.viewCount != null ? v.viewCount.toLocaleString('fr-FR') : '—'}
+                    </p>
+                  </div>
+                  {v.viewCount == null && (
+                    <span className="text-[10px] text-white/35 max-w-[120px] text-right leading-tight">
+                      Données d'insights indisponibles pour ce média.
+                    </span>
+                  )}
+                </div>
+
+                <a
+                  href={v.permalink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-black transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+                  style={{ background: '#fff' }}
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Ouvrir sur {platformLabel}
+                </a>
+
+                <p className="text-[10px] text-white/30 leading-relaxed text-center">
+                  Les vues {platformLabel} viennent de l'API officielle de la plateforme. Un délai jusqu'à 48 h est possible avant que les dernières vues apparaissent.
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
