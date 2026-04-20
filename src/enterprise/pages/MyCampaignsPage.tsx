@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useEnterpriseNavigate } from '@/enterprise/lib/useEnterpriseNavigate';
-import { Plus, Megaphone, Search, ChevronDown, Check, X, Bookmark } from 'lucide-react';
+import { Plus, Megaphone, Search, ChevronDown, Check, X, Bookmark, CheckCircle } from 'lucide-react';
 import { supabase } from '@/shared/infrastructure/supabase';
 import { useSavedCampaigns } from '@/enterprise/contexts/SavedCampaignsContext';
 import { useMyCampaigns } from '@/enterprise/contexts/MyCampaignsContext';
 import { useCampaignTab } from '@/enterprise/contexts/CampaignTabContext';
-import { campaigns as allCampaignsData, sponsoredCampaigns } from '@/shared/data/campaignsData';
-import CampaignCard from '../components/CampaignCard';
+import CampaignCard, { type CampaignData } from '../components/CampaignCard';
+import { resolveSavedCampaignsList } from '@/shared/lib/resolveSavedCampaignsList';
 import ActiveCampaignCard from '../components/campaign-cards/ActiveCampaignCard';
 import DraftCard from '../components/campaign-cards/DraftCard';
 import PendingCheckoutCard from '../components/campaign-cards/PendingCheckoutCard';
@@ -24,12 +24,11 @@ const contentOptions = ['Gaming', 'Produit', 'Personal Brand', 'Technologie', 'C
 const BUDGET_MIN = 0;
 const BUDGET_MAX = 10000;
 
-const allCampaignsList = [...allCampaignsData, ...sponsoredCampaigns];
-
 export default function MyCampaignsPage() {
   const navigate = useEnterpriseNavigate();
   const { savedIds, toggle } = useSavedCampaigns();
-  const { campaigns, pendingCheckout, pausedCampaigns, drafts, loading, deleteDraft, deleteActiveCampaign } = useMyCampaigns();
+  const { campaigns, pausedCampaigns, completedCampaigns, drafts, loading, deleteDraft, deleteActiveCampaign } = useMyCampaigns();
+  const [dbSavedCampaigns, setDbSavedCampaigns] = useState<CampaignData[]>([]);
   const { tab: activeTab, setTab: setActiveTab } = useCampaignTab();
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -102,14 +101,20 @@ export default function MyCampaignsPage() {
 
   const filteredPaused = useMemo(() => pausedCampaigns.filter(filterCampaign), [pausedCampaigns, searchQuery, selectedCategory, selectedContent, budgetMin, budgetMax, selectedPlatforms]);
 
+  const filteredCompleted = useMemo(() => completedCampaigns.filter(filterCampaign), [completedCampaigns, searchQuery, selectedCategory, selectedContent, budgetMin, budgetMax, selectedPlatforms]);
+
   const filteredDrafts = useMemo(() => drafts.filter(filterCampaign), [drafts, searchQuery, selectedCategory, selectedContent, budgetMin, budgetMax, selectedPlatforms]);
 
-  const filteredPending = useMemo(
-    () => pendingCheckout.filter(filterCampaign),
-    [pendingCheckout, searchQuery, selectedCategory, selectedContent, budgetMin, budgetMax, selectedPlatforms],
-  );
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const list = await resolveSavedCampaignsList(savedIds);
+      if (!cancelled) setDbSavedCampaigns(list as CampaignData[]);
+    })();
+    return () => { cancelled = true; };
+  }, [savedIds]);
 
-  const savedCampaignsList = allCampaignsList.filter((c) => savedIds.includes(c.id));
+  const savedCampaignsList = dbSavedCampaigns;
 
   const filteredSaved = useMemo(() => {
     return savedCampaignsList.filter((c) => {
@@ -145,11 +150,7 @@ export default function MyCampaignsPage() {
     setOpenDropdown(null);
   };
 
-  const hasCampaigns =
-    campaigns.length > 0 ||
-    pendingCheckout.length > 0 ||
-    pausedCampaigns.length > 0 ||
-    drafts.length > 0;
+  const hasCampaigns = campaigns.length > 0 || pausedCampaigns.length > 0 || completedCampaigns.length > 0 || drafts.length > 0;
 
   const handleDeleteDraft = async (draftId: string) => {
     const { error } = await supabase
@@ -201,6 +202,7 @@ export default function MyCampaignsPage() {
             { key: 'active' as const, label: 'Campagne en cours' },
             { key: 'pending_payment' as const, label: 'Paiement' },
             { key: 'paused' as const, label: 'En pause' },
+            { key: 'completed' as const, label: 'Terminé' },
             { key: 'saved' as const, label: 'Enregistrees' },
             { key: 'drafts' as const, label: 'Brouillons' },
           ]).map((tab) => {
@@ -227,7 +229,7 @@ export default function MyCampaignsPage() {
         <div className="w-full h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
       </div>
 
-      {!loading && (
+      {hasCampaigns && (
         <>
           <div className="sm:hidden flex items-center gap-2 px-4 pt-5">
             <div className="relative flex-1">
@@ -561,6 +563,26 @@ export default function MyCampaignsPage() {
               ) : (
                 <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
                   {filteredPaused.map((c) => (
+                    <ActiveCampaignCard key={c.id} campaign={c} onDelete={deleteActiveCampaign} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'completed' && (
+            <div className="px-4 sm:px-6 mt-4 sm:mt-10 pb-12">
+              {filteredCompleted.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                  <CheckCircle className="w-10 h-10 text-white/10 mb-3" />
+                  <p className="text-white/40 text-sm font-medium">Aucune campagne terminée</p>
+                  {hasAnyFilter && (
+                    <p className="text-white/20 text-xs mt-1">Essayez de modifier vos filtres</p>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
+                  {filteredCompleted.map((c) => (
                     <ActiveCampaignCard key={c.id} campaign={c} onDelete={deleteActiveCampaign} />
                   ))}
                 </div>

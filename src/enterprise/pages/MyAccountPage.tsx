@@ -1,15 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useEnterpriseNavigate } from '@/enterprise/lib/useEnterpriseNavigate';
-import { Camera, Pencil, Check, Shield, ChevronLeft, ChevronRight, Unlink, Loader2, FileText, ExternalLink, Trash2 } from 'lucide-react';
-import ttIcon from '@/shared/assets/tiktok.svg';
+import { Camera, Pencil, Check, Shield, ChevronLeft, ChevronRight, Unlink, Loader2 } from 'lucide-react';
+import ttIcon from '@/shared/assets/tiktok-color.svg';
 import instaIcon from '@/shared/assets/instagram-logo.svg';
 import symbolIcon from '@/shared/assets/youtube-symbol.svg';
 import GrapeLoader from '../components/GrapeLoader';
 import certificationBtn from '@/shared/assets/certification-button-bg.svg';
 import { supabase } from '@/shared/infrastructure/supabase';
 import { useProfile } from '@/shared/lib/useProfile';
-import { useSocialConnections, type DashboardSocialPlatform } from '@/shared/lib/useSocialConnections';
 import jentrepriseIcon from '@/shared/assets/badge-enterprise-verified.png';
 import iphone17Img from '@/shared/assets/hero-slide-iphone17.jpeg';
 import bo7Img from '@/shared/assets/hero-slide-bo7.jpeg';
@@ -34,9 +33,11 @@ type SocialKey = SocialPlatform;
 
 const DEFAULT_BANNER = 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=1200';
 
-async function uploadFile(file: File, folder: string, ownerId: string): Promise<string | null> {
+async function uploadFile(file: File, folder: string): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
   const ext = file.name.split('.').pop();
-  const fileName = `${folder}/${ownerId}-${Date.now()}.${ext}`;
+  const fileName = `${folder}/${user.id}-${Date.now()}.${ext}`;
   const { error } = await supabase.storage.from('avatars').upload(fileName, file, { upsert: true, contentType: file.type });
   if (error) {
     console.error('Upload error:', error.message);
@@ -156,14 +157,11 @@ export default function MyAccountPage() {
     const localPreview = URL.createObjectURL(file);
     updateProfile({ avatar_url: localPreview });
     setUploadingAvatar(true);
-    const url = await uploadFile(file, 'profile-pics', userId);
-    if (url) {
-      const { error } = await supabase.from('profiles').update({ avatar_url: url, updated_at: new Date().toISOString() }).eq('id', userId);
-      if (error) {
-        alert(`Impossible d’enregistrer la photo : ${error.message}`);
-      } else {
-        updateProfile({ avatar_url: url });
-      }
+    const url = await uploadFile(file, 'profile-pics');
+    const { data: { user } } = await supabase.auth.getUser();
+    if (url && user?.id) {
+      await supabase.from('profiles').update({ avatar_url: url, updated_at: new Date().toISOString() }).eq('id', user.id);
+      updateProfile({ avatar_url: url });
     }
     setUploadingAvatar(false);
     e.target.value = '';
@@ -175,14 +173,11 @@ export default function MyAccountPage() {
     const localPreview = URL.createObjectURL(file);
     updateProfile({ banner_url: localPreview });
     setUploadingBanner(true);
-    const url = await uploadFile(file, 'banners', userId);
-    if (url) {
-      const { error } = await supabase.from('profiles').update({ banner_url: url, updated_at: new Date().toISOString() }).eq('id', userId);
-      if (error) {
-        alert(`Impossible d’enregistrer la bannière : ${error.message}`);
-      } else {
-        updateProfile({ banner_url: url });
-      }
+    const url = await uploadFile(file, 'banners');
+    const { data: { user } } = await supabase.auth.getUser();
+    if (url && user?.id) {
+      await supabase.from('profiles').update({ banner_url: url, updated_at: new Date().toISOString() }).eq('id', user.id);
+      updateProfile({ banner_url: url });
     }
     setUploadingBanner(false);
     e.target.value = '';
@@ -199,12 +194,10 @@ export default function MyAccountPage() {
   }
 
   async function saveBio() {
-    if (!userId) {
-      alert('Session non chargée. Réessaie dans un instant.');
-      return;
-    }
+    if (!profile?.id) return;
     setSavingBio(true);
-    const { error } = await supabase.from('profiles').update({ bio: newBio.trim(), updated_at: new Date().toISOString() }).eq('id', userId);
+    await supabase.from('profiles').update({ bio: newBio.trim(), updated_at: new Date().toISOString() }).eq('id', profile.id);
+    updateProfile({ bio: newBio.trim() });
     setSavingBio(false);
     if (error) {
       alert(`Impossible d’enregistrer la description : ${error.message}`);
@@ -220,27 +213,10 @@ export default function MyAccountPage() {
       setEditingUsername(false);
       return;
     }
-    const next = newUsername.trim();
-    if (!next) {
-      setEditingUsername(false);
-      return;
-    }
-    const stored = profile?.username ?? '';
-    if (next === stored) {
-      setEditingUsername(false);
-      return;
-    }
-    if (isAutoGeneratedProfileUsername(stored) && next === PROFILE_USERNAME_DEFAULT_LABEL) {
-      setEditingUsername(false);
-      return;
-    }
-    const { data: other } = await supabase.from('profiles').select('id').eq('username', next).maybeSingle();
-    if (other && other.id !== userId) {
-      alert(PROFILE_USERNAME_TAKEN_MESSAGE);
-      return;
-    }
+    if (!profile?.id) return;
     setSavingUsername(true);
-    const { error } = await supabase.from('profiles').update({ username: next, updated_at: new Date().toISOString() }).eq('id', userId);
+    await supabase.from('profiles').update({ username: newUsername.trim(), updated_at: new Date().toISOString() }).eq('id', profile.id);
+    updateProfile({ username: newUsername.trim() });
     setSavingUsername(false);
     if (error) {
       alert(profileUsernameSaveErrorMessage(error));

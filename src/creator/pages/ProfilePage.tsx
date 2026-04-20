@@ -1,17 +1,16 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MessageCircle, Megaphone, Camera, Lock, Unlock, Pencil, Check, ChevronDown, ArrowLeft, MessageSquareOff, MessageSquare, Bookmark, Plus, X, Star, Eye, EyeOff, Video, CheckCircle, Clock, ChevronRight, Hourglass, Trash2, AlertTriangle } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import GrapeLoader from '../components/GrapeLoader';
 import { supabase } from '@/shared/infrastructure/supabase';
 import { useProfile } from '@/shared/lib/useProfile';
-import { profileUsernameDisplayLabel } from '@/shared/lib/profileUsername';
 import { useSavedCampaigns } from '@/creator/contexts/SavedCampaignsContext';
 import { useCampaignTab, type CampaignTab } from '@/creator/contexts/CampaignTabContext';
-import { type CreatorCampaign, type PendingApplication } from '@/shared/lib/useCreatorCampaigns';
+import type { CreatorCampaign, PendingApplication } from '@/shared/lib/useCreatorCampaigns';
 import { useMyCampaigns } from '@/creator/contexts/MyCampaignsContext';
-import { campaigns as allCampaignsData, sponsoredCampaigns } from '@/shared/data/campaignsData';
-import { mapSupabaseCampaign, enrichCampaignsWithProfiles } from '@/shared/lib/mapSupabaseCampaign';
+import { resolveSavedCampaignsList } from '@/shared/lib/resolveSavedCampaignsList';
+import { HIDE_ALL_RECENT_CAMPAIGNS_PUBLIC_KEY } from '@/shared/lib/hiddenProfileKeys';
 import type { CampaignData } from '../components/CampaignCard';
 import CampaignCard from '../components/CampaignCard';
 import SavedCampaignCard from '../components/campaign-cards/SavedCampaignCard';
@@ -19,9 +18,9 @@ import bcreateurbadge from '@/shared/assets/badge-creator-verified.png';
 import instagramIcon from '@/shared/assets/instagram-logo.svg';
 import youtubeIcon from '@/shared/assets/youtube-color.svg';
 import youtubeCardIcon from '@/shared/assets/youtube.svg';
-import tiktokIcon from '@/shared/assets/tiktok.svg';
+import tiktokIcon from '@/shared/assets/tiktok-color.svg';
 import instagramCardIcon from '@/shared/assets/instagram-card.svg';
-import tiktokCardIcon from '@/shared/assets/tiktok.svg';
+import tiktokCardIcon from '@/shared/assets/tiktok-color.svg';
 
 const DEFAULT_BANNER = 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=1200';
 
@@ -63,7 +62,6 @@ function getSocialUrl(platform: string, handle: string): string | null {
   return `${platformBaseUrls[platform]}${clean}`;
 }
 
-
 const CATEGORY_OPTIONS = ['UGC', 'Clipping'];
 const CATEGORY_COLORS: Record<string, string> = {
   UGC: '#FA51E6',
@@ -76,9 +74,11 @@ const AVAILABLE_TAGS = [
   'Business', 'Education', 'Art', 'Photographie', 'Automobile', 'Sante',
 ];
 
-async function uploadFile(file: File, folder: string, ownerId: string): Promise<string | null> {
+async function uploadFile(file: File, folder: string): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
   const ext = file.name.split('.').pop();
-  const fileName = `${folder}/${ownerId}-${Date.now()}.${ext}`;
+  const fileName = `${folder}/${user.id}-${Date.now()}.${ext}`;
   const { error } = await supabase.storage.from('avatars').upload(fileName, file, {
     upsert: true,
     contentType: file.type,
@@ -93,7 +93,13 @@ async function uploadFile(file: File, folder: string, ownerId: string): Promise<
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { savedIds, toggle } = useSavedCampaigns();
-  const { activeCampaigns: dbActive, pausedCampaigns: dbPaused, pendingApplications, loading: campaignsLoading } = useMyCampaigns();
+  const {
+    activeCampaigns: dbActive,
+    pausedCampaigns: dbPaused,
+    pendingApplications,
+    loading: campaignsLoading,
+    refresh: refreshMyCampaigns,
+  } = useMyCampaigns();
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
@@ -128,14 +134,14 @@ export default function ProfilePage() {
   }
 
   async function saveProfile() {
-    if (!userId) return;
+    if (!profile?.id) return;
     setSavingProfile(true);
     await supabase.from('profiles').update({
       bio: editBio,
       content_tags: editTags,
       content_type: editContentType,
       updated_at: new Date().toISOString(),
-    }).eq('id', userId);
+    }).eq('id', profile.id);
     updateProfile({ bio: editBio, content_tags: editTags, content_type: editContentType });
     setSavingProfile(false);
     setEditing(false);
@@ -154,17 +160,12 @@ export default function ProfilePage() {
   }
 
   useEffect(() => {
-    if (savedIds.length === 0) { setDbSavedCampaigns([]); return; }
-    const allPool = [...allCampaignsData, ...sponsoredCampaigns];
-    const fetchSaved = async () => {
-      const { data } = await supabase.from('campaigns').select('*').in('id', savedIds);
-      const enriched = await enrichCampaignsWithProfiles(data ?? []);
-      const dbMapped = enriched.map(mapSupabaseCampaign);
-      const staticMapped = allPool.filter((c) => savedIds.includes(c.id));
-      const allIds = new Set(dbMapped.map((c) => c.id));
-      setDbSavedCampaigns([...dbMapped, ...staticMapped.filter((c) => !allIds.has(c.id))]);
-    };
-    fetchSaved();
+    let cancelled = false;
+    (async () => {
+      const list = await resolveSavedCampaignsList(savedIds);
+      if (!cancelled) setDbSavedCampaigns(list);
+    })();
+    return () => { cancelled = true; };
   }, [savedIds]);
 
   const activeCampaigns = [...dbActive, ...dbPaused];
@@ -189,9 +190,10 @@ export default function ProfilePage() {
     const localPreview = URL.createObjectURL(file);
     updateProfile({ avatar_url: localPreview });
     setUploadingAvatar(true);
-    const url = await uploadFile(file, 'profile-pics', userId);
-    if (url) {
-      await supabase.from('profiles').update({ avatar_url: url, updated_at: new Date().toISOString() }).eq('id', userId);
+    const url = await uploadFile(file, 'profile-pics');
+    const { data: { user } } = await supabase.auth.getUser();
+    if (url && user?.id) {
+      await supabase.from('profiles').update({ avatar_url: url, updated_at: new Date().toISOString() }).eq('id', user.id);
       updateProfile({ avatar_url: url });
     }
     setUploadingAvatar(false);
@@ -204,9 +206,10 @@ export default function ProfilePage() {
     const localPreview = URL.createObjectURL(file);
     updateProfile({ banner_url: localPreview });
     setUploadingBanner(true);
-    const url = await uploadFile(file, 'banners', userId);
-    if (url) {
-      await supabase.from('profiles').update({ banner_url: url, updated_at: new Date().toISOString() }).eq('id', userId);
+    const url = await uploadFile(file, 'banners');
+    const { data: { user } } = await supabase.auth.getUser();
+    if (url && user?.id) {
+      await supabase.from('profiles').update({ banner_url: url, updated_at: new Date().toISOString() }).eq('id', user.id);
       updateProfile({ banner_url: url });
     }
     setUploadingBanner(false);
@@ -217,7 +220,7 @@ export default function ProfilePage() {
     if (!profile || !userId) return;
     setTogglingVisibility(true);
     const newValue = !profile.is_public;
-    await supabase.from('profiles').update({ is_public: newValue, updated_at: new Date().toISOString() }).eq('id', userId);
+    await supabase.from('profiles').update({ is_public: newValue, updated_at: new Date().toISOString() }).eq('id', profile.id);
     updateProfile({ is_public: newValue });
     setTogglingVisibility(false);
   }
@@ -226,7 +229,7 @@ export default function ProfilePage() {
     if (!profile || !userId) return;
     setTogglingMessaging(true);
     const newValue = !profile.messaging_enabled;
-    await supabase.from('profiles').update({ messaging_enabled: newValue, updated_at: new Date().toISOString() }).eq('id', userId);
+    await supabase.from('profiles').update({ messaging_enabled: newValue, updated_at: new Date().toISOString() }).eq('id', profile.id);
     updateProfile({ messaging_enabled: newValue });
     setTogglingMessaging(false);
   }
@@ -235,13 +238,14 @@ export default function ProfilePage() {
 
   const hiddenStats = profile?.hidden_stats || [];
   const hiddenCampaigns = profile?.hidden_campaigns || [];
+  const hideAllRecentCampaignsPublic = hiddenStats.includes(HIDE_ALL_RECENT_CAMPAIGNS_PUBLIC_KEY);
 
   async function toggleHiddenStat(key: string) {
     if (!profile || !userId) return;
     const current = profile.hidden_stats || [];
     const next = current.includes(key) ? current.filter((k) => k !== key) : [...current, key];
     updateProfile({ hidden_stats: next });
-    await supabase.from('profiles').update({ hidden_stats: next, updated_at: new Date().toISOString() }).eq('id', userId);
+    await supabase.from('profiles').update({ hidden_stats: next, updated_at: new Date().toISOString() }).eq('id', profile.id);
   }
 
   async function toggleHiddenCampaign(campaignId: string) {
@@ -249,7 +253,7 @@ export default function ProfilePage() {
     const current = profile.hidden_campaigns || [];
     const next = current.includes(campaignId) ? current.filter((k) => k !== campaignId) : [...current, campaignId];
     updateProfile({ hidden_campaigns: next });
-    await supabase.from('profiles').update({ hidden_campaigns: next, updated_at: new Date().toISOString() }).eq('id', userId);
+    await supabase.from('profiles').update({ hidden_campaigns: next, updated_at: new Date().toISOString() }).eq('id', profile.id);
   }
 
   const displayBanner = profile?.banner_url || DEFAULT_BANNER;
@@ -338,22 +342,46 @@ export default function ProfilePage() {
             <div className="flex flex-wrap items-center gap-2 mb-1">
               <h1 className="text-xl lg:text-2xl font-bold text-white">@{displayUsername}</h1>
               <img src={bcreateurbadge} alt="Certifié" className="w-[29px] h-[29px]" />
-              {displayContentType.map((ct) => {
-                const color = CATEGORY_COLORS[ct === 'ugc' ? 'UGC' : 'Clipping'];
-                return (
-                  <span
-                    key={ct}
-                    className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                    style={{
-                      background: `${color}18`,
-                      border: `1px solid ${color}4D`,
-                      color,
-                    }}
-                  >
-                    {ct === 'ugc' ? 'UGC' : 'Clipping'}
-                  </span>
-                );
-              })}
+              <div className="flex items-center" style={{ gap: 0 }}>
+                {displayContentType.map((ct, i) => {
+                  const isUgc = ct === 'ugc';
+                  const outline = '2px solid rgba(10,10,15,1)';
+                  const tagStyle: CSSProperties = isUgc
+                    ? {
+                        background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)',
+                        border: '1px solid rgba(255,130,210,0.55)',
+                        color: '#ffffff',
+                        backdropFilter: 'blur(12px)',
+                        WebkitBackdropFilter: 'blur(12px)',
+                        boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)',
+                        textShadow: '0 0 8px rgba(255,150,220,0.6)',
+                        outline,
+                      }
+                    : {
+                        background: 'rgba(57,31,154,0.25)',
+                        backdropFilter: 'blur(12px)',
+                        WebkitBackdropFilter: 'blur(12px)',
+                        border: '1px solid rgba(57,31,154,0.5)',
+                        color: '#ffffff',
+                        boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)',
+                        outline,
+                      };
+                  return (
+                    <span
+                      key={ct}
+                      className="px-2.5 py-0.5 rounded-full text-[9px] font-semibold tracking-wide text-white"
+                      style={{
+                        ...tagStyle,
+                        marginLeft: i === 0 ? 0 : -6,
+                        zIndex: displayContentType.length + 1 - i,
+                        position: 'relative',
+                      }}
+                    >
+                      {isUgc ? 'UGC' : 'Clipping'}
+                    </span>
+                  );
+                })}
+              </div>
               <button
                 onClick={toggleVisibility}
                 disabled={togglingVisibility}
@@ -742,11 +770,23 @@ export default function ProfilePage() {
                   </button>
                   <button
                     disabled={withdrawing}
-                    onClick={() => {
+                    onClick={async () => {
                       if (!confirmWithdrawId) return;
                       setWithdrawing(true);
-                      setConfirmWithdrawId(null);
-                      setWithdrawing(false);
+                      try {
+                        const { data: { user } } = await supabase.auth.getUser();
+                        if (user) {
+                          await supabase
+                            .from('campaign_applications')
+                            .delete()
+                            .eq('user_id', user.id)
+                            .eq('campaign_id', confirmWithdrawId);
+                        }
+                        await refreshMyCampaigns();
+                      } finally {
+                        setConfirmWithdrawId(null);
+                        setWithdrawing(false);
+                      }
                     }}
                     className="flex-1 py-3 rounded-xl text-sm font-bold text-white transition-all duration-200 active:scale-95"
                     style={{ background: 'rgba(239,68,68,0.85)', border: '1px solid rgba(239,68,68,0.4)' }}
@@ -762,7 +802,7 @@ export default function ProfilePage() {
             <div className="pb-12">
               {campaignsLoading ? (
                 <div className="flex items-center justify-center py-16">
-                  <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                  <GrapeLoader size="md" />
                 </div>
               ) : activeCampaigns.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 gap-3">
@@ -857,7 +897,7 @@ export default function ProfilePage() {
                       title={isHidden ? 'Afficher' : 'Masquer'}
                     >
                       <div className="absolute top-2.5 right-2.5 w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 z-10" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                        {isHidden ? <Eye className="w-3 h-3 text-white/50" /> : <EyeOff className="w-3 h-3 text-white/50" />}
+                        {isHidden ? <EyeOff className="w-3 h-3 text-white/50" /> : <Eye className="w-3 h-3 text-white/50" />}
                       </div>
                       <div className="flex items-center gap-2 mb-1">
                         <Icon className="w-4 h-4 text-white/30" />
@@ -884,7 +924,7 @@ export default function ProfilePage() {
                         className="absolute top-2.5 right-2.5 w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 z-20"
                         style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
                       >
-                        {isHidden ? <Eye className="w-3 h-3 text-white/50" /> : <EyeOff className="w-3 h-3 text-white/50" />}
+                        {isHidden ? <EyeOff className="w-3 h-3 text-white/50" /> : <Eye className="w-3 h-3 text-white/50" />}
                       </div>
                       {!isHidden && (
                         <div
@@ -937,48 +977,35 @@ export default function ProfilePage() {
                   {brandSocials.map((s) => {
                     const isHidden = hiddenStats.includes(`platform_${s}`);
                     const handle = profile?.[platformHandleKeys[s]] || '';
-                    const url = getSocialUrl(s, handle);
                     return (
-                      <div
+                      <button
                         key={s}
-                        className={`relative group rounded-2xl flex items-center gap-3.5 px-4 py-3 transition-all duration-300 ${isHidden ? 'opacity-30' : ''}`}
+                        type="button"
+                        onClick={() => toggleHiddenStat(`platform_${s}`)}
+                        className={`relative group w-full rounded-2xl flex items-center gap-3.5 px-4 py-3 text-left transition-all duration-300 cursor-pointer active:scale-[0.99] ${isHidden ? 'opacity-30' : ''}`}
                         style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${isHidden ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.08)'}` }}
+                        title={isHidden ? 'Afficher aux visiteurs' : 'Masquer aux visiteurs'}
                       >
-                        {url && !isHidden ? (
-                          <a href={url} target="_blank" rel="noopener noreferrer" className="relative w-10 h-10 rounded-xl flex items-center justify-center shrink-0 hover:scale-110 transition-transform" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                            <img src={platformIcons[s]} alt={s} className="w-6 h-6" />
-                          </a>
-                        ) : (
-                          <div className="relative w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                            <img src={platformIcons[s]} alt={s} className={`w-6 h-6 transition-all duration-300 ${isHidden ? 'grayscale' : ''}`} />
-                            {isHidden && (
-                              <div className="absolute inset-0 rounded-xl flex items-center justify-center" style={{ background: 'rgba(5,4,4,0.5)' }}>
-                                <EyeOff className="w-3.5 h-3.5 text-white/40" />
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0 text-left">
+                        <div className="relative w-10 h-10 rounded-xl flex items-center justify-center shrink-0 pointer-events-none" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                          <img src={platformIcons[s]} alt={s} className={`w-6 h-6 transition-all duration-300 ${isHidden ? 'grayscale' : ''}`} />
+                          {isHidden && (
+                            <div className="absolute inset-0 rounded-xl flex items-center justify-center" style={{ background: 'rgba(5,4,4,0.5)' }}>
+                              <EyeOff className="w-3.5 h-3.5 text-white/40" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0 pointer-events-none">
                           <p className="text-sm font-semibold text-white">{platformLabels[s]}</p>
                           {handle ? (
-                            url && !isHidden ? (
-                              <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-white/40 mt-0.5 truncate block hover:text-white/60 transition-colors">{handle}</a>
-                            ) : (
-                              <p className="text-xs text-white/40 mt-0.5 truncate">{handle}</p>
-                            )
+                            <p className="text-xs text-white/40 mt-0.5 truncate">{handle}</p>
                           ) : (
                             <p className="text-xs text-white/20 mt-0.5 italic">Non connecté</p>
                           )}
                         </div>
-                        <button
-                          onClick={() => toggleHiddenStat(`platform_${s}`)}
-                          className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 cursor-pointer hover:bg-white/10"
-                          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
-                          title={isHidden ? 'Afficher' : 'Masquer'}
-                        >
-                          {isHidden ? <Eye className="w-3 h-3 text-white/50" /> : <EyeOff className="w-3 h-3 text-white/50" />}
-                        </button>
-                      </div>
+                        <div className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center pointer-events-none" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                          {isHidden ? <EyeOff className="w-3 h-3 text-white/50" /> : <Eye className="w-3 h-3 text-white/50" />}
+                        </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -988,7 +1015,39 @@ export default function ProfilePage() {
                 className="rounded-2xl p-6"
                 style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
               >
-                <h2 className="text-sm font-bold text-white uppercase tracking-wider mb-5">Campagnes récentes</h2>
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+                  <h2 className="text-sm font-bold text-white uppercase tracking-wider shrink-0">Campagnes récentes</h2>
+                  {[...activeCampaigns, ...completedCampaigns].length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => toggleHiddenStat(HIDE_ALL_RECENT_CAMPAIGNS_PUBLIC_KEY)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 shrink-0 self-start sm:self-auto active:scale-[0.98] ${hideAllRecentCampaignsPublic ? 'opacity-90' : ''}`}
+                      style={{
+                        background: hideAllRecentCampaignsPublic ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.06)',
+                        border: `1px solid ${hideAllRecentCampaignsPublic ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.1)'}`,
+                        color: '#fff',
+                      }}
+                      title={hideAllRecentCampaignsPublic ? 'Afficher les campagnes sur ton profil public' : 'Masquer toutes les campagnes sur ton profil public'}
+                    >
+                      {hideAllRecentCampaignsPublic ? (
+                        <>
+                          <Eye className="w-3.5 h-3.5 text-white/60" />
+                          <span>Afficher sur le profil</span>
+                        </>
+                      ) : (
+                        <>
+                          <EyeOff className="w-3.5 h-3.5 text-white/60" />
+                          <span>Tout masquer (public)</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+                {hideAllRecentCampaignsPublic && [...activeCampaigns, ...completedCampaigns].length > 0 && (
+                  <p className="text-xs text-white/35 leading-relaxed mb-4">
+                    Aucune campagne récente ne s’affiche sur ton profil public, y compris les prochaines auxquelles tu participeras.
+                  </p>
+                )}
                 {[...activeCampaigns, ...completedCampaigns].length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10">
                     <Eye className="w-8 h-8 text-white/10 mb-2" />
@@ -1001,21 +1060,20 @@ export default function ProfilePage() {
                       return (
                         <div
                           key={c.id}
-                          className={`relative group flex items-center gap-4 rounded-xl px-4 py-3.5 transition-all duration-300 ${isCampaignHidden ? 'opacity-25' : ''}`}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => toggleHiddenCampaign(c.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              toggleHiddenCampaign(c.id);
+                            }
+                          }}
+                          className={`relative group flex items-center gap-2 rounded-xl px-4 py-3.5 transition-all duration-300 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-white/20 ${isCampaignHidden ? 'opacity-25' : ''}`}
                           style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+                          title={isCampaignHidden ? 'Afficher aux visiteurs' : 'Masquer aux visiteurs'}
                         >
-                          <button
-                            onClick={(e) => { e.stopPropagation(); toggleHiddenCampaign(c.id); }}
-                            className="absolute top-2 right-2 w-7 h-7 rounded-lg flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 hover:bg-white/10 z-10"
-                            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
-                            title={isCampaignHidden ? 'Afficher' : 'Masquer'}
-                          >
-                            {isCampaignHidden ? <Eye className="w-3 h-3 text-white/50" /> : <EyeOff className="w-3 h-3 text-white/50" />}
-                          </button>
-                          <div
-                            className="flex-1 flex items-center gap-4 cursor-pointer min-w-0"
-                            onClick={() => navigate(`/campagne/${c.id}`, { state: { from: '/profil' } })}
-                          >
+                          <div className="flex-1 flex items-center gap-4 min-w-0 pointer-events-none">
                             <img
                               src={c.image}
                               alt={c.title}
@@ -1026,9 +1084,16 @@ export default function ProfilePage() {
                               <p className="text-sm font-semibold text-white truncate">{c.title}</p>
                               <div className="flex items-center gap-2 mt-0.5">
                                 <span className="text-xs text-white/35">{c.brand}</span>
-                                {c.socials.map((p) =>
-                                  cardPlatformIcons[p] ? <img key={p} src={cardPlatformIcons[p]} alt={p} className="w-3.5 h-3.5 brightness-0 invert opacity-50" /> : null
-                                )}
+                                {c.socials.filter((p) => cardPlatformIcons[p]).map((p, i, arr) => (
+                                  <div key={p} style={{
+                                    width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                                    border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                                    marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+                                  }}>
+                                    <img src={cardPlatformIcons[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+                                  </div>
+                                ))}
                               </div>
                             </div>
                             <div className="flex items-center gap-4 shrink-0">
@@ -1041,6 +1106,18 @@ export default function ProfilePage() {
                               </span>
                             </div>
                           </div>
+                          <button
+                            type="button"
+                            className="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 hover:bg-white/10 z-10 pointer-events-auto"
+                            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+                            title="Voir la campagne"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/campagne/${c.id}`, { state: { from: '/profil' } });
+                            }}
+                          >
+                            <ChevronRight className="w-5 h-5 text-white/50" />
+                          </button>
                         </div>
                       );
                     })}
@@ -1087,14 +1164,17 @@ function ProfileActiveCampaignCard({ campaign, onWithdraw }: { campaign: Campaig
           <img src={campaign.image} alt={campaign.title} className="w-full h-full object-cover" />
           <div className="absolute inset-0 lg:hidden" style={{ background: 'linear-gradient(90deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
           <div className="absolute inset-0 hidden lg:block" style={{ background: 'linear-gradient(180deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
-          <div className="hidden lg:flex absolute top-2.5 right-2.5 items-center gap-1.5">
-            {campaign.socials.map((p) =>
-              cardPlatformIcons[p] ? (
-                <span key={p} className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}>
-                  <img src={cardPlatformIcons[p]} alt={p} className="w-3.5 h-3.5 brightness-0 invert opacity-80" />
-                </span>
-              ) : null
-            )}
+          <div className="hidden lg:flex absolute top-2.5 right-2.5 items-center" style={{ gap: 0 }}>
+            {campaign.socials.filter((p) => cardPlatformIcons[p]).map((p, i, arr) => (
+              <div key={p} style={{
+                width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+              }}>
+                <img src={cardPlatformIcons[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+              </div>
+            ))}
           </div>
         </div>
         <div className="flex-1 px-4 py-4 flex flex-col gap-2 min-w-0">
@@ -1106,15 +1186,24 @@ function ProfileActiveCampaignCard({ campaign, onWithdraw }: { campaign: Campaig
             <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-white/50 transition-colors shrink-0 mt-0.5" />
           </div>
           <div className="flex items-center gap-2">
-            {campaign.socials.map((p) =>
-              cardPlatformIcons[p] ? <img key={p} src={cardPlatformIcons[p]} alt={p} className="w-3.5 h-3.5 brightness-0 invert opacity-50 lg:hidden" /> : null
-            )}
+            <div className="flex items-center lg:hidden" style={{ gap: 0 }}>
+              {campaign.socials.filter((p) => cardPlatformIcons[p]).map((p, i, arr) => (
+                <div key={p} style={{
+                  width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                  marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+                }}>
+                  <img src={cardPlatformIcons[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+                </div>
+              ))}
+            </div>
             <span
               className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
               style={
                 campaign.contentType === 'UGC'
-                  ? { background: 'rgba(255,0,217,0.1)', border: '1px solid rgba(255,0,217,0.25)', color: '#FF00D9' }
-                  : { background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.25)', color: '#a78bfa' }
+                  ? { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)' }
+                  : { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)' }
               }
             >
               {campaign.contentType}
@@ -1183,14 +1272,17 @@ function ProfilePendingCard({ application }: { application: PendingApplication }
           <img src={application.photo} alt={application.name} className="w-full h-full object-cover opacity-60" />
           <div className="absolute inset-0 lg:hidden" style={{ background: 'linear-gradient(90deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
           <div className="absolute inset-0 hidden lg:block" style={{ background: 'linear-gradient(180deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
-          <div className="hidden lg:flex absolute top-2.5 right-2.5 items-center gap-1.5">
-            {application.platforms.map((p) =>
-              cardPlatformIcons[p] ? (
-                <span key={p} className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}>
-                  <img src={cardPlatformIcons[p]} alt={p} className="w-3.5 h-3.5 brightness-0 invert opacity-80" />
-                </span>
-              ) : null
-            )}
+          <div className="hidden lg:flex absolute top-2.5 right-2.5 items-center" style={{ gap: 0 }}>
+            {application.platforms.filter((p) => cardPlatformIcons[p]).map((p, i, arr) => (
+              <div key={p} style={{
+                width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+              }}>
+                <img src={cardPlatformIcons[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+              </div>
+            ))}
           </div>
           <div
             className="hidden lg:flex absolute bottom-2.5 left-2.5 w-7 h-7 rounded-full items-center justify-center"
@@ -1213,15 +1305,24 @@ function ProfilePendingCard({ application }: { application: PendingApplication }
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {application.platforms.map((p) =>
-              cardPlatformIcons[p] ? <img key={p} src={cardPlatformIcons[p]} alt={p} className="w-3.5 h-3.5 brightness-0 invert opacity-40 lg:hidden" /> : null
-            )}
+            <div className="flex items-center lg:hidden" style={{ gap: 0 }}>
+              {application.platforms.filter((p) => cardPlatformIcons[p]).map((p, i, arr) => (
+                <div key={p} style={{
+                  width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                  marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+                }}>
+                  <img src={cardPlatformIcons[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+                </div>
+              ))}
+            </div>
             <span
               className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
               style={
                 application.category === 'UGC'
-                  ? { background: 'rgba(255,0,217,0.08)', border: '1px solid rgba(255,0,217,0.15)', color: 'rgba(255,0,217,0.6)' }
-                  : { background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.15)', color: 'rgba(167,139,250,0.6)' }
+                  ? { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)' }
+                  : { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)' }
               }
             >
               {application.category}
@@ -1258,14 +1359,17 @@ function ProfileCompletedCard({ campaign, onDelete }: { campaign: CreatorCampaig
           <img src={campaign.photo} alt={campaign.name} className="w-full h-full object-cover grayscale" />
           <div className="absolute inset-0 lg:hidden" style={{ background: 'linear-gradient(90deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
           <div className="absolute inset-0 hidden lg:block" style={{ background: 'linear-gradient(180deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
-          <div className="hidden lg:flex absolute top-2.5 right-2.5 items-center gap-1.5">
-            {campaign.platforms.map((p) =>
-              cardPlatformIcons[p] ? (
-                <span key={p} className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}>
-                  <img src={cardPlatformIcons[p]} alt={p} className="w-3.5 h-3.5 brightness-0 invert opacity-40" />
-                </span>
-              ) : null
-            )}
+          <div className="hidden lg:flex absolute top-2.5 right-2.5 items-center" style={{ gap: 0 }}>
+            {campaign.platforms.filter((p) => cardPlatformIcons[p]).map((p, i, arr) => (
+              <div key={p} style={{
+                width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+              }}>
+                <img src={cardPlatformIcons[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+              </div>
+            ))}
           </div>
         </div>
         <div className="flex-1 px-4 py-4 flex flex-col gap-2 min-w-0">

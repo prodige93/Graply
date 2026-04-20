@@ -127,6 +127,7 @@ export default function CreateCampaignPage() {
         min_followers: minFollowers,
         require_application: requireApplication,
         require_review: requireReview,
+        is_public: !requireApplication,
         status: 'published',
       };
 
@@ -166,6 +167,7 @@ export default function CreateCampaignPage() {
         min_followers: minFollowers,
         require_application: requireApplication,
         require_review: requireReview,
+        is_public: !requireApplication,
         status: 'draft',
       };
 
@@ -299,8 +301,8 @@ export default function CreateCampaignPage() {
     return (
       <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
         <Sidebar activePage="home" onOpenSearch={() => {}} />
-        <div className="flex-1 flex items-center justify-center">
-          <GrapeLoader />
+        <div className="flex-1 flex items-center justify-center py-16">
+          <GrapeLoader size="md" />
         </div>
       </div>
     );
@@ -332,8 +334,8 @@ export default function CreateCampaignPage() {
           )}
         </div>
 
-        <div className="flex items-start gap-6 lg:gap-16">
-          <div className="flex-1 min-w-0">
+        <div className="flex flex-col-reverse lg:flex-row items-start gap-6 lg:gap-16">
+          <div className="flex-1 min-w-0 w-full">
             <div className="flex items-center justify-between mb-8">
               {STEPS.map((s, i) => (
                 <div key={i} className="flex items-center" style={{ flex: i < STEPS.length - 1 ? 1 : 'none' }}>
@@ -489,7 +491,7 @@ export default function CreateCampaignPage() {
             </div>
           </div>
 
-          <div className="w-[360px] shrink-0 hidden lg:block ml-8">
+          <div className="w-full max-w-md mx-auto shrink-0 lg:w-[360px] lg:max-w-none lg:mx-0 lg:ml-8">
             <CampaignPreview
               name={name}
               photoPreview={photoPreview}

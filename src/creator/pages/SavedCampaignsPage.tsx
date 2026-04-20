@@ -2,14 +2,14 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Bookmark, Trash2, Search, ChevronDown, Check, X } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
+import GrapeLoader from '../components/GrapeLoader';
 import CampaignCard, { type CampaignData } from '../components/CampaignCard';
-import { campaigns, sponsoredCampaigns } from '@/shared/data/campaignsData';
 import { useSavedCampaigns } from '@/creator/contexts/SavedCampaignsContext';
+import { resolveSavedCampaignsList, mergeSavedCampaignsInOrder } from '@/shared/lib/resolveSavedCampaignsList';
 import instagramIcon from '@/shared/assets/instagram-card.svg';
 import tiktokIcon from '@/shared/assets/tiktok.svg';
 import youtubeIcon from '@/shared/assets/youtube.svg';
 
-const allCampaigns = [...campaigns, ...sponsoredCampaigns];
 
 const platformIconMap: Record<string, string> = {
   instagram: instagramIcon,
@@ -55,7 +55,8 @@ function FilterBar({
 
   const togglePlatform = (p: string) => {
     const next = new Set(selectedPlatforms);
-    next.has(p) ? next.delete(p) : next.add(p);
+    if (next.has(p)) next.delete(p);
+    else next.add(p);
     onChange({ selectedPlatforms: next });
   };
 
@@ -324,28 +325,41 @@ function SavedCardMobile({ data, onRemove }: { data: CampaignData; onRemove: () 
             <p className="text-[10px] font-bold text-white/35 uppercase tracking-widest mb-0.5">{data.brand}</p>
             <h3 className="text-sm font-bold text-white leading-snug line-clamp-2">{data.title}</h3>
           </div>
-          <div className="flex items-center gap-1.5">
-            {data.socials.map((p) =>
-              platformIconMap[p] ? <img key={p} src={platformIconMap[p]} alt={p} className="w-3 h-3 brightness-0 invert opacity-50" /> : null
-            )}
+          <div className="flex items-center" style={{ gap: 0 }}>
+            {data.socials.filter((p) => platformIconMap[p]).map((p, i, arr) => (
+              <div key={p} style={{
+                width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+              }}>
+                <img src={platformIconMap[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+              </div>
+            ))}
           </div>
-          <div className="flex items-center gap-1.5">
-            {data.tags.filter((t) => ['ugc', 'clipping'].includes(t.toLowerCase())).map((tag) => (
+          <div className="flex items-center" style={{ gap: 0 }}>
+            {data.tags.filter((t) => ['ugc', 'clipping'].includes(t.toLowerCase())).map((tag, i, arr) => (
               <span
                 key={tag}
                 className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
-                style={
-                  tag.toLowerCase() === 'ugc'
-                    ? { background: 'rgba(255,0,217,0.1)', border: '1px solid rgba(255,0,217,0.25)', color: '#FF00D9' }
-                    : { background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.25)', color: '#a78bfa' }
-                }
+                style={{
+                  ...(tag.toLowerCase() === 'ugc'
+                    ? { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)', outline: '2px solid rgba(10,10,15,1)' }
+                    : { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)', outline: '2px solid rgba(10,10,15,1)' }),
+                  marginLeft: i === 0 ? 0 : -6,
+                  zIndex: arr.length + 1 - i,
+                  position: 'relative' as const,
+                }}
               >
                 {tag}
               </span>
             ))}
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black text-white">{data.ratePerView}<span className="text-[8px] text-white/30 font-medium">/1K</span></span>
+            <div className="flex items-center gap-0.5 px-2 py-0.5 rounded-full" style={{ background: 'linear-gradient(145deg, rgba(177,188,255,0.22) 0%, rgba(177,188,255,0.08) 50%, rgba(120,133,255,0.18) 100%)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(177,188,255,0.45)', boxShadow: '0 1px 0 rgba(255,255,255,0.35) inset, 0 -1px 0 rgba(120,133,255,0.2) inset, 0 2px 8px rgba(177,188,255,0.15)' }}>
+              <span className="text-[10px] font-bold text-white">{data.ratePerView}</span>
+              <span className="text-[8px] font-medium text-white/50">/1K</span>
+            </div>
             <span className="text-white/20 text-[9px]">.</span>
             <span className="text-[10px] font-bold text-white/70">{data.budget}</span>
           </div>
@@ -370,7 +384,9 @@ function SavedCardMobile({ data, onRemove }: { data: CampaignData; onRemove: () 
 
 export default function SavedCampaignsPage() {
   const navigate = useNavigate();
-  const { savedIds, toggle } = useSavedCampaigns();
+  const { savedIds, previewById, toggle } = useSavedCampaigns();
+  const [savedCampaigns, setSavedCampaigns] = useState<CampaignData[]>([]);
+  const [listLoading, setListLoading] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
     searchQuery: '',
     selectedCategory: null,
@@ -388,7 +404,23 @@ export default function SavedCampaignsPage() {
     window.scrollTo(0, 0);
   }, []);
 
-  const savedCampaigns = allCampaigns.filter((c) => savedIds.includes(c.id));
+  useEffect(() => {
+    let cancelled = false;
+    if (savedIds.length === 0) {
+      setSavedCampaigns([]);
+      setListLoading(false);
+      return () => { cancelled = true; };
+    }
+    setListLoading(true);
+    (async () => {
+      const resolved = await resolveSavedCampaignsList(savedIds);
+      if (!cancelled) {
+        setSavedCampaigns(mergeSavedCampaignsInOrder(savedIds, resolved, previewById));
+        setListLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [savedIds, previewById]);
 
   const { searchQuery, selectedCategory, selectedContent, budgetMin, budgetMax, selectedPlatforms } = filters;
 
@@ -434,7 +466,8 @@ export default function SavedCampaignsPage() {
             <div>
               <h1 className="text-xl lg:text-2xl font-bold text-white">Enregistre</h1>
               <p className="text-sm text-white/40 mt-0.5">
-                {savedCampaigns.length} campagne{savedCampaigns.length !== 1 ? 's' : ''} sauvegardee{savedCampaigns.length !== 1 ? 's' : ''}
+                {savedIds.length} campagne{savedIds.length !== 1 ? 's' : ''} sauvegardee{savedIds.length !== 1 ? 's' : ''}
+                {listLoading && savedIds.length > 0 ? ' · chargement…' : ''}
               </p>
             </div>
           </div>
@@ -445,7 +478,12 @@ export default function SavedCampaignsPage() {
         </div>
 
         <div className="px-4 sm:px-6 pt-6">
-          {savedCampaigns.length === 0 ? (
+          {listLoading && savedIds.length > 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 gap-4">
+              <GrapeLoader size="md" />
+              <p className="text-sm text-white/35">Chargement de tes campagnes…</p>
+            </div>
+          ) : savedCampaigns.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-32 gap-4">
               <div
                 className="w-16 h-16 rounded-2xl flex items-center justify-center"
@@ -453,9 +491,20 @@ export default function SavedCampaignsPage() {
               >
                 <Bookmark className="w-7 h-7 text-white/25" />
               </div>
-              <div className="text-center">
-                <p className="text-white/50 font-semibold">Aucune campagne enregistrée</p>
-                <p className="text-white/25 text-sm mt-1">Les campagnes que vous sauvegardez apparaîtront ici</p>
+              <div className="text-center max-w-sm">
+                {savedIds.length > 0 ? (
+                  <>
+                    <p className="text-white/50 font-semibold">Enregistrement détecté mais campagnes introuvables</p>
+                    <p className="text-white/25 text-sm mt-1">
+                      Les IDs sont bien sur ton profil ; recharge la page ou vérifie que les campagnes existent encore en base.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-white/50 font-semibold">Aucune campagne enregistrée</p>
+                    <p className="text-white/25 text-sm mt-1">Les campagnes que tu sauvegardes apparaîtront ici</p>
+                  </>
+                )}
               </div>
               <button
                 onClick={() => navigate('/campagnes')}

@@ -3,18 +3,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { DollarSign, TrendingUp, ArrowUpRight, Play, X, ArrowDownLeft, ExternalLink, Loader2, CalendarDays } from 'lucide-react';
 import StatsChart from '../components/StatsChart';
 import Sidebar from '../components/Sidebar';
-import instagramIcon from '@/shared/assets/instagram-logo.svg';
-import youtubeIcon from '@/shared/assets/youtube-symbol.svg';
-import tiktokIcon from '@/shared/assets/tiktok.svg';
-import { useLinkedPlatformVideos } from '@/shared/lib/useLinkedPlatformVideos';
-import { useSocialConnections, type DashboardSocialPlatform } from '@/shared/lib/useSocialConnections';
-import { supabase } from '@/shared/infrastructure/supabase';
-import { getSocialOAuthUrl, type SocialPlatform } from '@/shared/lib/socialOAuth';
-import {
-  MIN_CLIP_VIEWS_FOR_PAYOUT,
-  canWithdrawThisWeek,
-  nextWithdrawalAvailableAt,
-} from '@/shared/lib/creatorPayoutRules';
+import instagramIcon from '@/shared/assets/instagram-card.svg';
+import youtubeIcon from '@/shared/assets/youtube.svg';
+import tiktokIcon from '@/shared/assets/tiktok-color.svg';
 
 const platformIcons: Record<string, string> = {
   instagram: instagramIcon,
@@ -361,12 +352,47 @@ export default function DashboardPage() {
 
         <div className="px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
-          {linkedError && (
-            <div
-              className="rounded-xl px-4 py-3 text-sm"
-              style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.35)', color: '#fca5a5' }}
-            >
-              {linkedError}
+          {allPlatforms.length > 0 && (
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3 flex-wrap">
+                <button
+                  onClick={() => setFilterPlatform(null)}
+                  className="h-10 px-5 rounded-full flex items-center gap-2 transition-all duration-200 text-sm font-semibold shrink-0"
+                  style={{
+                    background: !filterPlatform ? 'rgba(255,255,255,0.12)' : 'transparent',
+                    border: !filterPlatform ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.15)',
+                    color: !filterPlatform ? '#fff' : 'rgba(255,255,255,0.4)',
+                  }}
+                >
+                  <TrendingUp className="w-4 h-4" />
+                  Global
+                </button>
+                <div className="h-6 w-px shrink-0" style={{ background: 'rgba(255,255,255,0.1)' }} />
+                {allPlatforms.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setFilterPlatform(filterPlatform === p ? null : p)}
+                    className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 shrink-0"
+                    style={{
+                      background: filterPlatform === p
+                        ? 'rgba(255,255,255,0.18)'
+                        : 'rgba(255,255,255,0.04)',
+                      border: filterPlatform === p
+                        ? '1px solid rgba(255,255,255,0.35)'
+                        : '1px solid rgba(255,255,255,0.1)',
+                      backdropFilter: 'blur(12px)',
+                      WebkitBackdropFilter: 'blur(12px)',
+                      opacity: filterPlatform && filterPlatform !== p ? 0.4 : 1,
+                      boxShadow: filterPlatform === p
+                        ? '0 0 18px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.2)'
+                        : 'inset 0 1px 0 rgba(255,255,255,0.06)',
+                    }}
+                  >
+                    {platformIcons[p] && <img src={platformIcons[p]} alt={platformNames[p] || p} className="w-5 h-5" />}
+                  </button>
+                ))}
+              </div>
+              <PeriodSelector periods={['all', '7j', '1m', '3m', '6m']} value={chartPeriod} onChange={setChartPeriod} />
             </div>
           )}
 
@@ -528,6 +554,45 @@ export default function DashboardPage() {
                 </div>
                 <button onClick={() => navigate('/my-videos')} className="text-xs font-bold transition-opacity hover:opacity-70" style={{ color: '#FF782A' }}>Voir tout</button>
               </div>
+              <div className="flex sm:hidden items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                <div className="flex items-center gap-2">
+                  {availablePlatforms.map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setTablePlatform(tablePlatform === p ? null : p)}
+                      className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200"
+                      style={{
+                        background: tablePlatform === p ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)',
+                        border: tablePlatform === p ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.1)',
+                        opacity: tablePlatform && tablePlatform !== p ? 0.4 : 1,
+                      }}
+                    >
+                      {platformIcons[p] && <img src={platformIcons[p]} alt={platformNames[p] || p} className="w-4 h-4" />}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => {
+                    const isActive = tableSort?.key === 'date';
+                    if (!isActive) {
+                      setTableSort({ key: 'date', dir: 'desc' });
+                    } else {
+                      setTableSort({ key: 'date', dir: tableSort!.dir === 'desc' ? 'asc' : 'desc' });
+                    }
+                  }}
+                  className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200"
+                  style={{
+                    background: tableSort?.key === 'date' ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)',
+                    border: tableSort?.key === 'date' ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.1)',
+                  }}
+                >
+                  {tableSort?.key === 'date' && tableSort.dir === 'asc' ? (
+                    <ArrowDownLeft className="w-3.5 h-3.5 transition-all duration-300" style={{ color: '#fff' }} />
+                  ) : (
+                    <ArrowUpRight className="w-3.5 h-3.5 transition-all duration-300" style={{ color: tableSort?.key === 'date' ? '#fff' : 'rgba(255,255,255,0.4)' }} />
+                  )}
+                </button>
+              </div>
 
               <div className="flex items-center gap-2 flex-wrap px-5 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                 {allPlatforms.map((p) => (
@@ -535,12 +600,7 @@ export default function DashboardPage() {
                     key={p}
                     onClick={() => setTablePlatform(tablePlatform === p ? null : p)}
                     className="flex items-center gap-1.5 h-7 px-3 rounded-full transition-all duration-200"
-                    style={{
-                      background: tablePlatform === p ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)',
-                      border: tablePlatform === p ? '1px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.08)',
-                      opacity: tablePlatform && tablePlatform !== p ? 0.4 : 1,
-                    }}
-                  >
+                    style={{ background: tablePlatform === p ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)', border: tablePlatform === p ? '1px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.08)', opacity: tablePlatform && tablePlatform !== p ? 0.4 : 1 }}>
                     {platformIcons[p] && <img src={platformIcons[p]} alt={platformNames[p] || p} className="w-3.5 h-3.5" />}
                     <span className="text-[11px] font-semibold" style={{ color: tablePlatform === p ? '#fff' : 'rgba(255,255,255,0.5)' }}>{platformNames[p] || p}</span>
                   </button>

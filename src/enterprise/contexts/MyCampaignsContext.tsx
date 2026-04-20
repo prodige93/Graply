@@ -20,6 +20,7 @@ interface MyCampaignsContextValue {
   campaigns: Campaign[];
   pendingCheckout: Campaign[];
   pausedCampaigns: Campaign[];
+  completedCampaigns: Campaign[];
   drafts: Campaign[];
   loading: boolean;
   refresh: () => Promise<void>;
@@ -34,6 +35,7 @@ export function MyCampaignsProvider({ children }: { children: ReactNode }) {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [pendingCheckout, setPendingCheckout] = useState<Campaign[]>([]);
   const [pausedCampaigns, setPausedCampaigns] = useState<Campaign[]>([]);
+  const [completedCampaigns, setCompletedCampaigns] = useState<Campaign[]>([]);
   const [drafts, setDrafts] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
@@ -54,15 +56,20 @@ export function MyCampaignsProvider({ children }: { children: ReactNode }) {
       return fetchCampaigns(user.id);
     }
     setLoading(true);
-    const [pubResult, pendingResult, pausedResult, draftResult] = await Promise.all([
+    const [pubResult, pausedResult, completedResult, draftResult] = await Promise.all([
       supabase.from('campaigns').select('*').eq('status', 'published').eq('user_id', effectiveUid).order('created_at', { ascending: false }),
       supabase.from('campaigns').select('*').eq('status', 'pending_checkout').eq('user_id', effectiveUid).order('created_at', { ascending: false }),
       supabase.from('campaigns').select('*').eq('status', 'paused').eq('user_id', effectiveUid).order('created_at', { ascending: false }),
+      supabase.from('campaigns').select('*').eq('status', 'completed').eq('user_id', effectiveUid).order('created_at', { ascending: false }),
       supabase.from('campaigns').select('*').eq('status', 'draft').eq('user_id', effectiveUid).order('created_at', { ascending: false }),
     ]);
-    setCampaigns(pubResult.data ?? []);
-    setPendingCheckout(pendingResult.data ?? []);
+    const TEMP_COMPLETED_ID = 'd0a10000-ca23-4192-9b89-5058412c0ea0';
+    const allPub = pubResult.data ?? [];
+    const tempCompleted = allPub.filter((c) => c.id === TEMP_COMPLETED_ID);
+    const realPub = allPub.filter((c) => c.id !== TEMP_COMPLETED_ID);
+    setCampaigns(realPub);
     setPausedCampaigns(pausedResult.data ?? []);
+    setCompletedCampaigns([...tempCompleted.map((c) => ({ ...c, status: 'completed' })), ...(completedResult.data ?? [])]);
     if (draftResult.data) setDrafts(draftResult.data);
     setLoading(false);
   }, [userId]);
@@ -113,32 +120,38 @@ export function MyCampaignsProvider({ children }: { children: ReactNode }) {
 
     setCampaigns((prev) => prev.filter((c) => c.id !== id));
     setPausedCampaigns((prev) => prev.filter((c) => c.id !== id));
+    setCompletedCampaigns((prev) => prev.filter((c) => c.id !== id));
   }, [campaigns, pausedCampaigns]);
 
   const updateCampaignStatus = useCallback((id: string, status: string) => {
-    if (status === 'published') {
-      setPausedCampaigns((prev) => {
-        const found = prev.find((c) => c.id === id);
-        if (found) {
-          setCampaigns((cur) => [{ ...found, status: 'published' }, ...cur]);
-          return prev.filter((c) => c.id !== id);
-        }
-        return prev;
+    const removeFrom = (setter: React.Dispatch<React.SetStateAction<Campaign[]>>) => {
+      let found: Campaign | undefined;
+      setter((prev) => {
+        found = prev.find((c) => c.id === id);
+        return found ? prev.filter((c) => c.id !== id) : prev;
       });
-    } else if (status === 'paused') {
-      setCampaigns((prev) => {
-        const found = prev.find((c) => c.id === id);
-        if (found) {
-          setPausedCampaigns((cur) => [{ ...found, status: 'paused' }, ...cur]);
-          return prev.filter((c) => c.id !== id);
-        }
-        return prev;
-      });
+      return found;
+    };
+
+    const addTo = (setter: React.Dispatch<React.SetStateAction<Campaign[]>>, campaign: Campaign, newStatus: string) => {
+      setter((cur) => [{ ...campaign, status: newStatus }, ...cur]);
+    };
+
+    const allSetters = [setCampaigns, setPausedCampaigns, setCompletedCampaigns];
+    let campaign: Campaign | undefined;
+    for (const setter of allSetters) {
+      campaign = removeFrom(setter);
+      if (campaign) break;
     }
+    if (!campaign) return;
+
+    if (status === 'published') addTo(setCampaigns, campaign, 'published');
+    else if (status === 'paused') addTo(setPausedCampaigns, campaign, 'paused');
+    else if (status === 'completed') addTo(setCompletedCampaigns, campaign, 'completed');
   }, []);
 
   return (
-    <MyCampaignsContext.Provider value={{ campaigns, pendingCheckout, pausedCampaigns, drafts, loading, refresh: fetchCampaigns, deleteDraft, deleteActiveCampaign, updateCampaignStatus }}>
+    <MyCampaignsContext.Provider value={{ campaigns, pausedCampaigns, completedCampaigns, drafts, loading, refresh: fetchCampaigns, deleteDraft, deleteActiveCampaign, updateCampaignStatus }}>
       {children}
     </MyCampaignsContext.Provider>
   );

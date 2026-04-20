@@ -1,15 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useEnterpriseNavigate } from '@/enterprise/lib/useEnterpriseNavigate';
-import { MessageCircle, Users, Megaphone, Globe, Camera, Lock, Unlock, Pencil, Check, ChevronDown, ArrowLeft, MessageSquareOff, MessageSquare, Bookmark, Plus, X } from 'lucide-react';
+import { MessageCircle, Users, Megaphone, Globe, Camera, Lock, Unlock, Pencil, Check, ChevronDown, ArrowLeft, MessageSquareOff, MessageSquare, Bookmark, Plus, X, CheckCircle } from 'lucide-react';
 import GrapeLoader from '../components/GrapeLoader';
 import { supabase } from '@/shared/infrastructure/supabase';
 import { useProfile } from '@/shared/lib/useProfile';
-import { profileUsernameDisplayLabel } from '@/shared/lib/profileUsername';
 import { useSavedCampaigns } from '@/enterprise/contexts/SavedCampaignsContext';
 import { useMyCampaigns } from '@/enterprise/contexts/MyCampaignsContext';
 import { useCampaignTab } from '@/enterprise/contexts/CampaignTabContext';
-import { campaigns as allCampaignsData, sponsoredCampaigns } from '@/shared/data/campaignsData';
-import CampaignCard from '../components/CampaignCard';
+import CampaignCard, { type CampaignData } from '../components/CampaignCard';
+import { resolveSavedCampaignsList } from '@/shared/lib/resolveSavedCampaignsList';
 import ActiveCampaignCard from '../components/campaign-cards/ActiveCampaignCard';
 import DraftCard from '../components/campaign-cards/DraftCard';
 import PendingCheckoutCard from '../components/campaign-cards/PendingCheckoutCard';
@@ -17,7 +16,7 @@ import SavedCampaignCard from '../components/campaign-cards/SavedCampaignCard';
 import jentrepriseIcon from '@/shared/assets/badge-enterprise-verified.png';
 import instagramIcon from '@/shared/assets/instagram-logo.svg';
 import youtubeIcon from '@/shared/assets/youtube-symbol.svg';
-import tiktokIcon from '@/shared/assets/tiktok.svg';
+import tiktokIcon from '@/shared/assets/tiktok-color.svg';
 
 const DEFAULT_BANNER = 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=1200';
 
@@ -29,17 +28,17 @@ const platformIcons: Record<string, string> = {
 
 const brandSocials = ['instagram', 'tiktok', 'youtube'];
 
-const allCampaignsList = [...allCampaignsData, ...sponsoredCampaigns];
-
 const AVAILABLE_TAGS = [
   'Technologie', 'Gaming', 'Lifestyle', 'Fitness', 'Mode', 'Beauté',
   'Cuisine', 'Voyage', 'Musique', 'Sport', 'Entertainment', 'Crypto',
   'Business', 'Education', 'Art', 'Photographie', 'Automobile', 'Sante',
 ];
 
-async function uploadFile(file: File, folder: string, ownerId: string): Promise<string | null> {
+async function uploadFile(file: File, folder: string): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
   const ext = file.name.split('.').pop();
-  const fileName = `${folder}/${ownerId}-${Date.now()}.${ext}`;
+  const fileName = `${folder}/${user.id}-${Date.now()}.${ext}`;
   const { error } = await supabase.storage.from('avatars').upload(fileName, file, {
     upsert: true,
     contentType: file.type,
@@ -55,7 +54,8 @@ async function uploadFile(file: File, folder: string, ownerId: string): Promise<
 export default function ProfilePage() {
   const navigate = useEnterpriseNavigate();
   const { savedIds, toggle } = useSavedCampaigns();
-  const { campaigns, pendingCheckout, pausedCampaigns, drafts, loading, deleteDraft, deleteActiveCampaign } = useMyCampaigns();
+  const { campaigns, pausedCampaigns, completedCampaigns, drafts, loading, deleteDraft, deleteActiveCampaign } = useMyCampaigns();
+  const [dbSavedCampaigns, setDbSavedCampaigns] = useState<CampaignData[]>([]);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
@@ -90,7 +90,7 @@ export default function ProfilePage() {
   }
 
   async function saveProfile() {
-    if (!userId) return;
+    if (!profile?.id) return;
     setSavingProfile(true);
     await supabase.from('profiles').update({
       bio: editBio,
@@ -100,15 +100,8 @@ export default function ProfilePage() {
       youtube_handle: editYoutube.trim(),
       content_tags: editTags,
       updated_at: new Date().toISOString(),
-    }).eq('id', userId);
-    updateProfile({
-      bio: editBio,
-      website: editWebsite,
-      instagram_handle: editInstagram.trim(),
-      tiktok_handle: editTiktok.trim(),
-      youtube_handle: editYoutube.trim(),
-      content_tags: editTags,
-    });
+    }).eq('id', profile.id);
+    updateProfile({ bio: editBio, website: editWebsite, content_tags: editTags });
     setSavingProfile(false);
     setEditing(false);
   }
@@ -146,9 +139,10 @@ export default function ProfilePage() {
     const localPreview = URL.createObjectURL(file);
     updateProfile({ avatar_url: localPreview });
     setUploadingAvatar(true);
-    const url = await uploadFile(file, 'profile-pics', userId);
-    if (url) {
-      await supabase.from('profiles').update({ avatar_url: url, updated_at: new Date().toISOString() }).eq('id', userId);
+    const url = await uploadFile(file, 'profile-pics');
+    const { data: { user } } = await supabase.auth.getUser();
+    if (url && user?.id) {
+      await supabase.from('profiles').update({ avatar_url: url, updated_at: new Date().toISOString() }).eq('id', user.id);
       updateProfile({ avatar_url: url });
     }
     setUploadingAvatar(false);
@@ -161,9 +155,10 @@ export default function ProfilePage() {
     const localPreview = URL.createObjectURL(file);
     updateProfile({ banner_url: localPreview });
     setUploadingBanner(true);
-    const url = await uploadFile(file, 'banners', userId);
-    if (url) {
-      await supabase.from('profiles').update({ banner_url: url, updated_at: new Date().toISOString() }).eq('id', userId);
+    const url = await uploadFile(file, 'banners');
+    const { data: { user } } = await supabase.auth.getUser();
+    if (url && user?.id) {
+      await supabase.from('profiles').update({ banner_url: url, updated_at: new Date().toISOString() }).eq('id', user.id);
       updateProfile({ banner_url: url });
     }
     setUploadingBanner(false);
@@ -174,7 +169,7 @@ export default function ProfilePage() {
     if (!profile || !userId) return;
     setTogglingVisibility(true);
     const newValue = !profile.is_public;
-    await supabase.from('profiles').update({ is_public: newValue, updated_at: new Date().toISOString() }).eq('id', userId);
+    await supabase.from('profiles').update({ is_public: newValue, updated_at: new Date().toISOString() }).eq('id', profile.id);
     updateProfile({ is_public: newValue });
     setTogglingVisibility(false);
   }
@@ -183,12 +178,21 @@ export default function ProfilePage() {
     if (!profile || !userId) return;
     setTogglingMessaging(true);
     const newValue = !profile.messaging_enabled;
-    await supabase.from('profiles').update({ messaging_enabled: newValue, updated_at: new Date().toISOString() }).eq('id', userId);
+    await supabase.from('profiles').update({ messaging_enabled: newValue, updated_at: new Date().toISOString() }).eq('id', profile.id);
     updateProfile({ messaging_enabled: newValue });
     setTogglingMessaging(false);
   }
 
-  const savedCampaignsList = allCampaignsList.filter((c) => savedIds.includes(c.id));
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const list = await resolveSavedCampaignsList(savedIds);
+      if (!cancelled) setDbSavedCampaigns(list as CampaignData[]);
+    })();
+    return () => { cancelled = true; };
+  }, [savedIds]);
+
+  const savedCampaignsList = dbSavedCampaigns;
 
   const displayBanner = profile?.banner_url || DEFAULT_BANNER;
   const displayUsername = profileUsernameDisplayLabel(profile?.username);
@@ -564,6 +568,7 @@ export default function ProfilePage() {
               { key: 'active' as const, label: 'Campagne en cours' },
               { key: 'pending_payment' as const, label: 'Paiement' },
               { key: 'paused' as const, label: 'En pause' },
+              { key: 'completed' as const, label: 'Terminé' },
               { key: 'saved' as const, label: 'Enregistrées' },
               { key: 'drafts' as const, label: 'Brouillons' },
             ]).map((tab) => {
@@ -672,6 +677,29 @@ export default function ProfilePage() {
                   <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
                     {pausedCampaigns.map((c) => (
                       <ActiveCampaignCard key={c.id} campaign={c} onDelete={deleteActiveCampaign} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {profileTab === 'completed' && (
+            <div className="pb-12">
+              {loading ? (
+                <div className="flex items-center justify-center py-16">
+                  <GrapeLoader size="md" />
+                </div>
+              ) : completedCampaigns.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <CheckCircle className="w-10 h-10 text-white/10 mb-3" />
+                  <p className="text-sm text-white/30">Aucune campagne terminée</p>
+                </div>
+              ) : (
+                <div className="mt-6">
+                  <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
+                    {completedCampaigns.map((c) => (
+                      <ActiveCampaignCard key={c.id} campaign={c} onDelete={deleteActiveCampaign} from="/profil" />
                     ))}
                   </div>
                 </div>

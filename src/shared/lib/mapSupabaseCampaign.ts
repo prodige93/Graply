@@ -1,21 +1,54 @@
 import type { CampaignData } from '@/creator/components/CampaignCard';
 import { supabase } from '@/shared/infrastructure/supabase';
 
+/** Colonnes nécessaires à `mapSupabaseCampaign` (évite `select('*')` inutilement lourd). */
+export const CAMPAIGN_DB_SELECT_COLUMNS =
+  'id, name, description, photo_url, budget, content_type, categories, platforms, platform_budgets, information, rules, require_application, is_public, status, created_at, user_id';
+
+/** Normalise `platforms` / tableaux venant du JSON Postgres (tableau, null, ou chaîne JSON). */
+export function normalizeStringArray(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.filter((p): p is string => typeof p === 'string');
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      return Array.isArray(parsed) ? parsed.filter((p): p is string => typeof p === 'string') : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+/** Tarif / 1k vues de la première plateforme (Instagram, TikTok, YouTube). */
+export function formatFirstPlatformPer1000Label(
+  platforms: unknown,
+  platform_budgets: Record<string, { per1000?: string }> | null | undefined,
+): string {
+  const socials = normalizeStringArray(platforms).filter(
+    (p): p is 'youtube' | 'tiktok' | 'instagram' => ['youtube', 'tiktok', 'instagram'].includes(p),
+  );
+  const first = socials[0];
+  const pb = first ? platform_budgets?.[first] : undefined;
+  return pb?.per1000 ? `$${pb.per1000}` : '';
+}
+
 export interface SupabaseCampaign {
   id: string;
-  name: string;
-  description: string;
+  name: string | null;
+  description: string | null;
   photo_url: string | null;
-  budget: string;
-  content_type: string;
+  budget: string | null;
+  content_type: string | null;
   categories: string[] | null;
   platforms: string[] | null;
   platform_budgets: Record<string, { amount?: string; per1000?: string; min?: string; max?: string }> | null;
   information: string;
   rules: string[] | null;
   require_application?: boolean;
+  /** false = campagne privée (candidature / hors flux « vérifier ma vidéo » public) */
+  is_public?: boolean | null;
   status: string;
-  created_at: string;
+  created_at: string | null;
   user_id?: string | null;
   profiles?: { username: string | null; display_name: string | null; avatar_url: string | null } | null;
 }
@@ -44,6 +77,7 @@ export async function enrichCampaignsWithProfiles<T extends { user_id?: string |
 function getTimeAgo(dateStr: string): string {
   const now = new Date();
   const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return '';
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
   if (diffMins < 60) return `${diffMins}m ago`;
@@ -57,15 +91,17 @@ function getTimeAgo(dateStr: string): string {
 }
 
 export function mapSupabaseCampaign(c: SupabaseCampaign): CampaignData {
-  const socials = (c.platforms ?? []).filter(
+  const platformList = normalizeStringArray(c.platforms);
+  const socials = platformList.filter(
     (p): p is 'youtube' | 'tiktok' | 'instagram' => ['youtube', 'tiktok', 'instagram'].includes(p)
   );
 
   const tags: string[] = [];
   if (c.content_type) tags.push(c.content_type);
-  if (c.categories?.length) tags.push(c.categories[0]);
+  const categoryArr = Array.isArray(c.categories) ? c.categories : [];
+  if (categoryArr.length) tags.push(categoryArr[0]);
 
-  const budgetNum = parseFloat(c.budget.replace(/[^0-9.]/g, '')) || 0;
+  const budgetNum = parseFloat(String(c.budget ?? '').replace(/[^0-9.]/g, '')) || 0;
 
   const ratesPerPlatform = socials.map((p) => {
     const pb = c.platform_budgets?.[p];
@@ -83,8 +119,8 @@ export function mapSupabaseCampaign(c: SupabaseCampaign): CampaignData {
     id: c.id,
     image: c.photo_url || 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=600',
     tags,
-    timeAgo: getTimeAgo(c.created_at),
-    title: c.name,
+    timeAgo: getTimeAgo(c.created_at ?? new Date().toISOString()),
+    title: c.name?.trim() ? c.name : 'Campagne',
     description: c.description || '',
     brand,
     brandLogo,
@@ -97,15 +133,19 @@ export function mapSupabaseCampaign(c: SupabaseCampaign): CampaignData {
     approval: '0%',
     views: '0',
     creators: '0',
-    category: c.categories?.[0] || '',
+    category: categoryArr[0] || '',
     contentType: c.content_type || 'UGC',
     applicants: 0,
     ratesPerPlatform,
     topCreators: [],
     platformStats: socials.map((p) => ({ platform: p, views: '0', earned: '$0.00' })),
     chartData: [],
-    isPublic: true,
+    isPublic:
+      typeof c.is_public === 'boolean'
+        ? c.is_public
+        : !(c.require_application ?? false),
     requireApplication: c.require_application ?? false,
     rules: c.rules ?? undefined,
+    ownerUserId: c.user_id ?? null,
   };
 }

@@ -1,24 +1,76 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Send, Upload, FileText, X } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import { supabase } from '@/shared/infrastructure/supabase';
 import { campaigns, sponsoredCampaigns } from '@/shared/data/campaignsData';
+import type { CampaignData } from '@/creator/components/CampaignCard';
+import {
+  mapSupabaseCampaign,
+  enrichCampaignsWithProfiles,
+  type SupabaseCampaign,
+} from '@/shared/lib/mapSupabaseCampaign';
+import { useMyCampaigns } from '@/creator/contexts/MyCampaignsContext';
+
+type CandidatureLocationState = { from?: string; campaignPreview?: CampaignData };
+
+function readCampaignPreview(state: unknown, routeId: string | undefined): CampaignData | undefined {
+  if (!routeId) return undefined;
+  const preview = (state as CandidatureLocationState | null)?.campaignPreview;
+  return preview?.id === routeId ? preview : undefined;
+}
 
 export default function CampaignApplicationPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const backTo = `/campagne/${id}`;
+  const backTo = (location.state as CandidatureLocationState | null)?.from ?? `/campagne/${id}`;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const allCampaigns = [...sponsoredCampaigns, ...campaigns];
-  const campaign = allCampaigns.find((c) => c.id === id);
-
+  const staticCampaign = allCampaigns.find((c) => c.id === id);
+  const previewFromNav = useMemo(
+    () => readCampaignPreview(location.state, id),
+    [location.state, id],
+  );
+  const [campaign, setCampaign] = useState<CampaignData | undefined>(
+    () => staticCampaign ?? readCampaignPreview(location.state, id),
+  );
   const [message, setMessage] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const { refresh: refreshMyCampaigns } = useMyCampaigns();
+
+  useEffect(() => {
+    const next = staticCampaign ?? previewFromNav;
+    if (next) {
+      setCampaign(next);
+      return;
+    }
+    setCampaign((prev) => (prev && prev.id === id ? prev : undefined));
+  }, [id, staticCampaign, previewFromNav, location.key]);
+
+  useEffect(() => {
+    if (!id || staticCampaign) return;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) return;
+    supabase
+      .from('campaigns')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle()
+      .then(async ({ data }) => {
+        if (!data) return;
+        try {
+          const [enriched] = await enrichCampaignsWithProfiles([data]);
+          setCampaign(mapSupabaseCampaign(enriched as SupabaseCampaign));
+        } catch {
+          /* ligne invalide côté DB */
+        }
+      });
+  }, [id, staticCampaign]);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -29,20 +81,41 @@ export default function CampaignApplicationPage() {
   const handleSubmit = async () => {
     if (sending || !message.trim()) return;
     setSending(true);
+    setSubmitError(null);
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const isRealCampaign = id && uuidRegex.test(id);
-    if (isRealCampaign) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from('campaign_applications').upsert({
-          campaign_id: id,
-          user_id: user.id,
-          status: 'pending',
-        }, { onConflict: 'campaign_id,user_id' });
+    const isRealCampaign = Boolean(id && uuidRegex.test(id));
+
+    try {
+      if (isRealCampaign) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setSubmitError('Vous devez etre connecte pour envoyer une candidature.');
+          return;
+        }
+        const motivation = message.trim();
+        const { error } = await supabase.from('campaign_applications').upsert(
+          {
+            campaign_id: id,
+            user_id: user.id,
+            motivation,
+            status: 'pending',
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'campaign_id,user_id' },
+        );
+        if (error) {
+          setSubmitError(error.message || 'Enregistrement impossible. Reessayez plus tard.');
+          return;
+        }
+        void refreshMyCampaigns({ silent: true });
       }
+
+      setSent(true);
+      const prev = JSON.parse(localStorage.getItem('applied_campaigns') || '[]') as string[];
+      if (id && !prev.includes(id)) localStorage.setItem('applied_campaigns', JSON.stringify([...prev, id]));
+    } finally {
+      setSending(false);
     }
-    setSending(false);
-    setSent(true);
   };
 
   const formatFileSize = (bytes: number) => {
@@ -56,24 +129,20 @@ export default function CampaignApplicationPage() {
       <Sidebar activePage="home" onOpenSearch={() => {}} />
 
       <div className="flex-1 relative flex items-center justify-center overflow-hidden">
-        {/* Campaign image visible but blurred */}
         {campaign?.image && (
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage: `url(${campaign.image})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              filter: 'blur(12px) brightness(0.45)',
-              transform: 'scale(1.05)',
-            }}
+          <img
+            src={campaign.image}
+            alt=""
+            aria-hidden
+            decoding="async"
+            fetchPriority="high"
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none scale-[1.05]"
+            style={{ filter: 'blur(12px) brightness(0.45)' }}
           />
         )}
 
-        {/* Semi-transparent dark overlay */}
         <div className="absolute inset-0" style={{ background: 'rgba(5,4,4,0.5)' }} />
 
-        {/* Glass card centered */}
         <div
           className="relative z-10 w-full max-w-lg mx-4 sm:mx-auto max-h-[90vh] overflow-y-auto rounded-2xl p-6 sm:p-8"
           style={{
@@ -86,7 +155,7 @@ export default function CampaignApplicationPage() {
         >
           <div className="flex items-center gap-3 mb-6">
             <button
-              onClick={() => navigate(backTo)}
+              onClick={() => navigate(-1)}
               className="flex items-center justify-center w-9 h-9 rounded-full shrink-0 transition-colors hover:bg-white/10"
               style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
             >
@@ -181,6 +250,12 @@ export default function CampaignApplicationPage() {
                   </div>
                 )}
               </div>
+
+              {submitError && (
+                <p className="mb-4 text-sm text-red-400/90 leading-relaxed" role="alert">
+                  {submitError}
+                </p>
+              )}
 
               <button
                 onClick={handleSubmit}

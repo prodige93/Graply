@@ -16,6 +16,7 @@ interface Campaign {
   platforms: string[] | null;
   budget: string | null;
   content_type: string | null;
+  categories: string[] | null;
   platform_budgets: Record<string, { amount: string; per1000: string; min: string; max: string }> | null;
   require_review: boolean;
 }
@@ -89,38 +90,7 @@ function FilterBar({
 
   return (
     <div ref={dropdownRef}>
-      <div className="sm:hidden flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Rechercher..."
-            className="w-full pl-9 pr-4 py-2.5 rounded-full text-sm text-white placeholder-white/40 border border-white/30 focus:border-white/60 focus:outline-none transition-colors"
-            style={{ backgroundColor: '#050404' }}
-          />
-        </div>
-        {[
-          { key: 'instagram', icon: instagramIcon, label: 'Instagram' },
-          { key: 'tiktok', icon: tiktokIcon, label: 'TikTok' },
-          { key: 'youtube', icon: youtubeIcon, label: 'YouTube' },
-        ].map(({ key, icon, label }) => (
-          <button
-            key={key}
-            onClick={() => togglePlatform(key)}
-            className={`w-10 h-10 shrink-0 rounded-full border flex items-center justify-center transition-all duration-200 ${
-              selectedPlatforms.has(key)
-                ? 'border-white bg-white/15 ring-1 ring-white/30'
-                : 'border-white/30 hover:border-white/60 hover:bg-white/5'
-            }`}
-          >
-            <img src={icon} alt={label} className="w-5 h-5 social-icon" />
-          </button>
-        ))}
-      </div>
-
-      <div className="hidden sm:flex items-center gap-3 overflow-x-auto no-scrollbar">
+      <div className="flex flex-wrap items-center gap-3 overflow-x-auto no-scrollbar">
         {['Catégories', 'Contenu', 'Budget'].map((filter) => (
           <div key={filter} className="relative">
             <div className="flex items-center">
@@ -295,10 +265,10 @@ function FilterBar({
           </button>
         )}
 
-        <div className="flex-1" />
+        <div className="flex-1 min-w-[1rem]" />
 
-        <div className="flex items-center gap-2">
-          <div className="relative w-44 sm:w-44 flex-1 sm:flex-none">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <div className="relative w-full sm:w-44 flex-1 min-w-[10rem]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
             <input
               type="text"
@@ -353,8 +323,8 @@ function ContentTypeTag({ type }: { type: string | null }) {
   if (!isUgc && !isClipping) return null;
 
   const style: React.CSSProperties = isUgc
-    ? { background: 'rgba(255,0,217,0.12)', border: '1px solid rgba(255,0,217,0.3)', color: '#FF00D9' }
-    : { background: 'rgba(57,31,154,0.12)', border: '1px solid rgba(57,31,154,0.3)', color: '#a78bfa' };
+    ? { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)' }
+    : { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)' };
 
   return (
     <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider shrink-0" style={style}>
@@ -373,37 +343,45 @@ export default function ValidationVideosPage() {
   const [selectedContent, setSelectedContent] = useState<string | null>(null);
   const [budgetMin, setBudgetMin] = useState(BUDGET_MIN_FB);
   const [budgetMax, setBudgetMax] = useState(BUDGET_MAX_FB);
-  const [videosExpanded, setVideosExpanded] = useState(false);
-  const [creatorsExpanded, setCreatorsExpanded] = useState(false);
+  const [videosExpanded, setVideosExpanded] = useState(true);
+  const [creatorsExpanded, setCreatorsExpanded] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
+    let cancelled = false;
+    (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        setVideoCampaigns([]);
-        setCreatorCampaigns([]);
+        if (!cancelled) {
+          setVideoCampaigns([]);
+          setCreatorCampaigns([]);
+        }
         return;
       }
+      const selectCols =
+        'id, name, photo_url, status, platforms, budget, content_type, categories, platform_budgets, require_review';
       const [videoRes, creatorRes] = await Promise.all([
         supabase
           .from('campaigns')
-          .select('id, name, photo_url, status, platforms, budget, content_type, platform_budgets, require_review')
+          .select(selectCols)
+          .eq('user_id', user.id)
           .in('status', ['published', 'paused'])
           .eq('user_id', user.id)
           .order('created_at', { ascending: false }),
         supabase
           .from('campaigns')
-          .select('id, name, photo_url, status, platforms, budget, content_type, platform_budgets, require_review')
+          .select(selectCols)
+          .eq('user_id', user.id)
           .in('status', ['published', 'paused'])
           .eq('user_id', user.id)
           .eq('require_review', true)
           .order('created_at', { ascending: false }),
       ]);
 
+      if (cancelled) return;
       setVideoCampaigns(videoRes.data || []);
       setCreatorCampaigns(creatorRes.data || []);
-    };
-    fetchData();
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const pendingVerifications = 2;
@@ -431,9 +409,25 @@ export default function ValidationVideosPage() {
 
   const filterCampaigns = (list: Campaign[]) =>
     list.filter((c) => {
-      const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesPlatform = selectedPlatforms.size === 0 || (c.platforms && c.platforms.some((p) => selectedPlatforms.has(p)));
-      return matchesSearch && matchesPlatform;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        if (!c.name.toLowerCase().includes(q)) return false;
+      }
+      if (selectedCategory) {
+        if (c.content_type?.toLowerCase() !== selectedCategory.toLowerCase()) return false;
+      }
+      if (selectedContent) {
+        if (!(c.categories ?? []).some((cat) => cat.toLowerCase() === selectedContent.toLowerCase())) return false;
+      }
+      if (budgetMin > BUDGET_MIN_FB || budgetMax < BUDGET_MAX_FB) {
+        const budgetNum = parseFloat((c.budget ?? '').replace(/[^0-9.]/g, '')) || 0;
+        if (budgetNum < budgetMin || budgetNum > budgetMax) return false;
+      }
+      if (selectedPlatforms.size > 0) {
+        const hasPlatform = (c.platforms ?? []).some((p) => selectedPlatforms.has(p));
+        if (!hasPlatform) return false;
+      }
+      return true;
     });
 
   const filteredVideoCampaigns = filterCampaigns(videoCampaigns);
@@ -754,18 +748,17 @@ function CampaignRow({ campaign, badgeCount, badgeStyle, subLabel, icon, onClick
         <div className="flex items-center gap-2.5 flex-wrap">
           <p className="text-sm font-semibold text-white truncate">{campaign.name}</p>
           {campaign.platforms && campaign.platforms.length > 0 && (
-            <div className="flex items-center gap-1.5 shrink-0">
-              {campaign.platforms.map((p) =>
-                platformIconMap[p] ? (
-                  <div
-                    key={p}
-                    className="w-6 h-6 rounded-md flex items-center justify-center"
-                    style={{ background: 'rgba(255,255,255,0.06)' }}
-                  >
-                    <img src={platformIconMap[p]} alt={p} className="w-3.5 h-3.5 social-icon" />
-                  </div>
-                ) : null
-              )}
+            <div className="flex items-center shrink-0" style={{ gap: 0 }}>
+              {campaign.platforms.filter((p) => platformIconMap[p]).map((p, i, arr) => (
+                <div key={p} style={{
+                  width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                  marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+                }}>
+                  <img src={platformIconMap[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+                </div>
+              ))}
             </div>
           )}
           <ContentTypeTag type={campaign.content_type} />

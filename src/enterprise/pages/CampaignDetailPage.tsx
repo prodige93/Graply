@@ -2,7 +2,9 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { renderAmount } from '@/shared/utils/chartUtils';
 import { useParams, useLocation, useNavigate as useRawNavigate } from 'react-router-dom';
 import { useEnterpriseNavigate } from '@/enterprise/lib/useEnterpriseNavigate';
-import { ArrowLeft, Users, Eye, DollarSign, Send, CheckCircle, ScrollText, FileDown, Download, MoreVertical, Flag, ShieldBan, X, Lock, Pencil, Pause, Play, Trash2, Share2, Bookmark } from 'lucide-react';
+import type { CampaignData } from '@/enterprise/components/CampaignCard';
+import { ArrowLeft, Users, Eye, DollarSign, Send, CheckCircle, ScrollText, FileDown, Download, MoreVertical, Flag, ShieldBan, X, Lock, Pencil, Pause, Play, Trash2, Share2, BookmarkX } from 'lucide-react';
+import bookmarkIcon from '@/shared/assets/bookmark-filled.svg';
 import { campaigns, sponsoredCampaigns, enterprises } from '@/shared/data/campaignsData';
 import { supabase } from '@/shared/infrastructure/supabase';
 import { useSavedCampaigns } from '@/enterprise/contexts/SavedCampaignsContext';
@@ -58,8 +60,14 @@ export default function CampaignDetailPage() {
   const rawNavigate = useRawNavigate();
   const location = useLocation();
   const { isSaved, toggle } = useSavedCampaigns();
+  const backTo = (location.state as { from?: string } | null)?.from ?? '/campagnes';
 
-  const goCreatorMode = () => rawNavigate(`/campagne/${id}`);
+  const goBackToCreatorCampaignList = () => {
+    rawNavigate(backTo === '/enregistre' ? '/enregistre' : '/campagnes');
+  };
+
+  const goCreatorMode = () =>
+    rawNavigate(`/campagne/${id}`, { state: { from: '/campagnes' } });
   const allCampaigns = [...sponsoredCampaigns, ...campaigns];
   const staticCampaign = allCampaigns.find((c) => c.id === id);
   const [supabaseCampaign, setSupabaseCampaign] = useState<SupabaseCampaign | null>(null);
@@ -124,7 +132,7 @@ export default function CampaignDetailPage() {
     return (
       <SupabaseCampaignDetail
         campaign={supabaseCampaign}
-        onBack={() => navigate('/campagnes')}
+        onBack={goBackToCreatorCampaignList}
         onEdit={(id) => navigate(`/modifier-campagne/${id}`, { state: { from: `/campagne/${id}` } })}
         onNavigate={navigate}
       />
@@ -142,7 +150,7 @@ export default function CampaignDetailPage() {
       <div className="min-h-screen flex flex-col items-center justify-center text-white" style={{ backgroundColor: '#050404' }}>
         <p className="text-xl font-semibold mb-4">Campagne introuvable</p>
         <button
-          onClick={() => navigate('/campagnes')}
+          onClick={goBackToCreatorCampaignList}
           className="px-6 py-3 rounded-full bg-white text-black font-semibold text-sm hover:bg-white/90 transition-colors"
         >
           Retour aux campagnes
@@ -163,7 +171,7 @@ export default function CampaignDetailPage() {
         />
         <div className="absolute top-6 left-6 z-10">
           <button
-            onClick={() => navigate('/campagnes')}
+            onClick={goBackToCreatorCampaignList}
             className="flex items-center justify-center w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors"
           >
             <ArrowLeft className="w-5 h-5 text-white" />
@@ -242,47 +250,87 @@ export default function CampaignDetailPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 mb-2 lg:mb-8">
-          <div
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)' }}
-          >
-            <Users className="w-3.5 h-3.5 text-white/50" />
-            <span className="text-xs font-bold text-white">{campaign.applicants.toLocaleString()}</span>
-          </div>
-          {campaign.tags.map((tag) => {
+        <div className="flex items-center mb-2 lg:mb-8" style={{ gap: 0 }}>
+          {campaign.tags.map((tag, i, arr) => {
             const lower = tag.toLowerCase();
             let tagStyle: React.CSSProperties;
+            const outline = '2px solid rgba(10,10,15,1)';
             if (lower === 'clipping') {
-              tagStyle = { background: 'rgba(57,31,154,0.15)', border: '1px solid rgba(57,31,154,0.35)', color: '#a78bfa' };
+              tagStyle = { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)', outline };
             } else if (lower === 'ugc') {
-              tagStyle = { background: 'rgba(255,0,217,0.15)', border: '1px solid rgba(255,0,217,0.35)', color: '#FF00D9' };
+              tagStyle = { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)', outline };
             } else {
-              tagStyle = { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#ffffff' };
+              tagStyle = { background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.15)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 8px rgba(0,0,0,0.2)', outline };
             }
             return (
-              <span key={tag} className="px-3 py-1 rounded-full text-xs font-semibold" style={tagStyle}>
+              <span key={tag} className="px-3 py-1 rounded-full text-xs font-semibold" style={{
+                ...tagStyle,
+                marginLeft: i === 0 ? 0 : -6,
+                zIndex: arr.length + 3 - i,
+                position: 'relative',
+              }}>
                 {tag}
               </span>
             );
           })}
           <div
             className="flex items-center gap-1 px-3 py-1 rounded-full"
-            style={{ background: 'rgba(255,120,42,0.1)', border: '1px solid rgba(255,120,42,0.25)' }}
+            style={{
+              background: 'rgba(255,255,255,0.08)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 8px rgba(0,0,0,0.2)',
+              outline: '2px solid rgba(10,10,15,1)',
+              marginLeft: -6,
+              zIndex: 2,
+              position: 'relative',
+            }}
+          >
+            <Users className="w-3 h-3 text-white/50" />
+            <span className="text-xs font-semibold text-white">{campaign.applicants.toLocaleString()}</span>
+          </div>
+          <div
+            className="flex items-center gap-0.5 px-3 py-1 rounded-full"
+            style={{
+              background: 'linear-gradient(145deg, rgba(177,188,255,0.22) 0%, rgba(177,188,255,0.08) 50%, rgba(120,133,255,0.18) 100%)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              border: '1px solid rgba(177,188,255,0.45)',
+              boxShadow: '0 1px 0 rgba(255,255,255,0.35) inset, 0 -1px 0 rgba(120,133,255,0.2) inset, 0 2px 8px rgba(177,188,255,0.15)',
+              outline: '2px solid rgba(10,10,15,1)',
+              marginLeft: -6,
+              zIndex: 1,
+              position: 'relative',
+            }}
           >
             <span className="text-xs font-bold text-white">{campaign.ratePerView}</span>
-            <span className="text-[10px] font-medium text-white/40">/K</span>
+            <span className="text-[10px] font-medium text-white/50">/1K</span>
           </div>
-          <div className="hidden lg:flex items-center gap-2 ml-auto">
-            {campaign.socials.map((s) => (
-              <span key={s} className="text-white">{socialIcons[s]()}</span>
+          <div className="hidden lg:flex items-center ml-auto" style={{ gap: 0 }}>
+            {campaign.socials.filter((s) => socialIcons[s]).map((s, i, arr) => (
+              <div key={s} className="flex items-center justify-center text-white" style={{
+                width: 26, height: 26, borderRadius: '50%',
+                background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                marginLeft: i === 0 ? 0 : -8, zIndex: arr.length - i, position: 'relative',
+              }}>
+                {socialIcons[s]('w-3.5 h-3.5')}
+              </div>
             ))}
           </div>
         </div>
 
-        <div className="flex items-center gap-2 mb-6 lg:hidden">
-          {campaign.socials.map((s) => (
-            <span key={s} className="text-white">{socialIcons[s]()}</span>
+        <div className="flex items-center mb-6 lg:hidden" style={{ gap: 0 }}>
+          {campaign.socials.filter((s) => socialIcons[s]).map((s, i, arr) => (
+            <div key={s} className="flex items-center justify-center text-white" style={{
+              width: 24, height: 24, borderRadius: '50%',
+              background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+              marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative',
+            }}>
+              {socialIcons[s]('w-3.5 h-3.5')}
+            </div>
           ))}
         </div>
 
@@ -386,16 +434,31 @@ export default function CampaignDetailPage() {
               >
                 <Share2 className="w-4 h-4 text-white" />
               </button>
-              <button
-                onClick={() => id && toggle(id)}
-                className="w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
-                style={{
-                  background: id && isSaved(id) ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.07)',
-                  border: id && isSaved(id) ? '1px solid rgba(255,255,255,0.4)' : '1px solid rgba(255,255,255,0.14)',
-                }}
-              >
-                <Bookmark className="w-4 h-4 transition-colors" style={{ color: id && isSaved(id) ? '#fff' : 'rgba(255,255,255,0.7)', fill: id && isSaved(id) ? 'rgba(255,255,255,0.9)' : 'none' }} />
-              </button>
+              {id && backTo === '/enregistre' ? (
+                <button
+                  onClick={() => { if (id) { toggle(id, campaign as CampaignData); navigate('/enregistre'); } }}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-200 hover:brightness-110 active:scale-95"
+                  style={{
+                    background: 'rgba(239,68,68,0.1)',
+                    border: '1px solid rgba(239,68,68,0.25)',
+                    color: '#f87171',
+                  }}
+                >
+                  <BookmarkX className="w-4 h-4" />
+                  Retirer
+                </button>
+              ) : (
+                <button
+                  onClick={() => id && toggle(id, campaign as CampaignData)}
+                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
+                  style={{
+                    background: id && isSaved(id) ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.07)',
+                    border: id && isSaved(id) ? '1px solid rgba(255,255,255,0.4)' : '1px solid rgba(255,255,255,0.14)',
+                  }}
+                >
+                  <img src={bookmarkIcon} alt="Enregistrer" className={`w-4 h-4 transition-opacity ${id && isSaved(id) ? 'opacity-100' : 'opacity-70'}`} />
+                </button>
+              )}
             </div>
           </div>
         ) : applied ? (
@@ -448,16 +511,31 @@ export default function CampaignDetailPage() {
               >
                 <Share2 className="w-4 h-4 text-white" />
               </button>
-              <button
-                onClick={() => id && toggle(id)}
-                className="w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
-                style={{
-                  background: id && isSaved(id) ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.07)',
-                  border: id && isSaved(id) ? '1px solid rgba(255,255,255,0.4)' : '1px solid rgba(255,255,255,0.14)',
-                }}
-              >
-                <Bookmark className="w-4 h-4 transition-colors" style={{ color: id && isSaved(id) ? '#fff' : 'rgba(255,255,255,0.7)', fill: id && isSaved(id) ? 'rgba(255,255,255,0.9)' : 'none' }} />
-              </button>
+              {id && backTo === '/enregistre' ? (
+                <button
+                  onClick={() => { if (id) { toggle(id, campaign as CampaignData); navigate('/enregistre'); } }}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-200 hover:brightness-110 active:scale-95"
+                  style={{
+                    background: 'rgba(239,68,68,0.1)',
+                    border: '1px solid rgba(239,68,68,0.25)',
+                    color: '#f87171',
+                  }}
+                >
+                  <BookmarkX className="w-4 h-4" />
+                  Retirer
+                </button>
+              ) : (
+                <button
+                  onClick={() => id && toggle(id, campaign as CampaignData)}
+                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
+                  style={{
+                    background: id && isSaved(id) ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.07)',
+                    border: id && isSaved(id) ? '1px solid rgba(255,255,255,0.4)' : '1px solid rgba(255,255,255,0.14)',
+                  }}
+                >
+                  <img src={bookmarkIcon} alt="Enregistrer" className={`w-4 h-4 transition-opacity ${id && isSaved(id) ? 'opacity-100' : 'opacity-70'}`} />
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -957,15 +1035,15 @@ function SupabaseCampaignDetail({
                 className="px-3 py-1 rounded-full text-xs font-semibold"
                 style={
                   c.content_type.toLowerCase() === 'ugc'
-                    ? { background: 'rgba(255,0,217,0.15)', border: '1px solid rgba(255,0,217,0.35)', color: '#FF00D9' }
-                    : { background: 'rgba(57,31,154,0.15)', border: '1px solid rgba(57,31,154,0.35)', color: '#a78bfa' }
+                    ? { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)', outline: '2px solid rgba(10,10,15,1)' }
+                    : { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)', outline: '2px solid rgba(10,10,15,1)' }
                 }
               >
                 {c.content_type}
               </span>
             )}
             {(c.categories ?? []).map((cat) => (
-              <span key={cat} className="px-3 py-1 rounded-full text-xs font-semibold" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff' }}>
+              <span key={cat} className="px-3 py-1 rounded-full text-xs font-semibold" style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 8px rgba(0,0,0,0.2)', outline: '2px solid rgba(10,10,15,1)' }}>
                 {cat}
               </span>
             ))}

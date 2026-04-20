@@ -3,16 +3,20 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Users, Eye, DollarSign, Send, CheckCircle, ScrollText, FileDown, Download, MoreVertical, Flag, ShieldBan, X, Share2, BookmarkX } from 'lucide-react';
 import bookmarkIcon from '@/shared/assets/bookmark-filled.svg';
 import { useSavedCampaigns } from '@/creator/contexts/SavedCampaignsContext';
+import { useMyCampaigns } from '@/creator/contexts/MyCampaignsContext';
 import { campaigns, sponsoredCampaigns, enterprises } from '@/shared/data/campaignsData';
 import { supabase } from '@/shared/infrastructure/supabase';
-import { mapSupabaseCampaign, enrichCampaignsWithProfiles } from '@/shared/lib/mapSupabaseCampaign';
+import {
+  mapSupabaseCampaign,
+  enrichCampaignsWithProfiles,
+  type SupabaseCampaign,
+} from '@/shared/lib/mapSupabaseCampaign';
+import GrapeLoader from '../components/GrapeLoader';
 import verifiedIcon from '@/shared/assets/badge-enterprise-verified.png';
 import instagramIcon from '@/shared/assets/instagram-card.svg';
 import tiktokIcon from '@/shared/assets/tiktok.svg';
 import checkIcon from '@/shared/assets/check.svg';
 import chCircleIcon from '@/shared/assets/creator-hub-mark.svg';
-import rectangleBg from '@/shared/assets/campaign-message-bg.svg';
-import sentBg from '@/shared/assets/campaign-sent-panel-bg.svg';
 import StatsChart from '../components/StatsChart';
 import { generateChartData } from '@/shared/utils/chartUtils';
 import Sidebar from '../components/Sidebar';
@@ -39,11 +43,26 @@ const socialIcons: Record<string, (size?: string) => JSX.Element> = {
 
 const medalColors = ['#FFD700', '#C0C0C0', '#CD7F32'];
 
+type ApplicationUiStatus = 'unknown' | 'none' | 'pending' | 'accepted';
+
+function isCampaignUuid(id: string | undefined): boolean {
+  if (!id) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+}
+
 export default function CampaignDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const backTo: string = (location.state as { from?: string })?.from ?? '/campagnes';
+  /** Retour explicite : après « Mode créateur » depuis l’app entreprise, `navigate(-1)` renverrait sous `/app-entreprise`. */
+  const navigateBackFromCampaignDetail = () => {
+    if (backTo === '/mes-campagnes') navigate('/mes-campagnes');
+    else if (backTo === '/profil') navigate('/profil');
+    else if (backTo === '/enregistre') navigate('/enregistre');
+    else if (backTo.startsWith('/')) navigate(backTo.startsWith('/app-entreprise') ? '/campagnes' : backTo);
+    else navigate('/campagnes');
+  };
   const allCampaigns = [...sponsoredCampaigns, ...campaigns];
   const staticCampaign = allCampaigns.find((c) => c.id === id);
   const [campaign, setCampaign] = useState(staticCampaign ?? null);
@@ -52,7 +71,8 @@ export default function CampaignDetailPage() {
   const [chartPeriod, setChartPeriod] = useState<string>('6m');
   const [activePlatform, setActivePlatform] = useState<string | null>(null);
   const { isSaved, toggle } = useSavedCampaigns();
-  const [applied, setApplied] = useState(false);
+  const { refresh: refreshMyCampaigns } = useMyCampaigns();
+  const [applicationStatus, setApplicationStatus] = useState<ApplicationUiStatus>('unknown');
   const [applying, setApplying] = useState(false);
   const [showCampaignMenu, setShowCampaignMenu] = useState(false);
   const [campaignModal, setCampaignModal] = useState<{ type: 'report' | 'block' } | null>(null);
@@ -64,19 +84,52 @@ export default function CampaignDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!id || !uuidRegex.test(id)) return;
+    if (!id) return;
+    if (!isCampaignUuid(id)) {
+      setApplicationStatus('none');
+      return;
+    }
+    let cancelled = false;
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
+      if (cancelled) return;
+      if (!user) {
+        setApplicationStatus('none');
+        return;
+      }
       supabase
         .from('campaign_applications')
-        .select('id')
+        .select('id, status')
         .eq('campaign_id', id)
         .eq('user_id', user.id)
         .maybeSingle()
-        .then(({ data }) => { if (data) setApplied(true); });
+        .then(({ data }) => {
+          if (cancelled) return;
+          if (!data) {
+            const localApplied = JSON.parse(localStorage.getItem('applied_campaigns') || '[]') as string[];
+            setApplicationStatus(localApplied.includes(id) ? 'pending' : 'none');
+            return;
+          }
+          if (data.status === 'accepted') {
+            setApplicationStatus('accepted');
+            return;
+          }
+          if (data.status === 'pending') {
+            setApplicationStatus('pending');
+            return;
+          }
+          setApplicationStatus('none');
+        });
     });
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
+
+  /** Précharge la page candidature pour un clic « Postuler » sans attente du lazy chunk. */
+  useEffect(() => {
+    if (!campaign?.id) return;
+    void import('@/creator/pages/CampaignApplicationPage.tsx');
+  }, [campaign?.id]);
 
   useEffect(() => {
     if (staticCampaign || !id) return;
@@ -86,13 +139,20 @@ export default function CampaignDetailPage() {
       .select('*')
       .eq('id', id)
       .maybeSingle()
-      .then(async ({ data }) => {
-        if (data) {
+      .then(async ({ data, error }) => {
+        if (error || !data) {
+          setLoading(false);
+          return;
+        }
+        try {
           const [enriched] = await enrichCampaignsWithProfiles([data]);
-          setCampaign(mapSupabaseCampaign(enriched));
+          setCampaign(mapSupabaseCampaign(enriched as SupabaseCampaign));
+        } catch {
+          setCampaign(null);
         }
         setLoading(false);
-      });
+      })
+      .catch(() => setLoading(false));
   }, [id, staticCampaign]);
 
   useEffect(() => {
@@ -115,24 +175,34 @@ export default function CampaignDetailPage() {
     ? enterprises.find((e) => e.name.toLowerCase() === campaign.brand.toLowerCase())?.id
     : undefined;
 
+  const sidebarActivePage =
+    backTo === '/mes-campagnes' ? 'mes-campagnes' : backTo === '/profil' ? 'mon-compte' : 'home';
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#050404' }}>
-        <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+      <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
+        <Sidebar activePage={sidebarActivePage} onOpenSearch={() => {}} />
+        <div className="flex-1 flex items-center justify-center py-16">
+          <GrapeLoader size="md" />
+        </div>
       </div>
     );
   }
 
   if (!campaign) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-white" style={{ backgroundColor: '#050404' }}>
-        <p className="text-xl font-semibold mb-4">Campagne introuvable</p>
-        <button
-          onClick={() => navigate(-1)}
-          className="px-6 py-3 rounded-full bg-white text-black font-semibold text-sm hover:bg-white/90 transition-colors"
-        >
-          Retour aux campagnes
-        </button>
+      <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
+        <Sidebar activePage={sidebarActivePage} onOpenSearch={() => {}} />
+        <div className="flex-1 flex flex-col items-center justify-center px-4">
+          <p className="text-xl font-semibold mb-4">Campagne introuvable</p>
+          <button
+            type="button"
+            onClick={navigateBackFromCampaignDetail}
+            className="px-6 py-3 rounded-full bg-white text-black font-semibold text-sm hover:bg-white/90 transition-colors"
+          >
+            Retour aux campagnes
+          </button>
+        </div>
       </div>
     );
   }
@@ -140,7 +210,7 @@ export default function CampaignDetailPage() {
   return (
     <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
       <Sidebar
-        activePage="home"
+        activePage={sidebarActivePage}
         onOpenSearch={() => {}}
       />
       <div className="flex-1 overflow-y-auto pb-24 lg:pb-10">
@@ -149,7 +219,7 @@ export default function CampaignDetailPage() {
         <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, transparent 60%, rgba(5,4,4,0.5) 75%, rgba(5,4,4,0.88) 88%, rgba(5,4,4,1) 100%)' }} />
         <div className="absolute top-6 left-6 z-10">
           <button
-            onClick={() => navigate(-1)}
+            onClick={navigateBackFromCampaignDetail}
             className="flex items-center justify-center w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors"
           >
             <ArrowLeft className="w-5 h-5 text-white" />
@@ -242,49 +312,89 @@ export default function CampaignDetailPage() {
         </div>
 
         <div className="flex flex-col gap-2 mb-8">
-          <div className="flex flex-wrap items-center gap-2">
-            <div
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
-              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)' }}
-            >
-              <Users className="w-3.5 h-3.5 text-white/50" />
-              <span className="text-xs font-bold text-white">{campaign.applicants.toLocaleString()}</span>
-            </div>
-            {campaign.tags.map((tag) => {
+          <div className="flex items-center" style={{ gap: 0 }}>
+            {campaign.tags.map((tag, i, arr) => {
               const lower = tag.toLowerCase();
               let tagStyle: React.CSSProperties;
+              const outline = '2px solid rgba(10,10,15,1)';
               if (lower === 'clipping') {
-                tagStyle = { background: 'rgba(57,31,154,0.15)', border: '1px solid rgba(57,31,154,0.35)', color: '#a78bfa' };
+                tagStyle = { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)', outline };
               } else if (lower === 'ugc') {
-                tagStyle = { background: 'rgba(255,0,217,0.15)', border: '1px solid rgba(255,0,217,0.35)', color: '#FF00D9' };
+                tagStyle = { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)', outline };
               } else {
-                tagStyle = { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#ffffff' };
+                tagStyle = { background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.15)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 8px rgba(0,0,0,0.2)', outline };
               }
               return (
-                <span key={tag} className="px-3 py-1 rounded-full text-xs font-semibold" style={tagStyle}>
+                <span key={tag} className="px-3 py-1 rounded-full text-xs font-semibold" style={{
+                  ...tagStyle,
+                  marginLeft: i === 0 ? 0 : -6,
+                  zIndex: arr.length + 3 - i,
+                  position: 'relative',
+                }}>
                   {tag}
                 </span>
               );
             })}
             <div
               className="flex items-center gap-1 px-3 py-1 rounded-full"
-              style={{ background: 'rgba(251,146,60,0.18)', border: '1px solid rgba(251,146,60,0.35)' }}
+              style={{
+                background: 'rgba(255,255,255,0.08)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 8px rgba(0,0,0,0.2)',
+                outline: '2px solid rgba(10,10,15,1)',
+                marginLeft: -6,
+                zIndex: 2,
+                position: 'relative',
+              }}
+            >
+              <Users className="w-3 h-3 text-white/50" />
+              <span className="text-xs font-semibold text-white">{campaign.applicants.toLocaleString()}</span>
+            </div>
+            <div
+              className="flex items-center gap-0.5 px-2 py-1 rounded-full"
+              style={{
+                background: 'linear-gradient(145deg, rgba(177,188,255,0.22) 0%, rgba(177,188,255,0.08) 50%, rgba(120,133,255,0.18) 100%)',
+                backdropFilter: 'blur(10px)',
+                WebkitBackdropFilter: 'blur(10px)',
+                border: '1px solid rgba(177,188,255,0.45)',
+                boxShadow: '0 1px 0 rgba(255,255,255,0.35) inset, 0 -1px 0 rgba(120,133,255,0.2) inset, 0 2px 8px rgba(177,188,255,0.15)',
+                outline: '2px solid rgba(10,10,15,1)',
+                marginLeft: -6,
+                zIndex: 1,
+                position: 'relative',
+              }}
             >
               <span className="text-xs font-bold text-white">{campaign.ratePerView}</span>
               <span className="text-[10px] font-medium text-white/50">/1K</span>
             </div>
-            <div className="hidden sm:flex items-center gap-2 ml-auto">
-              {campaign.socials.map((s) => (
-                <span key={s} className="text-white">{socialIcons[s]()}</span>
+            <div className="hidden sm:flex items-center ml-auto" style={{ gap: 0 }}>
+              {campaign.socials.filter((s) => socialIcons[s]).map((s, i, arr) => (
+                <div key={s} className="flex items-center justify-center text-white" style={{
+                  width: 26, height: 26, borderRadius: '50%',
+                  background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                  marginLeft: i === 0 ? 0 : -8, zIndex: arr.length - i, position: 'relative',
+                }}>
+                  {socialIcons[s]('w-3.5 h-3.5')}
+                </div>
               ))}
             </div>
           </div>
         </div>
 
         <div className="mb-8">
-          <div className="flex sm:hidden items-center gap-2 mb-3">
-            {campaign.socials.map((s) => (
-              <span key={s} className="text-white">{socialIcons[s]()}</span>
+          <div className="flex sm:hidden items-center mb-3" style={{ gap: 0 }}>
+            {campaign.socials.filter((s) => socialIcons[s]).map((s, i, arr) => (
+              <div key={s} className="flex items-center justify-center text-white" style={{
+                width: 24, height: 24, borderRadius: '50%',
+                background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative',
+              }}>
+                {socialIcons[s]('w-3.5 h-3.5')}
+              </div>
             ))}
           </div>
           <h2 className="text-sm font-bold text-white uppercase tracking-wider mb-3">Description</h2>
@@ -349,7 +459,22 @@ export default function CampaignDetailPage() {
         )}
 
         <div className="flex items-center gap-3 mb-10">
-          {campaign.isPublic ? (
+          {applicationStatus === 'unknown' && isCampaignUuid(id) ? (
+            <div className="h-11 w-44 rounded-xl shrink-0 animate-pulse" style={{ background: 'rgba(255,255,255,0.06)' }} />
+          ) : applicationStatus === 'accepted' ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/campagne/${campaign.id}/verification`, { state: { from: location.pathname } })}
+              className="group relative flex items-center justify-center py-2.5 px-4 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] overflow-hidden"
+              style={{ background: '#FFA672' }}
+            >
+              <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: 'rgba(255,255,255,0.1)' }} />
+              <span className="font-bold text-base relative z-10 text-white flex items-center gap-2">
+                <img src={chCircleIcon} alt="" className="w-4 h-4" />
+                Vérifier ma vidéo
+              </span>
+            </button>
+          ) : campaign.isPublic ? (
             <button
               onClick={() => navigate(`/campagne/${campaign.id}/verification`, { state: { from: location.pathname } })}
               className="group relative flex items-center justify-center py-2.5 px-4 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] overflow-hidden"
@@ -361,9 +486,80 @@ export default function CampaignDetailPage() {
               <span className="font-bold text-base relative z-10 text-white flex items-center gap-2"><img src={chCircleIcon} alt="" className="w-4 h-4" />Vérifier ma vidéo</span>
             </button>
           ) : campaign.requireApplication ? (
+            applicationStatus === 'pending' ? (
+              <button
+                disabled
+                className="flex items-center gap-2 px-8 py-3 font-bold text-sm uppercase tracking-wide rounded-xl"
+                style={{
+                  background: '#FFFFFF',
+                  color: '#000',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                  border: '1px solid rgba(0,0,0,0.12)',
+                }}
+              >
+                <img src={checkIcon} alt="" className="w-4 h-4" />
+                Déjà postulé
+              </button>
+            ) : (
+              <button
+                onClick={() =>
+                  navigate(`/campagne/${campaign.id}/candidature`, {
+                    state: { from: location.pathname, campaignPreview: campaign },
+                  })
+                }
+                className="flex items-center gap-2 px-8 py-3 font-bold text-sm uppercase tracking-wide rounded-xl transition-all duration-300 hover:brightness-110 active:scale-[0.97]"
+                style={{
+                  background: '#FFFFFF',
+                  color: '#000',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                  border: '1px solid rgba(0,0,0,0.12)',
+                }}
+              >
+                <Send className="w-3.5 h-3.5" />
+                Postuler
+              </button>
+            )
+          ) : applicationStatus === 'pending' ? (
             <button
-              onClick={() => navigate(`/campagne/${campaign.id}/candidature`, { state: { from: location.pathname } })}
-              className="flex items-center gap-2 px-8 py-3 font-bold text-sm uppercase tracking-wide rounded-xl transition-all duration-300 hover:brightness-110 active:scale-[0.97]"
+              disabled
+              className="flex items-center gap-2 px-8 py-3 font-bold text-sm uppercase tracking-wide rounded-xl"
+              style={{
+                background: '#FFFFFF',
+                color: '#000',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                border: '1px solid rgba(0,0,0,0.12)',
+              }}
+            >
+              <img src={checkIcon} alt="" className="w-4 h-4" />
+              Déjà postulé
+            </button>
+          ) : (
+            <button
+              onClick={async () => {
+                if (applying) return;
+                setApplying(true);
+                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                const isRealCampaign = id && uuidRegex.test(id);
+                if (isRealCampaign) {
+                  const { data: { user } } = await supabase.auth.getUser();
+                  if (user) {
+                    const { error } = await supabase.from('campaign_applications').upsert({
+                      campaign_id: id,
+                      user_id: user.id,
+                      motivation: '',
+                      status: 'pending',
+                      updated_at: new Date().toISOString(),
+                    }, { onConflict: 'campaign_id,user_id' });
+                    if (!error) void refreshMyCampaigns({ silent: true });
+                  }
+                }
+                setApplicationStatus('pending');
+                setApplying(false);
+                const prev = JSON.parse(localStorage.getItem('applied_campaigns') || '[]') as string[];
+                if (id && !prev.includes(id)) localStorage.setItem('applied_campaigns', JSON.stringify([...prev, id]));
+              }}
+              disabled={applying}
+              className="flex items-center gap-2 px-8 py-3 font-bold text-sm uppercase tracking-wide rounded-xl transition-all duration-300 hover:brightness-110 active:scale-[0.97] disabled:opacity-60"
               style={{
                 background: '#FFFFFF',
                 color: '#000',
@@ -403,7 +599,7 @@ export default function CampaignDetailPage() {
 
           {id && backTo === '/enregistre' ? (
             <button
-              onClick={() => { toggle(id); navigate('/enregistre'); }}
+              onClick={() => { toggle(id, campaign); navigate('/enregistre'); }}
               className="flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-200 hover:brightness-110 active:scale-95"
               style={{
                 background: 'rgba(239,68,68,0.1)',
@@ -416,7 +612,7 @@ export default function CampaignDetailPage() {
             </button>
           ) : (
             <button
-              onClick={() => id && toggle(id)}
+              onClick={() => id && toggle(id, campaign)}
               className="w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
               style={{
                 background: id && isSaved(id) ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.07)',

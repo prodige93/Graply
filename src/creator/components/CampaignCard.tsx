@@ -36,19 +36,21 @@ export interface CampaignData {
   requireApplication?: boolean;
   rules?: string[];
   documents?: { name: string; size: string; type: string }[];
+  /** Créateur de la campagne (Supabase) — utile pour masquer « enregistrer » si c’est la sienne, ex. app entreprise. */
+  ownerUserId?: string | null;
 }
 
 const socialIcons: Record<string, JSX.Element> = {
   youtube: (
-    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
+    <svg viewBox="0 0 24 24" className="w-3 h-3 fill-current">
       <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31.9 31.9 0 0 0 0 12a31.9 31.9 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31.9 31.9 0 0 0 24 12a31.9 31.9 0 0 0-.5-5.8zM9.6 15.6V8.4l6.3 3.6-6.3 3.6z" />
     </svg>
   ),
   tiktok: (
-    <img src={tiktokIcon} alt="TikTok" className="w-4 h-4 social-icon" />
+    <img src={tiktokIcon} alt="TikTok" className="w-3 h-3 social-icon" />
   ),
   instagram: (
-    <img src={instagramIcon} alt="Instagram" className="w-4 h-4 social-icon" />
+    <img src={instagramIcon} alt="Instagram" className="w-3 h-3 social-icon" />
   ),
 };
 
@@ -70,13 +72,19 @@ export default function CampaignCard({ data, from }: { data: CampaignData; from?
 
   const handleSave = (e: React.MouseEvent) => {
     e.stopPropagation();
-    toggle(data.id);
+    toggle(data.id, data);
+  };
+
+  const prefetchCampaignDetail = () => {
+    void import('@/creator/pages/CampaignDetailPage.tsx');
   };
 
   return (
     <div
+      onMouseEnter={prefetchCampaignDetail}
+      onFocus={prefetchCampaignDetail}
       onClick={() => navigate(`/campagne/${data.id}`, { state: { from: from ?? '/campagnes' } })}
-      className="rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.04] hover:-translate-y-1 group h-full flex flex-col cursor-pointer relative"
+      className="rounded-2xl overflow-hidden transition-[transform,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_16px_48px_rgba(0,0,0,0.55)] group h-full flex flex-col cursor-pointer relative"
       style={{
         background: 'rgba(10,10,15,1)',
         border: '1px solid rgba(255,255,255,0.10)',
@@ -96,7 +104,21 @@ export default function CampaignCard({ data, from }: { data: CampaignData; from?
           Rejoindre
         </span>
       </div>
-      <div className="relative h-36 overflow-hidden">
+      <div className="relative h-36 overflow-hidden isolate">
+        <div className="absolute inset-0 z-0 origin-center transition-transform duration-500 ease-out will-change-transform group-hover:scale-[1.06]">
+          <img
+            src={data.image}
+            alt={data.title}
+            className="absolute inset-0 h-full w-full object-cover"
+            draggable={false}
+          />
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: 'linear-gradient(180deg, transparent 20%, rgba(10,10,15,1) 100%)',
+            }}
+          />
+        </div>
         {from === '/enregistre' ? (
           <button
             onClick={handleSave}
@@ -153,17 +175,6 @@ export default function CampaignCard({ data, from }: { data: CampaignData; from?
             />
           </button>
         )}
-        <img
-          src={data.image}
-          alt={data.title}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-        />
-        <div
-          className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(180deg, transparent 20%, rgba(10,10,15,1) 100%)',
-          }}
-        />
       </div>
 
       <div className="px-4 pt-3 pb-4 flex flex-col flex-1">
@@ -187,9 +198,27 @@ export default function CampaignCard({ data, from }: { data: CampaignData; from?
             )}
             <span className="text-[10px] text-white/30 shrink-0">· {data.timeAgo}</span>
           </div>
-          <div className="flex items-center gap-1 ml-auto shrink-0 text-white">
-            {data.socials.map((s) => (
-              <span key={s} className="opacity-100">{socialIcons[s]}</span>
+          <div className="flex items-center ml-auto shrink-0" style={{ gap: 0 }}>
+            {data.socials.filter((s) => socialIcons[s]).map((s, i, arr) => (
+              <div
+                key={s}
+                className="flex items-center justify-center text-white"
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: '50%',
+                  background: 'rgba(20,20,28,0.72)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.18)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                  marginLeft: i === 0 ? 0 : -7,
+                  zIndex: arr.length - i,
+                  position: 'relative',
+                }}
+              >
+                {socialIcons[s]}
+              </div>
             ))}
           </div>
         </div>
@@ -198,34 +227,52 @@ export default function CampaignCard({ data, from }: { data: CampaignData; from?
           {data.title}
         </h3>
 
-        <div className="flex flex-wrap items-center gap-1.5 mb-3">
-          {data.tags.map((tag) => {
+        <div className="flex items-center mb-3" style={{ gap: 0 }}>
+          {data.tags.map((tag, i, arr) => {
             const lower = tag.toLowerCase();
             let tagStyle: React.CSSProperties;
+            const outline = '2px solid rgba(10,10,15,1)';
             if (lower === 'clipping') {
               tagStyle = {
-                background: 'rgba(57,31,154,0.15)',
-                border: '1px solid rgba(57,31,154,0.35)',
-                color: '#a78bfa',
+                background: 'rgba(57,31,154,0.25)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(57,31,154,0.5)',
+                color: '#ffffff',
+                boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)',
+                outline,
               };
             } else if (lower === 'ugc') {
               tagStyle = {
-                background: 'rgba(255,0,217,0.15)',
-                border: '1px solid rgba(255,0,217,0.35)',
-                color: '#FF00D9',
+                background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)',
+                border: '1px solid rgba(255,130,210,0.55)',
+                color: '#ffffff',
+                backdropFilter: 'blur(12px)',
+                boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)',
+                textShadow: '0 0 8px rgba(255,150,220,0.6)',
+                outline,
               };
             } else {
               tagStyle = {
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.08)',
+                background: 'rgba(255,255,255,0.08)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.15)',
                 color: '#ffffff',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 8px rgba(0,0,0,0.2)',
+                outline,
               };
             }
             return (
               <span
                 key={tag}
                 className="px-2.5 py-0.5 rounded-full text-[9px] font-semibold tracking-wide"
-                style={tagStyle}
+                style={{
+                  ...tagStyle,
+                  marginLeft: i === 0 ? 0 : -6,
+                  zIndex: arr.length + 1 - i,
+                  position: 'relative',
+                }}
               >
                 {tag}
               </span>
@@ -233,7 +280,17 @@ export default function CampaignCard({ data, from }: { data: CampaignData; from?
           })}
           <div
             className="flex items-center gap-1 px-2 py-0.5 rounded-full"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
+            style={{
+              background: 'rgba(255,255,255,0.08)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 8px rgba(0,0,0,0.2)',
+              outline: '2px solid rgba(10,10,15,1)',
+              marginLeft: -6,
+              zIndex: 0,
+              position: 'relative',
+            }}
           >
             <svg viewBox="0 0 16 16" className="w-2.5 h-2.5 fill-current text-white/40">
               <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm5 6a5 5 0 0 0-10 0h10z" />
@@ -261,10 +318,13 @@ export default function CampaignCard({ data, from }: { data: CampaignData; from?
           </div>
 
           <div
-            className="flex items-center gap-1 px-2 py-1 rounded-full"
+            className="flex items-center gap-0.5 px-2 py-1 rounded-full"
             style={{
-              background: 'rgba(251,146,60,0.18)',
-              border: '1px solid rgba(251,146,60,0.35)',
+              background: 'linear-gradient(145deg, rgba(177,188,255,0.22) 0%, rgba(177,188,255,0.08) 50%, rgba(120,133,255,0.18) 100%)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              border: '1px solid rgba(177,188,255,0.45)',
+              boxShadow: '0 1px 0 rgba(255,255,255,0.35) inset, 0 -1px 0 rgba(120,133,255,0.2) inset, 0 2px 8px rgba(177,188,255,0.15)',
             }}
           >
             <span className="text-[10px] font-bold text-white">{data.ratePerView}</span>

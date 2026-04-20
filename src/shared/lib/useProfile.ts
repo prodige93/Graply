@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/shared/infrastructure/supabase';
 
+/** @deprecated Utiliser `profile?.id` depuis `useProfile()` — l’id réel vient de l’utilisateur connecté. */
+export const PROFILE_ID = '00000000-0000-0000-0000-000000000001';
+
 export interface Profile {
   id: string;
   username: string;
@@ -30,11 +33,16 @@ function notifyListeners(p: Profile | null) {
   listeners.forEach((fn) => fn(p));
 }
 
-async function loadProfileForUser(userId: string): Promise<Profile | null> {
-  let { data } = await supabase
+async function loadProfile(): Promise<Profile | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    cachedProfile = null;
+    return null;
+  }
+  const { data } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', userId)
+    .eq('id', user.id)
     .maybeSingle();
 
   if (!data) {
@@ -68,11 +76,24 @@ async function loadProfile(): Promise<Profile | null> {
   return loadProfileForUser(user.id);
 }
 
-export function prefetchProfile() {
-  fetchPromise = loadProfile().then((data) => {
-    notifyListeners(data);
-    return data;
+let authListenerStarted = false;
+
+function ensureAuthProfileReload() {
+  if (authListenerStarted) return;
+  authListenerStarted = true;
+  supabase.auth.onAuthStateChange(() => {
+    fetchPromise = null;
+    cachedProfile = null;
+    fetchPromise = loadProfile();
+    fetchPromise.then((d) => notifyListeners(d));
   });
+}
+
+export function prefetchProfile() {
+  ensureAuthProfileReload();
+  if (!fetchPromise) {
+    fetchPromise = loadProfile();
+  }
   return fetchPromise;
 }
 
@@ -81,6 +102,7 @@ export function useProfile() {
   const [userId, setUserId] = useState<string | null>(cachedUserId);
 
   useEffect(() => {
+    ensureAuthProfileReload();
     const handler = (p: Profile | null) => setProfile(p);
     listeners.add(handler);
 

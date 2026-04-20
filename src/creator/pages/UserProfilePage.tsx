@@ -17,8 +17,27 @@ const socialPlatforms = [
   { key: 'youtube', icon: youtubeIcon, label: 'YouTube', baseUrl: 'https://youtube.com/@' },
 ] as const;
 
-function formatInt(n: number): string {
-  return new Intl.NumberFormat('fr-FR').format(Math.max(0, Math.floor(n)));
+interface UserProfile {
+  id: string;
+  username: string;
+  display_name: string;
+  bio: string;
+  avatar_url: string | null;
+  banner_url: string | null;
+  content_tags: string[];
+  website: string;
+  created_at: string;
+  instagram_handle: string;
+  tiktok_handle: string;
+  youtube_handle: string;
+  hidden_stats: string[] | null;
+}
+
+function normalizeHiddenStats(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.filter((x): x is string => typeof x === 'string');
+  }
+  return [];
 }
 
 export default function UserProfilePage() {
@@ -51,46 +70,52 @@ export default function UserProfilePage() {
   useEffect(() => {
     if (!username) return;
     setLoading(true);
-    void (async () => {
-      const res = await fetchCreatorProfilePreview(username);
-      setProfile(res.found ? res : null);
-      setLoading(false);
-    })();
+    setProfile(null);
+    supabase
+      .from('profiles')
+      .select('id, username, display_name, bio, avatar_url, banner_url, content_tags, website, created_at, instagram_handle, tiktok_handle, youtube_handle, hidden_stats')
+      .eq('username', username)
+      .eq('is_public', true)
+      .maybeSingle()
+      .then(({ data }) => {
+        setProfile(data);
+        setLoading(false);
+      });
   }, [username]);
 
-  if (loading) {
+  if (!profile) {
     return (
       <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
         <Sidebar activePage="home" onOpenSearch={() => {}} />
-        <div className="flex-1 flex items-center justify-center">
-          <GrapeLoader />
+        <div className="flex-1 flex flex-col items-center justify-center px-4">
+          {loading ? (
+            <GrapeLoader size="md" />
+          ) : (
+            <>
+              <p className="text-xl font-semibold mb-4">Utilisateur introuvable</p>
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="px-6 py-3 rounded-full bg-white text-black font-semibold text-sm hover:bg-white/90 transition-colors"
+              >
+                Retour
+              </button>
+            </>
+          )}
         </div>
       </div>
     );
   }
 
-  if (!profile) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-white" style={{ backgroundColor: '#050404' }}>
-        <p className="text-xl font-semibold mb-4">Utilisateur introuvable</p>
-        <button
-          onClick={() => navigate(-1)}
-          className="px-6 py-3 rounded-full bg-white text-black font-semibold text-sm hover:bg-white/90 transition-colors"
-        >
-          Retour
-        </button>
-      </div>
-    );
-  }
+  const joinedDate = new Date(profile.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  const hiddenStats = normalizeHiddenStats(profile.hidden_stats);
 
-  const joinedDate = profile.created_at
-    ? new Date(profile.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
-    : '';
-  const canMessage = profile.is_public && profile.messaging_enabled;
-  const isPrivateVisitor = !profile.is_public;
-  const viewsGraply = profile.clip_views_total;
-  const videosApproved = profile.stats.approved_videos;
-  const campaignsDone = profile.stats.campaigns_with_approved_video;
+  const visibleSocialPlatforms = socialPlatforms.filter((p) => {
+    const handle = (profile[`${p.key}_handle` as keyof UserProfile] as string) || '';
+    if (!handle) return false;
+    if (hiddenStats.includes(`platform_${p.key}`)) return false;
+    return true;
+  });
 
   return (
     <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
@@ -237,14 +262,10 @@ export default function UserProfilePage() {
         </div>
         ) : null}
 
-        {!isPrivateVisitor && socialPlatforms.some((p) => {
-          const k = `${p.key}_handle` as 'instagram_handle' | 'tiktok_handle' | 'youtube_handle';
-          return Boolean(profile[k]?.trim());
-        }) ? (
+        {visibleSocialPlatforms.length > 0 && (
           <div className="flex items-center gap-2.5 mb-6">
-            {socialPlatforms.map((p) => {
-              const handle = profile[`${p.key}_handle` as 'instagram_handle' | 'tiktok_handle' | 'youtube_handle'] || '';
-              if (!handle) return null;
+            {visibleSocialPlatforms.map((p) => {
+              const handle = (profile[`${p.key}_handle` as keyof UserProfile] as string) || '';
               const clean = handle.replace(/^@/, '');
               const url = `${p.baseUrl}${clean}`;
               return (
@@ -264,32 +285,18 @@ export default function UserProfilePage() {
           </div>
         ) : null}
 
-        <div className="flex flex-wrap items-center gap-3 mb-6">
-          <div
-            className="flex items-center gap-2.5 px-4 py-3 rounded-xl"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-            title="Vues cumulées sur les vidéos Graply acceptées (synchronisation automatique)."
-          >
-            <Eye className="w-4 h-4 text-white/40" />
-            <span className="text-sm font-bold text-white">{formatInt(viewsGraply)}</span>
-            <span className="text-sm text-white/40">vues Graply</span>
+        {!hiddenStats.includes('videos') && (
+          <div className="flex items-center gap-3 mb-6">
+            <div
+              className="flex items-center gap-2.5 px-4 py-3 rounded-xl"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+            >
+              <Video className="w-4 h-4 text-white/40" />
+              <span className="text-sm font-bold text-white">0</span>
+              <span className="text-sm text-white/40">videos</span>
+            </div>
           </div>
-          <div
-            className="flex items-center gap-2.5 px-4 py-3 rounded-xl"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-          >
-            <Video className="w-4 h-4 text-white/40" />
-            <span className="text-sm font-bold text-white">{formatInt(videosApproved)}</span>
-            <span className="text-sm text-white/40">vidéos</span>
-          </div>
-          <div
-            className="flex items-center gap-2.5 px-4 py-3 rounded-xl"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-          >
-            <span className="text-sm font-bold text-white">{formatInt(campaignsDone)}</span>
-            <span className="text-sm text-white/40">campagnes</span>
-          </div>
-        </div>
+        )}
 
         {!isPrivateVisitor && profile.website ? (
           <a

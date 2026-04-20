@@ -1,49 +1,48 @@
-import { StrictMode } from 'react';
+import { StrictMode, lazy, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import CreatorHomePage from '@/creator/pages/CreatorHomePage.tsx';
-import MobileLayout from '@/creator/components/MobileLayout.tsx';
-import CampaignsPage from '@/creator/pages/CampaignsPage.tsx';
-import CampaignDetailPage from '@/creator/pages/CampaignDetailPage.tsx';
-import CreateCampaignPage from '@/creator/pages/CreateCampaignPage.tsx';
-import VideoVerificationPage from '@/creator/pages/VideoVerificationPage.tsx';
-import VerifyVideoHubPage from '@/creator/pages/VerifyVideoHubPage.tsx';
-import MyCampaignsPage from '@/creator/pages/MyCampaignsPage.tsx';
-import MyCampaignDetailPage from '@/creator/pages/MyCampaignDetailPage.tsx';
-import CreatorVerificationsPage from '@/creator/pages/CreatorVerificationsPage.tsx';
-import CreatorAccessValidationPage from '@/creator/pages/CreatorAccessValidationPage.tsx';
-import ValidationVideosPage from '@/creator/pages/ValidationVideosPage.tsx';
-import MyVideosPage from '@/creator/pages/MyVideosPage.tsx';
-import MyApplicationsPage from '@/creator/pages/MyApplicationsPage.tsx';
-import DashboardPage from '@/creator/pages/DashboardPage.tsx';
-import NotificationsPage from '@/creator/pages/NotificationsPage.tsx';
-import MessagingPage from '@/creator/pages/MessagingPage.tsx';
-import CreatorSearchPage from '@/creator/pages/CreatorSearchPage.tsx';
-import ProfilePage from '@/creator/pages/ProfilePage.tsx';
-import EnterprisePage from '@/creator/pages/EnterprisePage.tsx';
-import CreatorDetailPage from '@/creator/pages/CreatorDetailPage.tsx';
-import UserProfilePage from '@/creator/pages/UserProfilePage.tsx';
-import MyAccountPage from '@/creator/pages/MyAccountPage.tsx';
-import SettingsPage from '@/creator/pages/SettingsPage.tsx';
-import PrivacyPolicyPage from '@/shared/pages/PrivacyPolicyPage.tsx';
-import TermsOfServicePage from '@/shared/pages/TermsOfServicePage.tsx';
-import { StripeDataInfoPage, TikTokDataInfoPage, InstagramDataInfoPage, YouTubeDataInfoPage } from '@/shared/pages/InstagramYouTubeDataPages.tsx';
-import SavedCampaignsPage from '@/creator/pages/SavedCampaignsPage.tsx';
-import CreatorValidationsPage from '@/creator/pages/CreatorValidationsPage.tsx';
-import CampaignApplicationPage from '@/creator/pages/CampaignApplicationPage.tsx';
-import LoginPage from '@/creator/pages/LoginPage.tsx';
 import LandingPage from '@/creator/pages/LandingPage.tsx';
-import EnterpriseAppPage from '@/app/EnterpriseAppPage.tsx';
+import LoginPage from '@/creator/pages/LoginPage.tsx';
 import AuthGuard from '@/creator/components/AuthGuard.tsx';
-import StripeCallbackPage from '@/shared/pages/StripeCallbackPage.tsx';
-import SocialCallbackPage from '@/shared/pages/SocialCallbackPage.tsx';
-import { prefetchProfile } from '@/shared/lib/useProfile';
 import { SavedCampaignsProvider } from '@/creator/contexts/SavedCampaignsContext';
 import { MyCampaignsProvider } from '@/creator/contexts/MyCampaignsContext';
 import { CampaignTabProvider } from '@/creator/contexts/CampaignTabContext';
+import AppShellFallback from '@/shared/components/AppShellFallback';
 import './index.css';
 
-prefetchProfile();
+const MobileLayout = lazy(() => import('@/creator/components/MobileLayout.tsx'));
+const CampaignsPage = lazy(() => import('@/creator/pages/CampaignsPage.tsx'));
+const CampaignDetailPage = lazy(() => import('@/creator/pages/CampaignDetailPage.tsx'));
+const CreateCampaignPage = lazy(() => import('@/creator/pages/CreateCampaignPage.tsx'));
+const VideoVerificationPage = lazy(() => import('@/creator/pages/VideoVerificationPage.tsx'));
+const MyCampaignsPage = lazy(() => import('@/creator/pages/MyCampaignsPage.tsx'));
+const MyCampaignDetailPage = lazy(() => import('@/creator/pages/MyCampaignDetailPage.tsx'));
+const CreatorVerificationsPage = lazy(() => import('@/creator/pages/CreatorVerificationsPage.tsx'));
+const CreatorAccessValidationPage = lazy(() => import('@/creator/pages/CreatorAccessValidationPage.tsx'));
+const ValidationVideosPage = lazy(() => import('@/creator/pages/ValidationVideosPage.tsx'));
+const MyVideosPage = lazy(() => import('@/creator/pages/MyVideosPage.tsx'));
+const MyApplicationsPage = lazy(() => import('@/creator/pages/MyApplicationsPage.tsx'));
+const DashboardPage = lazy(() => import('@/creator/pages/DashboardPage.tsx'));
+const NotificationsPage = lazy(() => import('@/creator/pages/NotificationsPage.tsx'));
+const MessagingPage = lazy(() => import('@/creator/pages/MessagingPage.tsx'));
+const CreatorSearchPage = lazy(() => import('@/creator/pages/CreatorSearchPage.tsx'));
+const ProfilePage = lazy(() => import('@/creator/pages/ProfilePage.tsx'));
+const EnterprisePage = lazy(() => import('@/creator/pages/EnterprisePage.tsx'));
+const CreatorDetailPage = lazy(() => import('@/creator/pages/CreatorDetailPage.tsx'));
+const UserProfilePage = lazy(() => import('@/creator/pages/UserProfilePage.tsx'));
+const MyAccountPage = lazy(() => import('@/creator/pages/MyAccountPage.tsx'));
+const SettingsPage = lazy(() => import('@/creator/pages/SettingsPage.tsx'));
+const SavedCampaignsPage = lazy(() => import('@/creator/pages/SavedCampaignsPage.tsx'));
+const CreatorValidationsPage = lazy(() => import('@/creator/pages/CreatorValidationsPage.tsx'));
+const CampaignApplicationPage = lazy(() => import('@/creator/pages/CampaignApplicationPage.tsx'));
+const CreatorHomePage = lazy(() => import('@/creator/pages/CreatorHomePage.tsx'));
+const EnterpriseAppPage = lazy(() => import('@/app/EnterpriseAppPage.tsx'));
+const StripeCallbackPage = lazy(() => import('@/shared/pages/StripeCallbackPage.tsx'));
+const SocialCallbackPage = lazy(() => import('@/shared/pages/SocialCallbackPage.tsx'));
+
+function RouteFallback() {
+  return <AppShellFallback />;
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -51,54 +50,49 @@ createRoot(document.getElementById('root')!).render(
       <MyCampaignsProvider>
         <CampaignTabProvider>
           <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/connexion" element={<LoginPage />} />
-              <Route path="/lp" element={<Navigate to="/" replace />} />
-              <Route element={<AuthGuard />}>
-                <Route path="/stripe-callback" element={<StripeCallbackPage />} />
-                <Route path="/social-callback" element={<SocialCallbackPage />} />
-                <Route path="/app-entreprise/*" element={<EnterpriseAppPage />} />
-                <Route element={<MobileLayout />}>
-                  <Route path="/home" element={<CreatorHomePage />} />
-                  <Route path="/campagnes" element={<CampaignsPage />} />
-                  <Route path="/campagne/:id" element={<CampaignDetailPage />} />
-                  <Route path="/creer-campagne" element={<CreateCampaignPage />} />
-                  <Route path="/modifier-campagne/:id" element={<CreateCampaignPage />} />
-                  <Route path="/campagne/:id/verification" element={<VideoVerificationPage />} />
-                  <Route path="/verifier-ma-video" element={<VerifyVideoHubPage />} />
-                  <Route path="/campagne/:id/candidature" element={<CampaignApplicationPage />} />
-                  <Route path="/mes-campagnes" element={<MyCampaignsPage />} />
-                  <Route path="/ma-campagne/:id" element={<MyCampaignDetailPage />} />
-                  <Route path="/ma-campagne/:id/verifications" element={<CreatorVerificationsPage />} />
-                  <Route path="/ma-campagne/:id/validation-createurs" element={<CreatorAccessValidationPage />} />
-                  <Route path="/validation-videos" element={<ValidationVideosPage />} />
-                  <Route path="/mes-videos" element={<MyVideosPage />} />
-                  <Route path="/mes-candidatures" element={<MyApplicationsPage />} />
-                  <Route path="/dashboard" element={<DashboardPage />} />
-                  <Route path="/notifications" element={<NotificationsPage />} />
-                  <Route path="/messagerie" element={<MessagingPage />} />
-                  <Route path="/recherche-createurs" element={<CreatorSearchPage />} />
-                  <Route path="/profil" element={<ProfilePage />} />
-                  <Route path="/entreprise/:id" element={<EnterprisePage />} />
-                  <Route path="/createur/:id" element={<CreatorDetailPage />} />
-                  <Route path="/u/:username" element={<UserProfilePage />} />
-                  <Route path="/mon-compte" element={<MyAccountPage />} />
-                  <Route path="/parametres" element={<SettingsPage />} />
-                  <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
-                  <Route path="/terms-of-service" element={<TermsOfServicePage />} />
-                  <Route path="/stripe-data" element={<StripeDataInfoPage />} />
-                  <Route path="/tiktok-data" element={<TikTokDataInfoPage />} />
-                  <Route path="/instagram-data" element={<InstagramDataInfoPage />} />
-                  <Route path="/youtube-data" element={<YouTubeDataInfoPage />} />
-                  <Route path="/enregistre" element={<SavedCampaignsPage />} />
-                  <Route path="/mes-validations" element={<CreatorValidationsPage />} />
+            <Suspense fallback={<RouteFallback />}>
+              <Routes>
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/connexion" element={<LoginPage />} />
+                <Route path="/lp" element={<Navigate to="/" replace />} />
+                <Route element={<AuthGuard />}>
+                  <Route path="/stripe-callback" element={<StripeCallbackPage />} />
+                  <Route path="/social-callback" element={<SocialCallbackPage />} />
+                  <Route path="/app-entreprise/*" element={<EnterpriseAppPage />} />
+                  <Route element={<MobileLayout />}>
+                    <Route path="/home" element={<CreatorHomePage />} />
+                    <Route path="/campagnes" element={<CampaignsPage />} />
+                    <Route path="/campagne/:id" element={<CampaignDetailPage />} />
+                    <Route path="/creer-campagne" element={<CreateCampaignPage />} />
+                    <Route path="/modifier-campagne/:id" element={<CreateCampaignPage />} />
+                    <Route path="/campagne/:id/verification" element={<VideoVerificationPage />} />
+                    <Route path="/campagne/:id/candidature" element={<CampaignApplicationPage />} />
+                    <Route path="/mes-campagnes" element={<MyCampaignsPage />} />
+                    <Route path="/ma-campagne/:id" element={<MyCampaignDetailPage />} />
+                    <Route path="/ma-campagne/:id/verifications" element={<CreatorVerificationsPage />} />
+                    <Route path="/ma-campagne/:id/validation-createurs" element={<CreatorAccessValidationPage />} />
+                    <Route path="/validation-videos" element={<ValidationVideosPage />} />
+                    <Route path="/mes-videos" element={<MyVideosPage />} />
+                    <Route path="/mes-candidatures" element={<MyApplicationsPage />} />
+                    <Route path="/dashboard" element={<DashboardPage />} />
+                    <Route path="/notifications" element={<NotificationsPage />} />
+                    <Route path="/messagerie" element={<MessagingPage />} />
+                    <Route path="/recherche-createurs" element={<CreatorSearchPage />} />
+                    <Route path="/profil" element={<ProfilePage />} />
+                    <Route path="/entreprise/:id" element={<EnterprisePage />} />
+                    <Route path="/createur/:id" element={<CreatorDetailPage />} />
+                    <Route path="/u/:username" element={<UserProfilePage />} />
+                    <Route path="/mon-compte" element={<MyAccountPage />} />
+                    <Route path="/parametres" element={<SettingsPage />} />
+                    <Route path="/enregistre" element={<SavedCampaignsPage />} />
+                    <Route path="/mes-validations" element={<CreatorValidationsPage />} />
+                  </Route>
                 </Route>
-              </Route>
-            </Routes>
+              </Routes>
+            </Suspense>
           </BrowserRouter>
         </CampaignTabProvider>
       </MyCampaignsProvider>
     </SavedCampaignsProvider>
-  </StrictMode>
+  </StrictMode>,
 );

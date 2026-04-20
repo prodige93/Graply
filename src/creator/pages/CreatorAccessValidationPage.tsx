@@ -93,6 +93,8 @@ export default function CreatorAccessValidationPage() {
   useEffect(() => {
     const fetchData = async () => {
       if (!id) return;
+      setLoading(true);
+      setCampaign(null);
       const [campaignRes, appsRes] = await Promise.all([
         supabase.from('campaigns').select('id, name, photo_url, platforms, content_type').eq('id', id).maybeSingle(),
         supabase
@@ -180,27 +182,26 @@ export default function CreatorAccessValidationPage() {
   const pendingRequests = allRequests.filter((c) => !decisions[c.id]);
   const allDecided = pendingRequests.length === 0 && allRequests.length > 0;
 
-  if (loading) {
+  if (!campaign) {
     return (
       <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
         <Sidebar activePage="home" onOpenSearch={() => {}} />
-        <div className="flex-1 flex items-center justify-center">
-          <GrapeLoader />
+        <div className="flex-1 flex flex-col items-center justify-center px-4">
+          {loading ? (
+            <GrapeLoader size="md" />
+          ) : (
+            <>
+              <p className="text-xl font-semibold mb-4">Campagne introuvable</p>
+              <button
+                type="button"
+                onClick={() => navigate('/validation-videos')}
+                className="px-6 py-3 rounded-full bg-white text-black font-semibold text-sm hover:bg-white/90 transition-colors"
+              >
+                Retour
+              </button>
+            </>
+          )}
         </div>
-      </div>
-    );
-  }
-
-  if (!campaign) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-white" style={{ backgroundColor: '#050404' }}>
-        <p className="text-xl font-semibold mb-4">Campagne introuvable</p>
-        <button
-          onClick={() => navigate('/validation-videos')}
-          className="px-6 py-3 rounded-full bg-white text-black font-semibold text-sm hover:bg-white/90 transition-colors"
-        >
-          Retour
-        </button>
       </div>
     );
   }
@@ -256,8 +257,8 @@ export default function CreatorAccessValidationPage() {
               const isClipping = lower === 'clipping';
               if (!isUgc && !isClipping) return null;
               const tagStyle: React.CSSProperties = isUgc
-                ? { background: 'rgba(255,0,217,0.12)', border: '1px solid rgba(255,0,217,0.3)', color: '#FF00D9' }
-                : { background: 'rgba(57,31,154,0.12)', border: '1px solid rgba(57,31,154,0.3)', color: '#a78bfa' };
+                ? { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)' }
+                : { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)' };
               return (
                 <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider" style={tagStyle}>
                   {campaign.content_type}

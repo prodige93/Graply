@@ -10,6 +10,7 @@ import tiktokIcon from '@/shared/assets/tiktok.svg';
 import youtubeIcon from '@/shared/assets/youtube.svg';
 import chCircleIcon from '@/shared/assets/creator-hub-mark.svg';
 import { supabase } from '@/shared/infrastructure/supabase';
+import { formatFirstPlatformPer1000Label } from '@/shared/lib/mapSupabaseCampaign';
 
 const platformIconMap: Record<string, string> = {
   instagram: instagramIcon,
@@ -169,7 +170,7 @@ export default function CreatorValidationsPage() {
             name,
             photo_url,
             platforms,
-            rate_per_view
+            platform_budgets
           )
         `)
         .eq('user_id', user.id)
@@ -184,7 +185,7 @@ export default function CreatorValidationsPage() {
           name: string;
           photo_url: string;
           platforms: string[];
-          rate_per_view: string;
+          platform_budgets: Record<string, { per1000?: string }> | null;
         } | null;
       }>)
         .filter((row) => row.campaigns)
@@ -198,7 +199,7 @@ export default function CreatorValidationsPage() {
             brand: '',
             photo: c.photo_url ?? '',
             platforms: c.platforms ?? [],
-            ratePerK: c.rate_per_view ?? '',
+            ratePerK: formatFirstPlatformPer1000Label(c.platforms, c.platform_budgets),
             applicantsCount: 0,
             appliedAt: formatted,
             appStatus: (row.status as 'pending' | 'accepted' | 'rejected') ?? 'pending',
@@ -234,17 +235,6 @@ export default function CreatorValidationsPage() {
     });
   }, [dbApplications, searchQuery, selectedPlatforms]);
 
-  if (loading) {
-    return (
-      <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
-        <Sidebar activePage="validation-videos" onOpenSearch={() => {}} />
-        <div className="flex-1 flex items-center justify-center">
-          <GrapeLoader />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
       <Sidebar activePage="validation-videos" onOpenSearch={() => {}} />
@@ -253,7 +243,9 @@ export default function CreatorValidationsPage() {
           <div className="flex items-center gap-4">
             <div className="flex-1 min-w-0">
               <h1 className="text-xl lg:text-2xl font-bold text-white">Mes validations</h1>
-              <p className="text-sm text-white/40 mt-0.5">Videos soumises et candidatures en cours</p>
+              <p className="text-sm text-white/40 mt-0.5">
+                {loading ? 'Chargement…' : 'Videos soumises et candidatures en cours'}
+              </p>
               <button
                 onClick={() => openVerifyModal()}
                 className="lg:hidden group relative flex items-center justify-center gap-2 py-2 px-4 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] overflow-hidden mt-5"
@@ -274,6 +266,11 @@ export default function CreatorValidationsPage() {
           </div>
         </div>
 
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <GrapeLoader size="md" />
+          </div>
+        ) : (
         <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8">
 
           <div className="mb-6">
@@ -366,18 +363,17 @@ export default function CreatorValidationsPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="text-[13px] sm:text-sm font-semibold text-white truncate">{app.name}</p>
-                        <div className="flex items-center gap-1 shrink-0">
-                          {app.platforms.map((p) =>
-                            platformIconMap[p] ? (
-                              <div
-                                key={p}
-                                className="w-5 h-5 rounded-md flex items-center justify-center"
-                                style={{ background: 'rgba(255,255,255,0.06)' }}
-                              >
-                                <img src={platformIconMap[p]} alt={p} className="w-3 h-3 social-icon" />
-                              </div>
-                            ) : null
-                          )}
+                        <div className="flex items-center shrink-0" style={{ gap: 0 }}>
+                          {app.platforms.filter((p) => platformIconMap[p]).map((p, i, arr) => (
+                            <div key={p} style={{
+                              width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                              border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                              marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+                            }}>
+                              <img src={platformIconMap[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+                            </div>
+                          ))}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 sm:gap-2.5 mt-1">
@@ -418,6 +414,7 @@ export default function CreatorValidationsPage() {
           </div>
 
         </div>
+        )}
       </div>
     </div>
   );

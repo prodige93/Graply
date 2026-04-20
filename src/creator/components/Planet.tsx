@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { loadCountries, type CountryData } from '@/shared/lib/countriesLoader';
+import GrapeLoader from './GrapeLoader';
 
 interface PlanetProps {
   onCountryClick?: (countryName: string) => void;
@@ -614,7 +615,7 @@ export default function Planet({ onCountryClick, isMars = false }: PlanetProps) 
     <div className="relative w-full h-full">
       {!loaded && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-16 h-16 border-2 border-white/10 border-t-orange-400/50 rounded-full animate-spin" />
+          <GrapeLoader size="md" />
         </div>
       )}
       <canvas

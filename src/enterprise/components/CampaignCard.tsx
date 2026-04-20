@@ -1,8 +1,11 @@
-import { Trash2, Bookmark } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Trash2 } from 'lucide-react';
+import bookmarkIcon from '@/shared/assets/bookmark-filled.svg';
 import jentrepriseIcon from '@/shared/assets/badge-enterprise-verified.png';
 import { enterprises } from '@/shared/data/campaignsData';
 import { useSavedCampaigns } from '@/enterprise/contexts/SavedCampaignsContext';
 import { useEnterpriseNavigate } from '@/enterprise/lib/useEnterpriseNavigate';
+import { supabase } from '@/shared/infrastructure/supabase';
 
 export interface CampaignData {
   id: string;
@@ -32,22 +35,23 @@ export interface CampaignData {
   isPublic?: boolean;
   rules?: string[];
   documents?: { name: string; size: string; type: string }[];
+  ownerUserId?: string | null;
 }
 
 const socialIcons: Record<string, JSX.Element> = {
   youtube: (
-    <svg viewBox="0 0 27 27" className="w-4 h-4" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 27 27" className="w-3 h-3" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M25.3572 7.2225C25.2235 6.68859 24.9514 6.19939 24.5682 5.80433C24.1849 5.40927 23.7043 5.12233 23.1747 4.9725C21.2397 4.5 13.4997 4.5 13.4997 4.5C13.4997 4.5 5.75967 4.5 3.82467 5.0175C3.29507 5.16733 2.81439 5.45427 2.43118 5.84933C2.04797 6.24439 1.7758 6.73359 1.64217 7.2675C1.28803 9.23125 1.11481 11.2233 1.12467 13.2187C1.11204 15.2292 1.28528 17.2365 1.64217 19.215C1.7895 19.7323 2.06776 20.2029 2.45008 20.5813C2.8324 20.9597 3.30584 21.233 3.82467 21.375C5.75967 21.8925 13.4997 21.8925 13.4997 21.8925C13.4997 21.8925 21.2397 21.8925 23.1747 21.375C23.7043 21.2252 24.1849 20.9382 24.5682 20.5432C24.9514 20.1481 25.2235 19.6589 25.3572 19.125C25.7086 17.176 25.8818 15.1991 25.8747 13.2187C25.8873 11.2083 25.7141 9.20104 25.3572 7.2225Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
       <path d="M10.9688 16.8975L17.4375 13.2187L10.9688 9.53999V16.8975Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   ),
   tiktok: (
-    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="white" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 24 24" className="w-3 h-3" fill="white" xmlns="http://www.w3.org/2000/svg">
       <path d="M19.3 6.4a4.8 4.8 0 0 1-2.9-1.5A4.8 4.8 0 0 1 15.3 2h-3.4v13.5a2.9 2.9 0 0 1-2.9 2.7 2.9 2.9 0 0 1-2.9-2.9 2.9 2.9 0 0 1 2.9-2.9c.3 0 .6 0 .9.1V9a6.4 6.4 0 0 0-.9-.1 6.3 6.3 0 0 0-6.3 6.5 6.3 6.3 0 0 0 6.3 6.1 6.3 6.3 0 0 0 6.3-6.3V9.3a8.2 8.2 0 0 0 4.8 1.5V7.4a4.8 4.8 0 0 1-1.8-1z"/>
     </svg>
   ),
   instagram: (
-    <svg viewBox="0 0 27 27" className="w-4 h-4" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 27 27" className="w-3 h-3" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M19.125 2.25H7.875C4.7684 2.25 2.25 4.7684 2.25 7.875V19.125C2.25 22.2316 4.7684 24.75 7.875 24.75H19.125C22.2316 24.75 24.75 22.2316 24.75 19.125V7.875C24.75 4.7684 22.2316 2.25 19.125 2.25Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
       <path d="M18.0002 12.7913C18.139 13.7275 17.9791 14.6837 17.5431 15.5239C17.1072 16.364 16.4174 17.0453 15.572 17.4709C14.7265 17.8964 13.7684 18.0446 12.8339 17.8942C11.8994 17.7438 11.0361 17.3026 10.3669 16.6333C9.69757 15.964 9.25636 15.1007 9.10598 14.1662C8.95561 13.2317 9.10373 12.2736 9.52928 11.4282C9.95482 10.5827 10.6361 9.89296 11.4763 9.45703C12.3164 9.02109 13.2726 8.86117 14.2089 9C15.1639 9.14162 16.0481 9.58665 16.7308 10.2693C17.4135 10.952 17.8585 11.8362 18.0002 12.7913Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
       <path d="M19.6875 7.3125H19.6988" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -60,6 +64,16 @@ export default function CampaignCard({ data, from }: { data: CampaignData; from?
   const { isSaved, toggle } = useSavedCampaigns();
   const saved = isSaved(data.id);
   const isSavedPage = from === '/enregistre';
+  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setSessionUserId(data.user?.id ?? null));
+  }, []);
+
+  const isOwnCampaign = Boolean(
+    sessionUserId && data.ownerUserId != null && data.ownerUserId === sessionUserId,
+  );
+  const showSaveControls = isSavedPage || !isOwnCampaign;
 
   const enterpriseId = enterprises.find(
     (e) => e.name.toLowerCase() === data.brand.toLowerCase()
@@ -74,13 +88,13 @@ export default function CampaignCard({ data, from }: { data: CampaignData; from?
 
   const handleSave = (e: React.MouseEvent) => {
     e.stopPropagation();
-    toggle(data.id);
+    toggle(data.id, data);
   };
 
   return (
     <div
       onClick={() => navigate(`/campagne/${data.id}`)}
-      className="rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.04] hover:-translate-y-1 group h-full flex flex-col cursor-pointer relative"
+      className="rounded-2xl overflow-hidden transition-[transform,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_16px_48px_rgba(0,0,0,0.55)] group h-full flex flex-col cursor-pointer relative"
       style={{
         background: 'rgba(10,10,15,1)',
         border: '1px solid rgba(255,255,255,0.12)',
@@ -100,64 +114,79 @@ export default function CampaignCard({ data, from }: { data: CampaignData; from?
           Rejoindre
         </span>
       </div>
-      <div className="relative h-36 overflow-hidden">
-        <img
-          src={data.image}
-          alt={data.title}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-        />
-        <div
-          className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(180deg, transparent 55%, rgba(10,10,15,0.6) 72%, rgba(10,10,15,0.92) 86%, rgba(10,10,15,1) 100%)',
-          }}
-        />
-        {isSavedPage ? (
-          <button
-            onClick={handleSave}
-            className="absolute top-2.5 left-2.5 z-30 w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 pointer-events-auto"
+      <div className="relative h-36 overflow-hidden isolate">
+        <div className="absolute inset-0 z-0 origin-center transition-transform duration-500 ease-out will-change-transform group-hover:scale-[1.06]">
+          <img
+            src={data.image}
+            alt={data.title}
+            className="absolute inset-0 h-full w-full object-cover"
+            draggable={false}
+          />
+          <div
+            className="absolute inset-0 pointer-events-none"
             style={{
-              background: 'rgba(255,255,255,0.055)',
-              backdropFilter: 'blur(40px)',
-              WebkitBackdropFilter: 'blur(40px)',
-              border: '1px solid rgba(255,255,255,0.18)',
-              boxShadow: '0 8px 48px rgba(0,0,0,0.85), 0 0 0 0.5px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.13), inset 0 -1px 0 rgba(0,0,0,0.5)',
+              background: 'linear-gradient(180deg, transparent 55%, rgba(10,10,15,0.6) 72%, rgba(10,10,15,0.92) 86%, rgba(10,10,15,1) 100%)',
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.055)';
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)';
-            }}
-          >
-            <Trash2 className="w-4 h-4 text-white" />
-          </button>
-        ) : (
-          <button
-            onClick={handleSave}
-            className="absolute top-2.5 left-2.5 z-30 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 pointer-events-auto"
-            style={{
-              background: saved ? 'rgba(255,255,255,0.95)' : 'rgba(10,10,12,0.65)',
-              backdropFilter: 'blur(10px)',
-              border: saved ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.18)',
-              boxShadow: '0 2px 10px rgba(0,0,0,0.4)',
-            }}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              className="w-4 h-4 transition-all duration-200"
-              fill={saved ? 'black' : 'none'}
-              stroke={saved ? 'black' : 'white'}
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+          />
+        </div>
+        {showSaveControls ? (
+          isSavedPage ? (
+            <button
+              onClick={handleSave}
+              className="absolute top-2.5 left-2.5 z-30 w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 pointer-events-auto group/trash"
+              style={{
+                background: 'rgba(10,10,12,0.65)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255,255,255,0.18)',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.4)',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.12)';
+                (e.currentTarget as HTMLButtonElement).style.border = '1px solid rgba(255,255,255,0.3)';
+                (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 12px rgba(255,255,255,0.15)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'rgba(10,10,12,0.65)';
+                (e.currentTarget as HTMLButtonElement).style.border = '1px solid rgba(255,255,255,0.18)';
+                (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 2px 10px rgba(0,0,0,0.4)';
+              }}
             >
-              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-            </svg>
-          </button>
-        )}
+              <Trash2 className="w-3.5 h-3.5 text-white/70 group-hover/trash:text-white transition-colors duration-200" />
+            </button>
+          ) : (
+            <button
+              onClick={handleSave}
+              className="absolute top-2.5 left-2.5 z-30 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 pointer-events-auto group/bk"
+              style={{
+                background: saved ? 'rgba(255,255,255,0.95)' : 'rgba(10,10,12,0.65)',
+                backdropFilter: 'blur(10px)',
+                border: saved ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.18)',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.4)',
+              }}
+              onMouseEnter={(e) => {
+                if (!saved) {
+                  (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.12)';
+                  (e.currentTarget as HTMLButtonElement).style.border = '1px solid rgba(255,255,255,0.3)';
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 12px rgba(255,255,255,0.15)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!saved) {
+                  (e.currentTarget as HTMLButtonElement).style.background = 'rgba(10,10,12,0.65)';
+                  (e.currentTarget as HTMLButtonElement).style.border = '1px solid rgba(255,255,255,0.18)';
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 2px 10px rgba(0,0,0,0.4)';
+                }
+              }}
+            >
+              <img
+                src={bookmarkIcon}
+                alt="Enregistrer"
+                className="w-4 h-4 transition-all duration-200 group-hover/bk:scale-110"
+                style={{ filter: saved ? 'invert(1)' : 'brightness(0) invert(1)' }}
+              />
+            </button>
+          )
+        ) : null}
       </div>
 
       <div className="px-4 pt-3 pb-4 flex flex-col flex-1">
@@ -181,9 +210,27 @@ export default function CampaignCard({ data, from }: { data: CampaignData; from?
             )}
             <span className="text-[10px] text-white/30 shrink-0">· {data.timeAgo}</span>
           </div>
-          <div className="flex items-center gap-1 ml-auto shrink-0 text-white">
-            {data.socials.map((s) => (
-              <span key={s} className="opacity-100">{socialIcons[s]}</span>
+          <div className="flex items-center ml-auto shrink-0" style={{ gap: 0 }}>
+            {data.socials.filter((s) => socialIcons[s]).map((s, i, arr) => (
+              <div
+                key={s}
+                className="flex items-center justify-center text-white"
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: '50%',
+                  background: 'rgba(20,20,28,0.72)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.18)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                  marginLeft: i === 0 ? 0 : -7,
+                  zIndex: arr.length - i,
+                  position: 'relative',
+                }}
+              >
+                {socialIcons[s]}
+              </div>
             ))}
           </div>
         </div>
@@ -192,39 +239,76 @@ export default function CampaignCard({ data, from }: { data: CampaignData; from?
           {data.title}
         </h3>
 
-        <div className="flex flex-wrap items-center gap-1.5 mb-3">
-          {data.tags.map((tag) => {
+        <div className="flex items-center mb-3" style={{ gap: 0 }}>
+          {data.tags.map((tag, i, arr) => {
             const lower = tag.toLowerCase();
             let tagStyle: React.CSSProperties;
+            const outline = '2px solid rgba(10,10,15,1)';
             if (lower === 'clipping') {
               tagStyle = {
-                background: 'rgba(57,31,154,0.15)',
-                border: '1px solid rgba(57,31,154,0.35)',
-                color: '#a78bfa',
+                background: 'rgba(57,31,154,0.25)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(57,31,154,0.5)',
+                color: '#ffffff',
+                boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)',
+                outline,
               };
             } else if (lower === 'ugc') {
               tagStyle = {
-                background: 'rgba(255,0,217,0.15)',
-                border: '1px solid rgba(255,0,217,0.35)',
-                color: '#FF00D9',
+                background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)',
+                border: '1px solid rgba(255,130,210,0.55)',
+                color: '#ffffff',
+                backdropFilter: 'blur(12px)',
+                boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)',
+                textShadow: '0 0 8px rgba(255,150,220,0.6)',
+                outline,
               };
             } else {
               tagStyle = {
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.08)',
+                background: 'rgba(255,255,255,0.08)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.15)',
                 color: '#ffffff',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 8px rgba(0,0,0,0.2)',
+                outline,
               };
             }
             return (
               <span
                 key={tag}
                 className="px-2.5 py-0.5 rounded-full text-[9px] font-semibold tracking-wide"
-                style={tagStyle}
+                style={{
+                  ...tagStyle,
+                  marginLeft: i === 0 ? 0 : -6,
+                  zIndex: arr.length + 1 - i,
+                  position: 'relative',
+                }}
               >
                 {tag}
               </span>
             );
           })}
+          <div
+            className="flex items-center gap-1 px-2 py-0.5 rounded-full"
+            style={{
+              background: 'rgba(255,255,255,0.08)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 8px rgba(0,0,0,0.2)',
+              outline: '2px solid rgba(10,10,15,1)',
+              marginLeft: -6,
+              zIndex: 0,
+              position: 'relative',
+            }}
+          >
+            <svg viewBox="0 0 16 16" className="w-2.5 h-2.5 fill-current text-white/40">
+              <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm5 6a5 5 0 0 0-10 0h10z" />
+            </svg>
+            <span className="text-[9px] font-semibold text-white">{data.creators}</span>
+          </div>
         </div>
 
         <div className="flex-1" />
@@ -257,14 +341,17 @@ export default function CampaignCard({ data, from }: { data: CampaignData; from?
             </div>
 
             <div
-              className="flex items-center gap-1 px-2 py-1 rounded-full"
+              className="flex items-center gap-0.5 px-2 py-1 rounded-full"
               style={{
-                background: 'rgba(255,120,42,0.1)',
-                border: '1px solid rgba(255,120,42,0.25)',
+                background: 'linear-gradient(145deg, rgba(177,188,255,0.22) 0%, rgba(177,188,255,0.08) 50%, rgba(120,133,255,0.18) 100%)',
+                backdropFilter: 'blur(10px)',
+                WebkitBackdropFilter: 'blur(10px)',
+                border: '1px solid rgba(177,188,255,0.45)',
+                boxShadow: '0 1px 0 rgba(255,255,255,0.35) inset, 0 -1px 0 rgba(120,133,255,0.2) inset, 0 2px 8px rgba(177,188,255,0.15)',
               }}
             >
               <span className="text-[10px] font-bold text-white">{data.ratePerView}</span>
-              <span className="text-[9px] font-medium text-white/40">/K</span>
+              <span className="text-[9px] font-medium text-white/50">/1K</span>
             </div>
           </div>
         </div>

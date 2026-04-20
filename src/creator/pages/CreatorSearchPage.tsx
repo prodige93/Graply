@@ -168,7 +168,8 @@ export default function CreatorSearchPage() {
   const togglePlatform = (p: string) => {
     setSelectedPlatforms((prev) => {
       const next = new Set(prev);
-      next.has(p) ? next.delete(p) : next.add(p);
+      if (next.has(p)) next.delete(p);
+      else next.add(p);
       return next;
     });
   };
@@ -176,7 +177,8 @@ export default function CreatorSearchPage() {
   const toggleCategory = (c: string) => {
     setSelectedCategories((prev) => {
       const next = new Set(prev);
-      next.has(c) ? next.delete(c) : next.add(c);
+      if (next.has(c)) next.delete(c);
+      else next.add(c);
       return next;
     });
   };

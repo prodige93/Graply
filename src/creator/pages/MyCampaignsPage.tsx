@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Hourglass, Bookmark, ChevronDown, Search, X, Check, CheckCircle, Trash2, AlertTriangle, Megaphone } from 'lucide-react';
+import { Hourglass, Bookmark, ChevronDown, Search, X, Check, CheckCircle, Trash2, AlertTriangle, Megaphone } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
+import GrapeLoader from '../components/GrapeLoader';
 import type { PendingApplication } from '@/shared/lib/useCreatorCampaigns';
 import { openVerifyModal } from '@/shared/lib/verifyEvent';
 import chCircleIcon from '@/shared/assets/creator-hub-mark.svg';
@@ -13,11 +14,7 @@ import SavedCampaignCard from '../components/campaign-cards/SavedCampaignCard';
 import { useSavedCampaigns } from '@/creator/contexts/SavedCampaignsContext';
 import { useCampaignTab, type CampaignTab } from '@/creator/contexts/CampaignTabContext';
 import { useMyCampaigns } from '@/creator/contexts/MyCampaignsContext';
-import { campaigns as staticCampaigns, sponsoredCampaigns } from '@/shared/data/campaignsData';
-import { supabase } from '@/shared/infrastructure/supabase';
-import { mapSupabaseCampaign, enrichCampaignsWithProfiles } from '@/shared/lib/mapSupabaseCampaign';
-
-const allCampaignsPool = [...staticCampaigns, ...sponsoredCampaigns];
+import { resolveSavedCampaignsList } from '@/shared/lib/resolveSavedCampaignsList';
 
 const campaignTabs: { key: CampaignTab; label: string }[] = [
   { key: 'active', label: 'Campagne en cours' },
@@ -76,7 +73,7 @@ export default function MyCampaignsPage() {
   const { savedIds, toggle: toggleSaved } = useSavedCampaigns();
   const { tab: sharedTab } = useCampaignTab();
   const displayTab = sharedTab === 'stats' ? 'active' : sharedTab;
-  const { activeCampaigns, pausedCampaigns, pendingApplications, loading, refresh } = useMyCampaigns();
+  const { activeCampaigns, pausedCampaigns, completedCampaigns, pendingApplications, loading, refresh } = useMyCampaigns();
   const [confirmWithdrawId, setConfirmWithdrawId] = useState<string | null>(null);
   const [withdrawing, setWithdrawing] = useState(false);
 
@@ -87,23 +84,16 @@ export default function MyCampaignsPage() {
   }, []);
 
   useEffect(() => {
-    if (savedIds.length === 0) {
-      setDbSavedCampaigns([]);
-      return;
-    }
-    const fetchSaved = async () => {
-      const { data } = await supabase
-        .from('campaigns')
-        .select('*')
-        .in('id', savedIds);
-      const enriched = await enrichCampaignsWithProfiles(data ?? []);
-      const dbMapped = enriched.map(mapSupabaseCampaign);
-      const staticMapped = allCampaignsPool.filter((c) => savedIds.includes(c.id));
-      const allIds = new Set(dbMapped.map((c) => c.id));
-      const combined = [...dbMapped, ...staticMapped.filter((c) => !allIds.has(c.id))];
-      setDbSavedCampaigns(combined);
-    };
-    fetchSaved();
+    void refresh({ silent: true });
+  }, [refresh]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const list = await resolveSavedCampaignsList(savedIds);
+      if (!cancelled) setDbSavedCampaigns(list);
+    })();
+    return () => { cancelled = true; };
   }, [savedIds]);
 
   const displayedActive = [...activeCampaigns, ...pausedCampaigns];
@@ -202,17 +192,20 @@ export default function MyCampaignsPage() {
                     onClick={async () => {
                       if (!confirmWithdrawId) return;
                       setWithdrawing(true);
-                      const { data: { user } } = await supabase.auth.getUser();
-                      if (user) {
-                        await supabase
-                          .from('campaign_applications')
-                          .delete()
-                          .eq('campaign_id', confirmWithdrawId)
-                          .eq('user_id', user.id);
+                      try {
+                        const { data: { user } } = await supabase.auth.getUser();
+                        if (user) {
+                          await supabase
+                            .from('campaign_applications')
+                            .delete()
+                            .eq('user_id', user.id)
+                            .eq('campaign_id', confirmWithdrawId);
+                        }
+                        await refresh();
+                      } finally {
+                        setConfirmWithdrawId(null);
+                        setWithdrawing(false);
                       }
-                      setConfirmWithdrawId(null);
-                      setWithdrawing(false);
-                      await refresh();
                     }}
                     className="flex-1 py-3 rounded-xl text-sm font-bold text-white transition-all duration-200 active:scale-95"
                     style={{ background: 'rgba(239,68,68,0.85)', border: '1px solid rgba(239,68,68,0.4)' }}
@@ -228,7 +221,7 @@ export default function MyCampaignsPage() {
           <section>
             {loading ? (
               <div className="flex items-center justify-center py-16">
-                <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                <GrapeLoader size="md" />
               </div>
             ) : displayedActive.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 gap-3">
@@ -283,15 +276,32 @@ export default function MyCampaignsPage() {
 
           {displayTab === 'completed' && (
             <section>
-              <div className="flex flex-col items-center justify-center py-12 gap-3">
-                <div
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
-                >
-                  <CheckCircle className="w-5 h-5 text-white/25" />
+              {loading ? (
+                <div className="flex items-center justify-center py-16">
+                  <GrapeLoader size="md" />
                 </div>
-                <p className="text-white/40 text-sm font-medium">Aucune campagne terminée</p>
-              </div>
+              ) : completedCampaigns.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <div
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center"
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  >
+                    <CheckCircle className="w-5 h-5 text-white/25" />
+                  </div>
+                  <p className="text-white/40 text-sm font-medium">Aucune campagne terminée</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                  {completedCampaigns.map((c) => (
+                    <DbActiveCampaignCard
+                      key={c.id}
+                      campaign={c}
+                      onNavigate={() => navigate(`/campagne/${c.id}`, { state: { from: '/mes-campagnes' } })}
+                      onWithdraw={() => setConfirmWithdrawId(c.id)}
+                    />
+                  ))}
+                </div>
+              )}
             </section>
           )}
 
@@ -334,6 +344,9 @@ export default function MyCampaignsPage() {
 function DbActiveCampaignCard({ campaign, onNavigate, onWithdraw }: { campaign: CampaignData; onNavigate: () => void; onWithdraw: () => void }) {
   return (
     <button
+      onMouseEnter={() => {
+        void import('@/creator/pages/CampaignDetailPage.tsx');
+      }}
       onClick={onNavigate}
       className="w-full group rounded-2xl overflow-hidden text-left transition-all duration-200 hover:scale-[1.005] flex flex-col relative"
       style={glassCard}
@@ -341,57 +354,66 @@ function DbActiveCampaignCard({ campaign, onNavigate, onWithdraw }: { campaign: 
       <div className="flex lg:flex-col items-stretch">
         <div className="relative w-28 sm:w-36 lg:w-full shrink-0 lg:h-36">
           <img src={campaign.image} alt={campaign.title} className="w-full h-full object-cover" />
-          <div className="absolute inset-0 lg:hidden" style={{ background: 'linear-gradient(90deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
-          <div className="absolute inset-0 hidden lg:block" style={{ background: 'linear-gradient(180deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
-          <div className="hidden lg:flex absolute top-2.5 right-2.5 items-center gap-1.5">
-            {campaign.socials.map((p) =>
-              platformIcons[p] ? (
-                <span key={p} className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}>
-                  <img src={platformIcons[p]} alt={p} className="w-3.5 h-3.5 brightness-0 invert opacity-80" />
-                </span>
-              ) : null
-            )}
-          </div>
+          <div className="absolute inset-0 -right-px lg:hidden" style={{ background: 'linear-gradient(90deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
+          <div className="absolute inset-0 -bottom-px hidden lg:block" style={{ background: 'linear-gradient(180deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
         </div>
 
-        <div className="flex-1 px-4 py-4 flex flex-col gap-2 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-[10px] font-bold text-white/35 uppercase tracking-widest mb-0.5">{campaign.brand}</p>
-              <h3 className="text-sm font-bold text-white leading-snug line-clamp-2">{campaign.title}</h3>
+        <div className="flex-1 px-4 py-3 flex flex-col gap-2 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="text-[10px] text-white/30 shrink-0">{campaign.timeAgo}</span>
+            <div className="flex items-center ml-auto shrink-0" style={{ gap: 0 }}>
+              {campaign.socials.filter((p) => platformIcons[p]).map((p, i, arr) => (
+                <div key={p} style={{
+                  width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                  marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+                }}>
+                  <img src={platformIcons[p]} alt={p} style={{ width: 11, height: 11, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.9 }} />
+                </div>
+              ))}
             </div>
-            <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-white/50 transition-colors shrink-0 mt-0.5" />
           </div>
 
-          <div className="flex items-center gap-2 lg:hidden">
-            {campaign.socials.map((p) =>
-              platformIcons[p] ? <img key={p} src={platformIcons[p]} alt={p} className="w-3.5 h-3.5 brightness-0 invert opacity-50" /> : null
-            )}
-            <span
-              className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
-              style={
-                campaign.contentType === 'UGC'
-                  ? { background: 'rgba(255,0,217,0.1)', border: '1px solid rgba(255,0,217,0.25)', color: '#FF00D9' }
-                  : { background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.25)', color: '#a78bfa' }
-              }
-            >
-              {campaign.contentType}
-            </span>
-            <span className="text-[10px] text-white/30 ml-auto">{campaign.timeAgo}</span>
-          </div>
+          <h3 className="text-[13px] font-bold text-white leading-snug line-clamp-2">{campaign.title}</h3>
 
-          <div className="hidden lg:flex items-center gap-2">
-            <span
-              className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
-              style={
-                campaign.contentType === 'UGC'
-                  ? { background: 'rgba(255,0,217,0.1)', border: '1px solid rgba(255,0,217,0.25)', color: '#FF00D9' }
-                  : { background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.25)', color: '#a78bfa' }
+          <div className="flex items-center" style={{ gap: 0 }}>
+            {campaign.tags.map((tag, i, arr) => {
+              const lower = tag.toLowerCase();
+              let tagStyle: React.CSSProperties;
+              const outline = '2px solid rgba(10,10,15,1)';
+              if (lower === 'clipping') {
+                tagStyle = { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)', outline };
+              } else if (lower === 'ugc') {
+                tagStyle = { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)', outline };
+              } else {
+                tagStyle = { background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.15)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 8px rgba(0,0,0,0.2)', outline };
               }
+              return (
+                <span key={tag} className="px-2.5 py-0.5 rounded-full text-[9px] font-semibold tracking-wide" style={{ ...tagStyle, marginLeft: i === 0 ? 0 : -6, zIndex: arr.length + 1 - i, position: 'relative' }}>
+                  {tag}
+                </span>
+              );
+            })}
+            <div
+              className="flex items-center gap-1 px-2 py-0.5 rounded-full"
+              style={{
+                background: 'rgba(255,255,255,0.08)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 8px rgba(0,0,0,0.2)',
+                outline: '2px solid rgba(10,10,15,1)',
+                marginLeft: -6,
+                zIndex: 0,
+                position: 'relative',
+              }}
             >
-              {campaign.contentType}
-            </span>
-            <span className="text-[10px] text-white/30 ml-auto">{campaign.timeAgo}</span>
+              <svg viewBox="0 0 16 16" className="w-2.5 h-2.5 fill-current text-white/40">
+                <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm5 6a5 5 0 0 0-10 0h10z" />
+              </svg>
+              <span className="text-[9px] font-semibold text-white">{campaign.creators}</span>
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-2 mt-1">
@@ -452,7 +474,8 @@ function MobileSearchBar({ instagramIcon, tiktokIcon, youtubeIcon }: { instagram
   const togglePlatform = (p: string) => {
     setSelectedPlatforms((prev) => {
       const next = new Set(prev);
-      next.has(p) ? next.delete(p) : next.add(p);
+      if (next.has(p)) next.delete(p);
+      else next.add(p);
       return next;
     });
   };
@@ -521,7 +544,8 @@ function FilterBar({ instagramIcon, tiktokIcon, youtubeIcon }: { instagramIcon: 
   const togglePlatform = (p: string) => {
     setSelectedPlatforms((prev) => {
       const next = new Set(prev);
-      next.has(p) ? next.delete(p) : next.add(p);
+      if (next.has(p)) next.delete(p);
+      else next.add(p);
       return next;
     });
   };
@@ -796,16 +820,23 @@ function PendingCard({ application }: { application: PendingApplication }) {
       <div className="flex lg:flex-col items-stretch">
         <div className="relative w-28 sm:w-36 lg:w-full shrink-0 lg:h-36">
           <img src={application.photo} alt={application.name} className="w-full h-full object-cover opacity-60" />
-          <div className="absolute inset-0 lg:hidden" style={{ background: 'linear-gradient(90deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
-          <div className="absolute inset-0 hidden lg:block" style={{ background: 'linear-gradient(180deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
-          <div className="hidden lg:flex absolute top-2.5 right-2.5 items-center gap-1.5">
-            {application.platforms.map((p) =>
-              platformIcons[p] ? (
-                <span key={p} className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}>
-                  <img src={platformIcons[p]} alt={p} className="w-3.5 h-3.5 brightness-0 invert opacity-80" />
-                </span>
-              ) : null
-            )}
+          <div className="absolute inset-0 -right-px lg:hidden" style={{ background: 'linear-gradient(90deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
+          <div className="absolute inset-0 -bottom-px hidden lg:block" style={{ background: 'linear-gradient(180deg, transparent 20%, rgba(10,10,15,1) 100%)' }} />
+          <div className="hidden lg:flex absolute top-2.5 right-2.5 items-center" style={{ gap: 0 }}>
+            {application.platforms.filter((p) => platformIcons[p]).map((p, i, arr) => (
+              <div key={p} style={{
+                width: 26, height: 26, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)',
+                marginLeft: i === 0 ? 0 : -8, zIndex: arr.length - i, position: 'relative',
+                transition: 'transform 0.2s ease, box-shadow 0.2s ease', cursor: 'default',
+              }}
+              onMouseEnter={(e) => { const el = e.currentTarget as HTMLDivElement; el.style.transform = 'translateY(-3px) scale(1.15)'; el.style.boxShadow = '0 6px 20px rgba(255,255,255,0.15), 0 2px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15)'; el.style.zIndex = '99'; el.style.background = 'rgba(40,40,55,0.88)'; }}
+              onMouseLeave={(e) => { const el = e.currentTarget as HTMLDivElement; el.style.transform = 'translateY(0) scale(1)'; el.style.boxShadow = '0 2px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)'; el.style.zIndex = String(arr.length - i); el.style.background = 'rgba(20,20,28,0.72)'; }}
+              >
+                <img src={platformIcons[p]} alt={p} style={{ width: 11, height: 11, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.9 }} />
+              </div>
+            ))}
           </div>
           <div
             className="hidden lg:flex absolute bottom-2.5 left-2.5 w-7 h-7 rounded-full items-center justify-center"
@@ -840,15 +871,24 @@ function PendingCard({ application }: { application: PendingApplication }) {
           </div>
 
           <div className="flex items-center gap-2 lg:hidden">
-            {application.platforms.map((p) =>
-              platformIcons[p] ? <img key={p} src={platformIcons[p]} alt={p} className="w-3.5 h-3.5 brightness-0 invert opacity-40" /> : null
-            )}
+            <div className="flex items-center" style={{ gap: 0 }}>
+              {application.platforms.filter((p) => platformIcons[p]).map((p, i, arr) => (
+                <div key={p} style={{
+                  width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                  marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative',
+                }}>
+                  <img src={platformIcons[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+                </div>
+              ))}
+            </div>
             <span
               className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
               style={
                 application.category === 'UGC'
-                  ? { background: 'rgba(255,0,217,0.08)', border: '1px solid rgba(255,0,217,0.15)', color: 'rgba(255,0,217,0.6)' }
-                  : { background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.15)', color: 'rgba(167,139,250,0.6)' }
+                  ? { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)' }
+                  : { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)' }
               }
             >
               {application.category}
@@ -861,8 +901,8 @@ function PendingCard({ application }: { application: PendingApplication }) {
               className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
               style={
                 application.category === 'UGC'
-                  ? { background: 'rgba(255,0,217,0.08)', border: '1px solid rgba(255,0,217,0.15)', color: 'rgba(255,0,217,0.6)' }
-                  : { background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.15)', color: 'rgba(167,139,250,0.6)' }
+                  ? { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)' }
+                  : { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)' }
               }
             >
               {application.category}

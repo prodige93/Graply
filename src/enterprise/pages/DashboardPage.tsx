@@ -1,8 +1,14 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, type CSSProperties } from 'react';
+import { useLocation } from 'react-router-dom';
 import { renderAmount } from '@/shared/utils/chartUtils';
 import { useEnterpriseNavigate } from '@/enterprise/lib/useEnterpriseNavigate';
-import { ArrowLeft, DollarSign, Eye, Users, TrendingUp, Megaphone, ArrowUpRight, ArrowDownRight, Calendar, X, ChevronsUpDown, ArrowUpRight as SortIcon } from 'lucide-react';
+import { DollarSign, Eye, Users, TrendingUp, Megaphone, ArrowUpRight, ArrowDownRight, Calendar, X, ChevronsUpDown, ArrowUpRight as SortIcon, ChevronRight, Search } from 'lucide-react';
 import { supabase } from '@/shared/infrastructure/supabase';
+import {
+  fetchAcceptedCreatorsSummary,
+  type AcceptedCreatorSummary,
+  ENTERPRISE_DEMO_CREATOR_USER_ID,
+} from '@/enterprise/lib/fetchAcceptedCreatorsForOwner';
 import StatsChart from '../components/StatsChart';
 import instagramIcon from '@/shared/assets/instagram-card.svg';
 import youtubeIcon from '@/shared/assets/youtube.svg';
@@ -56,8 +62,188 @@ function formatCurrency(val: number): string {
   return `$${val.toLocaleString()}`;
 }
 
+const creatorRowMiniGlass: CSSProperties = {
+  background: 'rgba(255,255,255,0.055)',
+  backdropFilter: 'blur(18px)',
+  WebkitBackdropFilter: 'blur(18px)',
+  border: '1px solid rgba(255,255,255,0.12)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+};
+
+/** Mêmes pastilles rondes que sur les cartes « Mes campagnes ». */
+const campaignPlatformOrbStyle = {
+  width: 22,
+  height: 22,
+  borderRadius: '50%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: 'rgba(20,20,28,0.72)',
+  backdropFilter: 'blur(12px)',
+  WebkitBackdropFilter: 'blur(12px)',
+  border: '1px solid rgba(255,255,255,0.18)',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+} as const;
+
+const creatorUgcBadgeActive: CSSProperties = {
+  background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)',
+  border: '1px solid rgba(255,130,210,0.55)',
+  color: '#ffffff',
+  backdropFilter: 'blur(12px)',
+  WebkitBackdropFilter: 'blur(12px)',
+  boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)',
+  textShadow: '0 0 8px rgba(255,150,220,0.6)',
+};
+
+const creatorClipBadgeActive: CSSProperties = {
+  background: 'rgba(57,31,154,0.25)',
+  backdropFilter: 'blur(12px)',
+  WebkitBackdropFilter: 'blur(12px)',
+  border: '1px solid rgba(57,31,154,0.5)',
+  color: '#ffffff',
+  boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)',
+};
+
+function CreatorDashboardGlassRow({
+  c,
+  platformIcons,
+  onNavigate,
+}: {
+  c: AcceptedCreatorSummary;
+  platformIcons: Record<string, string>;
+  onNavigate: () => void;
+}) {
+  const handle = c.username.startsWith('@') ? c.username : `@${c.username}`;
+  const igOk = Boolean(c.instagramHandle?.trim());
+  const ttOk = Boolean(c.tiktokHandle?.trim());
+  const ytOk = Boolean(c.youtubeHandle?.trim());
+
+  const platformOrbs: { key: string; icon: string; linked: boolean; title: string }[] = [
+    { key: 'ig', icon: platformIcons.instagram, linked: igOk, title: igOk ? c.instagramHandle : 'Instagram' },
+    { key: 'tt', icon: platformIcons.tiktok, linked: ttOk, title: ttOk ? c.tiktokHandle : 'TikTok' },
+  ];
+  if (ytOk) {
+    platformOrbs.push({ key: 'yt', icon: platformIcons.youtube, linked: true, title: c.youtubeHandle });
+  }
+
+  const statBox = (label: string, value: string) => (
+    <div
+      className="flex h-9 min-w-[4.25rem] shrink-0 flex-col items-center justify-center rounded-lg px-2 sm:h-10 sm:min-w-[4.75rem] sm:px-2.5"
+      style={creatorRowMiniGlass}
+    >
+      <span className="text-[7px] font-semibold uppercase tracking-wide text-white/38 sm:text-[8px]">{label}</span>
+      <span className="text-xs font-bold tabular-nums leading-none text-white sm:text-[13px]">{value}</span>
+    </div>
+  );
+
+  const typeBadge = (label: 'UGC' | 'Clipping', active: boolean) => {
+    if (active && label === 'UGC') {
+      return (
+        <span className="shrink-0 rounded-lg px-2 py-1 text-[9px] font-bold tracking-wide" style={creatorUgcBadgeActive}>
+          UGC
+        </span>
+      );
+    }
+    if (active && label === 'Clipping') {
+      return (
+        <span className="shrink-0 rounded-lg px-2 py-1 text-[9px] font-bold tracking-wide" style={creatorClipBadgeActive}>
+          Clipping
+        </span>
+      );
+    }
+    return (
+      <span
+        className="shrink-0 rounded-lg px-2 py-1 text-[9px] font-semibold tracking-wide text-white/28"
+        style={creatorRowMiniGlass}
+      >
+        {label}
+      </span>
+    );
+  };
+
+  const rowInner = (
+    <div className="flex w-full min-w-0 items-center gap-2 overflow-x-auto py-0.5 sm:gap-2.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-2.5">
+        <div className="h-8 w-8 shrink-0 overflow-hidden rounded-lg sm:h-9 sm:w-9" style={{ background: 'rgba(255,255,255,0.06)' }}>
+          {c.avatarUrl ? (
+            <img src={c.avatarUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-xs font-bold text-white/35">{c.username.slice(0, 1).toUpperCase()}</div>
+          )}
+        </div>
+        <span className="max-w-[6.5rem] shrink-0 truncate text-xs font-semibold tracking-tight text-white sm:max-w-[9rem] sm:text-sm" title={handle}>
+          {handle}
+        </span>
+        <div className="flex shrink-0 items-center" style={{ gap: 0 }}>
+          {platformOrbs.map((p, i, arr) => (
+            <div
+              key={p.key}
+              style={{
+                ...campaignPlatformOrbStyle,
+                marginLeft: i === 0 ? 0 : -7,
+                zIndex: arr.length - i,
+                position: 'relative' as const,
+                opacity: p.linked ? 1 : 0.38,
+              }}
+              title={p.title}
+            >
+              <img
+                src={p.icon}
+                alt=""
+                style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.85 }}
+              />
+            </div>
+          ))}
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          {typeBadge('UGC', c.hasUgc)}
+          {typeBadge('Clipping', c.hasClipping)}
+        </div>
+      </div>
+      <div className="min-w-3 flex-1 shrink" aria-hidden />
+      <div className="flex shrink-0 items-center gap-2.5 sm:gap-3">
+        {statBox('Vidéos', String(c.totalVideos))}
+        {statBox('Vues', formatNumber(c.totalViews))}
+        {statBox('Gains', formatCurrency(c.totalPayout))}
+      </div>
+    </div>
+  );
+
+  const cardClass =
+    'w-full rounded-xl border border-white/[0.06] bg-white/[0.03] px-2.5 py-1.5 text-left transition-all duration-200 sm:px-3 sm:py-2';
+
+  return (
+    <button
+      type="button"
+      onClick={onNavigate}
+      className={`${cardClass} cursor-pointer hover:border-white/10 hover:bg-white/[0.05]`}
+    >
+      {rowInner}
+    </button>
+  );
+}
+
+/** Ligne factice affichée uniquement quand aucun créateur réel (aperçu de la carte). */
+const DASHBOARD_DEMO_CREATOR: AcceptedCreatorSummary = {
+  userId: ENTERPRISE_DEMO_CREATOR_USER_ID,
+  username: 'lena.ugc',
+  displayName: 'Léa Martin',
+  avatarUrl: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=200',
+  instagramHandle: '@lena.ugc',
+  tiktokHandle: '@lenamartin',
+  youtubeHandle: '',
+  hasUgc: true,
+  hasClipping: true,
+  lastActivityAt: '2025-03-01T10:00:00.000Z',
+  totalVideos: 2,
+  totalViews: 45800,
+  totalPayout: 128,
+  privateAcceptances: 1,
+};
+
 export default function DashboardPage() {
   const navigate = useEnterpriseNavigate();
+  const location = useLocation();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [chartPeriod, setChartPeriod] = useState<string>('6m');
   const [chartMetric, setChartMetric] = useState<'views' | 'earned'>('views');
@@ -67,6 +253,11 @@ export default function DashboardPage() {
   const [tablePlatform, setTablePlatform] = useState<string | null>(null);
   const [tableContentType, setTableContentType] = useState<string | null>(null);
   const [tableSort, setTableSort] = useState<{ key: 'performance' | 'date'; dir: 'asc' | 'desc' } | null>(null);
+  const [creatorTablePlatform, setCreatorTablePlatform] = useState<string | null>(null);
+  const [creatorTableSort, setCreatorTableSort] = useState<{ key: 'performance' | 'date'; dir: 'asc' | 'desc' } | null>(null);
+  const [creatorSearchQuery, setCreatorSearchQuery] = useState('');
+  const [acceptedCreators, setAcceptedCreators] = useState<AcceptedCreatorSummary[]>([]);
+  const [acceptedCreatorsLoading, setAcceptedCreatorsLoading] = useState(true);
   const chartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -86,6 +277,81 @@ export default function DashboardPage() {
     };
     fetchCampaigns();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadAcceptedCreators = async () => {
+      setAcceptedCreatorsLoading(true);
+      const { creators } = await fetchAcceptedCreatorsSummary();
+      if (!cancelled) {
+        setAcceptedCreators(creators);
+        setAcceptedCreatorsLoading(false);
+      }
+    };
+    void loadAcceptedCreators();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void loadAcceptedCreators();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    const onCreatorsAccepted = () => void loadAcceptedCreators();
+    window.addEventListener('graply:creators-accepted', onCreatorsAccepted);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('graply:creators-accepted', onCreatorsAccepted);
+    };
+  }, [location.pathname, location.key]);
+
+  const creatorsForDisplay = useMemo(() => {
+    if (acceptedCreatorsLoading) return [];
+    return [...acceptedCreators, DASHBOARD_DEMO_CREATOR];
+  }, [acceptedCreators, acceptedCreatorsLoading]);
+
+  const creatorsForPlatformDiscovery = useMemo(() => {
+    if (acceptedCreatorsLoading) return [];
+    if (acceptedCreators.length === 0) return [DASHBOARD_DEMO_CREATOR];
+    return acceptedCreators;
+  }, [acceptedCreators, acceptedCreatorsLoading]);
+
+  const creatorAvailablePlatforms = useMemo(() => {
+    const set = new Set<string>();
+    creatorsForPlatformDiscovery.forEach((c) => {
+      if (c.instagramHandle?.trim()) set.add('instagram');
+      if (c.tiktokHandle?.trim()) set.add('tiktok');
+      if (c.youtubeHandle?.trim()) set.add('youtube');
+    });
+    const order = ['instagram', 'tiktok', 'youtube'];
+    return order.filter((p) => set.has(p));
+  }, [creatorsForPlatformDiscovery]);
+
+  const creatorsDisplayedFiltered = useMemo(() => {
+    let list = creatorsForDisplay;
+    if (creatorTablePlatform === 'instagram') list = list.filter((c) => Boolean(c.instagramHandle?.trim()));
+    else if (creatorTablePlatform === 'tiktok') list = list.filter((c) => Boolean(c.tiktokHandle?.trim()));
+    else if (creatorTablePlatform === 'youtube') list = list.filter((c) => Boolean(c.youtubeHandle?.trim()));
+    const q = creatorSearchQuery.trim().toLowerCase().replace(/^@+/, '');
+    if (q) {
+      list = list.filter((c) => c.username.toLowerCase().includes(q));
+    }
+    if (!creatorTableSort) return list;
+    const sorted = [...list];
+    sorted.sort((a, b) => {
+      if (creatorTableSort.key === 'performance') {
+        const cmp =
+          a.totalViews !== b.totalViews
+            ? a.totalViews - b.totalViews
+            : a.totalPayout !== b.totalPayout
+              ? a.totalPayout - b.totalPayout
+              : a.username.localeCompare(b.username);
+        return creatorTableSort.dir === 'desc' ? -cmp : cmp;
+      }
+      const ta = a.lastActivityAt ? new Date(a.lastActivityAt).getTime() : 0;
+      const tb = b.lastActivityAt ? new Date(b.lastActivityAt).getTime() : 0;
+      const cmp = ta !== tb ? ta - tb : a.username.localeCompare(b.username);
+      return creatorTableSort.dir === 'desc' ? -cmp : cmp;
+    });
+    return sorted;
+  }, [creatorsForDisplay, creatorTablePlatform, creatorTableSort, creatorSearchQuery]);
 
   const stats = useMemo(() => {
     const totalBudget = campaigns.reduce((s, c) => s + parseBudget(c.budget), 0);
@@ -326,10 +592,10 @@ export default function DashboardPage() {
           />
           <MetricCard
             icon={<Users className="w-5 h-5" />}
-            label="Créateurs"
-            value="0"
-            change="--"
-            positive={false}
+            label="Créateurs (acceptés)"
+            value={acceptedCreatorsLoading ? '…' : String(acceptedCreators.length)}
+            change={acceptedCreators.length > 0 ? 'Sur vos campagnes' : '--'}
+            positive={acceptedCreators.length > 0}
           />
         </div>
 
@@ -351,13 +617,16 @@ export default function DashboardPage() {
               <div className="flex items-end justify-between gap-4">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-2">
-                    {selectedCampaign.platforms.map((p) =>
-                      platformIcons[p] ? (
-                        <div key={p} className="w-7 h-7 rounded-full flex items-center justify-center bg-white/10 backdrop-blur-sm">
-                          <img src={platformIcons[p]} alt={p} className="w-3.5 h-3.5" />
-                        </div>
-                      ) : null
-                    )}
+                    {selectedCampaign.platforms.filter((p) => platformIcons[p]).map((p, i, arr) => (
+                      <div key={p} style={{
+                        width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                        border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                        marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+                      }}>
+                        <img src={platformIcons[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+                      </div>
+                    ))}
                   </div>
                   <h2 className="text-xl lg:text-2xl font-bold text-white truncate">{selectedCampaign.name}</h2>
                   <p className="text-xs text-white/50 mt-1">Statistiques de la campagne</p>
@@ -458,15 +727,8 @@ export default function DashboardPage() {
           style={{ background: 'rgba(255,255,255,0.055)', backdropFilter: 'blur(40px)', WebkitBackdropFilter: 'blur(40px)', border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 8px 48px rgba(0,0,0,0.85), 0 0 0 0.5px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.13), inset 0 -1px 0 rgba(0,0,0,0.5)' }}
         >
           <div className="p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Mes campagnes</h2>
-              <button
-                onClick={() => navigate('/mes-campagnes')}
-                className="text-xs font-semibold transition-colors"
-                style={{ color: '#a855f7' }}
-              >
-                Voir tout
-              </button>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-white">Mes campagnes</h2>
             </div>
 
             {/* Mobile filter bar */}
@@ -619,20 +881,23 @@ export default function DashboardPage() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5 mb-0.5">
-                                {c.platforms.slice(0, 3).map((p) =>
-                                  platformIcons[p] ? (
-                                    <div key={p} className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                                      <img src={platformIcons[p]} alt={p} className="w-3 h-3" />
-                                    </div>
-                                  ) : null
-                                )}
+                                {c.platforms.slice(0, 3).filter((p) => platformIcons[p]).map((p, i, arr) => (
+                                  <div key={p} style={{
+                                    width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                                    border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                                    marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+                                  }}>
+                                    <img src={platformIcons[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+                                  </div>
+                                ))}
                                 {c.content_type && (
                                   <span
                                     className="px-1.5 py-px rounded-full text-[9px] font-bold tracking-wide shrink-0"
                                     style={
                                       c.content_type.toLowerCase() === 'ugc'
-                                        ? { background: 'rgba(255,0,217,0.15)', border: '1px solid rgba(255,0,217,0.3)', color: '#FF00D9' }
-                                        : { background: 'rgba(100,80,200,0.15)', border: '1px solid rgba(100,80,200,0.3)', color: '#a78bfa' }
+                                        ? { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)' }
+                                        : { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)' }
                                     }
                                   >
                                     {c.content_type}
@@ -718,14 +983,17 @@ export default function DashboardPage() {
                                 </div>
                               </td>
                               <td className="py-3.5 pr-4">
-                                <div className="flex items-center gap-2">
-                                  {c.platforms.map((p) =>
-                                    platformIcons[p] ? (
-                                      <div key={p} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ border: '1px solid rgba(255,255,255,0.12)' }}>
-                                        <img src={platformIcons[p]} alt={p} className="w-3.5 h-3.5" />
-                                      </div>
-                                    ) : null
-                                  )}
+                                <div className="flex items-center" style={{ gap: 0 }}>
+                                  {c.platforms.filter((p) => platformIcons[p]).map((p, i, arr) => (
+                                    <div key={p} style={{
+                                      width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                      background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                                      border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                                      marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+                                    }}>
+                                      <img src={platformIcons[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+                                    </div>
+                                  ))}
                                 </div>
                               </td>
                               <td className="py-3.5 pr-4">
@@ -734,8 +1002,8 @@ export default function DashboardPage() {
                                     className="px-2.5 py-0.5 rounded-full text-[9px] font-semibold tracking-wide"
                                     style={
                                       c.content_type.toLowerCase() === 'ugc'
-                                        ? { background: 'rgba(255,0,217,0.15)', border: '1px solid rgba(255,0,217,0.35)', color: '#FF00D9' }
-                                        : { background: 'rgba(57,31,154,0.15)', border: '1px solid rgba(57,31,154,0.35)', color: '#a78bfa' }
+                                        ? { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)' }
+                                        : { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)' }
                                     }
                                   >
                                     {c.content_type}
@@ -777,6 +1045,182 @@ export default function DashboardPage() {
                   </table>
                 </div>
               </>
+            )}
+          </div>
+        </div>
+
+        <div
+          className="rounded-2xl overflow-hidden"
+          style={{ background: 'rgba(255,255,255,0.055)', backdropFilter: 'blur(40px)', WebkitBackdropFilter: 'blur(40px)', border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 8px 48px rgba(0,0,0,0.85), 0 0 0 0.5px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.13), inset 0 -1px 0 rgba(0,0,0,0.5)' }}
+        >
+          <div className="p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-white">Créateurs</h2>
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Privé · public</span>
+            </div>
+
+            {/* Mobile : filtres plateforme + recherche à droite + tri date */}
+            <div className="mb-4 flex min-w-0 items-center gap-2 sm:hidden">
+              <div className="flex shrink-0 items-center gap-2">
+                {creatorAvailablePlatforms.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setCreatorTablePlatform(creatorTablePlatform === p ? null : p)}
+                    className="flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200"
+                    style={{
+                      background: creatorTablePlatform === p ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)',
+                      border: creatorTablePlatform === p ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.1)',
+                      opacity: creatorTablePlatform && creatorTablePlatform !== p ? 0.4 : 1,
+                    }}
+                  >
+                    {platformIcons[p] && <img src={platformIcons[p]} alt={platformNames[p] || p} className="social-icon h-4 w-4" />}
+                  </button>
+                ))}
+              </div>
+              <div className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/35" aria-hidden />
+                <input
+                  type="search"
+                  value={creatorSearchQuery}
+                  onChange={(e) => setCreatorSearchQuery(e.target.value)}
+                  placeholder="@…"
+                  autoComplete="off"
+                  className="h-8 w-full min-w-0 rounded-full border border-white/[0.1] bg-white/[0.04] py-0 pl-7 pr-2.5 text-[11px] text-white outline-none transition-colors placeholder:text-white/30 focus:border-white/20 focus:bg-white/[0.06]"
+                  aria-label="Rechercher un créateur par pseudo"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const isActive = creatorTableSort?.key === 'date';
+                  if (!isActive) {
+                    setCreatorTableSort({ key: 'date', dir: 'desc' });
+                  } else {
+                    setCreatorTableSort({ key: 'date', dir: creatorTableSort!.dir === 'desc' ? 'asc' : 'desc' });
+                  }
+                }}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all duration-200"
+                style={{
+                  background: creatorTableSort?.key === 'date' ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)',
+                  border: creatorTableSort?.key === 'date' ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.1)',
+                }}
+              >
+                <SortIcon
+                  className="h-4 w-4 transition-transform duration-300"
+                  style={{
+                    color: creatorTableSort?.key === 'date' ? '#fff' : 'rgba(255,255,255,0.4)',
+                    transform: creatorTableSort?.key === 'date' && creatorTableSort.dir === 'asc' ? 'rotate(180deg)' : 'rotate(0deg)',
+                  }}
+                />
+              </button>
+            </div>
+
+            {/* Desktop : filtres + tri + reset à gauche, recherche alignée à droite */}
+            <div className="mb-4 hidden min-w-0 items-center gap-3 sm:flex">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                {creatorAvailablePlatforms.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setCreatorTablePlatform(creatorTablePlatform === p ? null : p)}
+                    className="flex h-7 items-center gap-1.5 rounded-full px-3 transition-all duration-200"
+                    style={{
+                      background: creatorTablePlatform === p ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)',
+                      border: creatorTablePlatform === p ? '1px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.08)',
+                      opacity: creatorTablePlatform && creatorTablePlatform !== p ? 0.4 : 1,
+                    }}
+                  >
+                    {platformIcons[p] && <img src={platformIcons[p]} alt={platformNames[p] || p} className="social-icon h-3.5 w-3.5" />}
+                    <span className="text-[11px] font-semibold" style={{ color: creatorTablePlatform === p ? '#fff' : 'rgba(255,255,255,0.5)' }}>
+                      {platformNames[p] || p}
+                    </span>
+                  </button>
+                ))}
+                {creatorAvailablePlatforms.length > 0 && <div className="h-4 w-px" style={{ background: 'rgba(255,255,255,0.08)' }} />}
+                {(['performance', 'date'] as const).map((key) => {
+                  const isActive = creatorTableSort?.key === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => {
+                        if (!isActive) {
+                          setCreatorTableSort({ key, dir: 'desc' });
+                        } else {
+                          setCreatorTableSort({ key, dir: creatorTableSort!.dir === 'desc' ? 'asc' : 'desc' });
+                        }
+                      }}
+                      className="flex h-7 items-center gap-1.5 rounded-full px-3 transition-all duration-200"
+                      style={{
+                        background: isActive ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)',
+                        border: isActive ? '1px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.08)',
+                      }}
+                    >
+                      <span className="text-[11px] font-semibold capitalize" style={{ color: isActive ? '#fff' : 'rgba(255,255,255,0.5)' }}>
+                        {key === 'performance' ? 'Performance' : 'Date'}
+                      </span>
+                      <ChevronsUpDown className="h-3 w-3 transition-colors" style={{ color: isActive ? '#fff' : 'rgba(255,255,255,0.3)' }} />
+                    </button>
+                  );
+                })}
+                {(creatorTablePlatform || creatorTableSort || creatorSearchQuery.trim()) && (
+                  <>
+                    <div className="h-4 w-px" style={{ background: 'rgba(255,255,255,0.08)' }} />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCreatorTablePlatform(null);
+                        setCreatorTableSort(null);
+                        setCreatorSearchQuery('');
+                      }}
+                      className="flex h-7 items-center gap-1 rounded-full px-2.5 text-[11px] font-semibold transition-all duration-200 hover:bg-white/10"
+                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}
+                    >
+                      <X className="h-3 w-3" />
+                      Reset
+                    </button>
+                  </>
+                )}
+              </div>
+              <div className="relative w-52 shrink-0 sm:w-56">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/35" aria-hidden />
+                <input
+                  type="search"
+                  value={creatorSearchQuery}
+                  onChange={(e) => setCreatorSearchQuery(e.target.value)}
+                  placeholder="Rechercher @…"
+                  autoComplete="off"
+                  className="h-7 w-full rounded-full border border-white/[0.1] bg-white/[0.04] py-0 pl-8 pr-3 text-[11px] text-white outline-none transition-colors placeholder:text-white/30 focus:border-white/20 focus:bg-white/[0.06]"
+                  aria-label="Rechercher un créateur par pseudo"
+                />
+              </div>
+            </div>
+
+            <p className="mb-4 max-w-2xl text-[11px] leading-relaxed text-white/35">
+              Candidatures acceptées et vidéos approuvées — vues et gains suivis sur les contenus validés.
+            </p>
+            {acceptedCreatorsLoading ? (
+              <div className="flex justify-center py-10">
+                <div className="h-9 w-9 animate-spin rounded-full border-2 border-white/15 border-t-white/60" />
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {acceptedCreators.length === 0 ? (
+                  <p className="px-0.5 text-[11px] text-white/28">Aucun créateur réel — la dernière ligne est un exemple.</p>
+                ) : null}
+                {creatorsDisplayedFiltered.length === 0 ? (
+                  <p className="px-0.5 text-[11px] text-white/30">Aucun créateur ne correspond à ces filtres.</p>
+                ) : null}
+                {creatorsDisplayedFiltered.map((c) => (
+                  <CreatorDashboardGlassRow
+                    key={c.userId}
+                    c={c}
+                    platformIcons={platformIcons}
+                    onNavigate={() => navigate(`/createurs-acceptes/${c.userId}`)}
+                  />
+                ))}
+              </div>
             )}
           </div>
         </div>

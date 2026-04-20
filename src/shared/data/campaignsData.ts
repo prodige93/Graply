@@ -214,7 +214,8 @@ export const campaigns: CampaignData[] = [
     timeAgo: '1 week ago',
     title: 'Nike Air Max Day - Best Clips',
     description: 'Clippez les meilleurs moments Air Max ! Montrez vos collections, vos looks streetwear et les moments où vos Air Max brillent. Sneakers, culture et style de vie.',
-    isPublic: true,
+    isPublic: false,
+    requireApplication: true,
     rules: [
       'Les Nike Air Max doivent être visibles dans chaque clip',
       'Durée entre 10 et 45 secondes',

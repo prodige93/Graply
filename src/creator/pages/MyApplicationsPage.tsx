@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Search, ChevronDown, Check, X, Clock, CheckCircle, XCircle, Megaphone, Trash2, AlertTriangle } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import { supabase } from '@/shared/infrastructure/supabase';
+import { formatFirstPlatformPer1000Label } from '@/shared/lib/mapSupabaseCampaign';
 import GrapeLoader from '../components/GrapeLoader';
 import instagramIcon from '@/shared/assets/instagram-card.svg';
 import tiktokIcon from '@/shared/assets/tiktok.svg';
@@ -73,7 +74,7 @@ export default function MyApplicationsPage() {
             name,
             photo_url,
             platforms,
-            rate_per_view,
+            platform_budgets,
             content_type
           )
         `)
@@ -91,7 +92,7 @@ export default function MyApplicationsPage() {
           name: string;
           photo_url: string;
           platforms: string[];
-          rate_per_view: string;
+          platform_budgets: Record<string, { per1000?: string }> | null;
           content_type: string;
         } | null;
       }>)
@@ -108,7 +109,7 @@ export default function MyApplicationsPage() {
             photo: c.photo_url ?? '',
             platforms: c.platforms ?? [],
             category: c.content_type ?? 'UGC',
-            ratePerK: c.rate_per_view ?? '',
+            ratePerK: formatFirstPlatformPer1000Label(c.platforms, c.platform_budgets),
             appliedAt: formatted,
             applicantsCount: 0,
             status: (row.status as 'pending' | 'accepted' | 'rejected') ?? 'pending',
@@ -184,12 +185,7 @@ export default function MyApplicationsPage() {
   return (
     <div className="h-screen text-white flex overflow-hidden" style={{ backgroundColor: '#050404' }}>
       <Sidebar activePage="home" onOpenSearch={() => {}} />
-      {loading && (
-        <div className="flex-1 flex items-center justify-center">
-          <GrapeLoader />
-        </div>
-      )}
-      <div className={`flex-1 overflow-y-auto pb-24 lg:pb-10 ${loading ? 'hidden' : ''}`}>
+      <div className="flex-1 overflow-y-auto pb-24 lg:pb-10">
         <div className="px-4 sm:px-6 lg:px-8 pt-8 pb-6" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div className="flex items-center gap-4">
             <button
@@ -202,12 +198,18 @@ export default function MyApplicationsPage() {
             <div className="flex-1 min-w-0">
               <h1 className="text-xl lg:text-2xl font-bold text-white">Mes candidatures</h1>
               <p className="text-sm text-white/40 mt-0.5">
-                {pendingCount} en attente de reponse
+                {loading ? 'Chargement…' : `${pendingCount} en attente de reponse`}
               </p>
             </div>
           </div>
         </div>
 
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <GrapeLoader size="md" />
+          </div>
+        ) : (
+          <>
         <div className="px-4 sm:px-6 pt-5 lg:pt-8" ref={dropdownRef}>
           <div className="hidden lg:flex flex-wrap items-center gap-3">
             {['Statut', 'Categories'].map((filter) => (
@@ -473,6 +475,8 @@ export default function MyApplicationsPage() {
             </div>
           )}
         </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -536,15 +540,22 @@ function ApplicationCard({ application, onDelete }: { application: PendingApplic
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              {application.platforms.map((p) =>
-                platformIconMap[p] ? <img key={p} src={platformIconMap[p]} alt={p} className="w-3.5 h-3.5 brightness-0 invert opacity-50" /> : null
-              )}
+              {application.platforms.filter((p) => platformIconMap[p]).map((p, i, arr) => (
+                <div key={p} style={{
+                  width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(20,20,28,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                  marginLeft: i === 0 ? 0 : -7, zIndex: arr.length - i, position: 'relative' as const,
+                }}>
+                  <img src={platformIconMap[p]} alt={p} style={{ width: 10, height: 10, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.8 }} />
+                </div>
+              ))}
               <span
                 className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
                 style={
                   application.category === 'UGC'
-                    ? { background: 'rgba(255,0,217,0.1)', border: '1px solid rgba(255,0,217,0.25)', color: '#FF00D9' }
-                    : { background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.25)', color: '#a78bfa' }
+                    ? { background: 'linear-gradient(135deg, rgba(255,100,200,0.35) 0%, rgba(255,0,180,0.18) 50%, rgba(200,0,150,0.28) 100%)', border: '1px solid rgba(255,130,210,0.55)', color: '#ffffff', backdropFilter: 'blur(12px)', boxShadow: 'inset 0 1px 0 rgba(255,200,240,0.3), 0 0 10px rgba(255,0,180,0.2)', textShadow: '0 0 8px rgba(255,150,220,0.6)' }
+                    : { background: 'rgba(57,31,154,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(57,31,154,0.5)', color: '#ffffff', boxShadow: 'inset 0 1px 0 rgba(167,139,250,0.2)' }
                 }
               >
                 {application.category}
