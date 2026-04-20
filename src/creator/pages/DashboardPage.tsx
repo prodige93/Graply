@@ -4,12 +4,13 @@ import { DollarSign, TrendingUp, ArrowUpRight, Play, X, ArrowDownLeft, ExternalL
 import { supabase } from '@/shared/infrastructure/supabase';
 import { useLinkedPlatformVideos, type LinkedVideo } from '@/shared/lib/useLinkedPlatformVideos';
 import { useSocialConnections, type DashboardSocialPlatform } from '@/shared/lib/useSocialConnections';
+import { useVideoSubmissionsIndex, type VideoSubmissionCampaign } from '@/shared/lib/useVideoSubmissionsIndex';
 import { getSocialOAuthUrl, type SocialPlatform } from '@/shared/lib/socialOAuth';
 import { MIN_CLIP_VIEWS_FOR_PAYOUT, canWithdrawThisWeek, nextWithdrawalAvailableAt } from '@/shared/lib/creatorPayoutRules';
 import StatsChart from '../components/StatsChart';
 import Sidebar from '../components/Sidebar';
-import instagramIcon from '@/shared/assets/instagram-card.svg';
-import youtubeIcon from '@/shared/assets/youtube.svg';
+import instagramIcon from '@/shared/assets/instagram-logo.svg';
+import youtubeIcon from '@/shared/assets/youtube-symbol.svg';
 import tiktokIcon from '@/shared/assets/tiktok-color.svg';
 
 const platformIcons: Record<string, string> = {
@@ -114,6 +115,7 @@ interface DashboardVideo {
   permalink: string;
   publishedAt: string;
   viewCount?: number;
+  campaign?: VideoSubmissionCampaign | null;
 }
 
 export default function DashboardPage() {
@@ -200,12 +202,14 @@ export default function DashboardPage() {
     refetch: refetchLinkedVideos,
   } = useLinkedPlatformVideos();
   const { loading: socialLoading, refetch: refetchSocialConnections, isConnected: isSocialConnected, displayUsername } = useSocialConnections();
+  const { lookup: lookupCampaignForVideo, refetch: refetchVideoSubmissions } = useVideoSubmissionsIndex();
 
   useEffect(() => {
     if (!location.state?.fromSocialOAuth) return;
     void Promise.all([
       refetchSocialConnections(),
       refetchLinkedVideos(),
+      refetchVideoSubmissions(),
       loadDashboardProfile(),
     ]);
     navigate(location.pathname, { replace: true, state: {} });
@@ -215,6 +219,7 @@ export default function DashboardPage() {
     navigate,
     refetchSocialConnections,
     refetchLinkedVideos,
+    refetchVideoSubmissions,
     loadDashboardProfile,
   ]);
 
@@ -325,8 +330,9 @@ export default function DashboardPage() {
       permalink: v.permalink,
       publishedAt: v.publishedAt,
       viewCount: v.viewCount,
+      campaign: lookupCampaignForVideo(v.permalink),
     }));
-  }, [linkedVideos, filterPlatform]);
+  }, [linkedVideos, filterPlatform, lookupCampaignForVideo]);
 
   const chartData = useMemo(() => {
     return buildActivityChartPoints(chartPeriod, videosForChart);
@@ -419,10 +425,6 @@ export default function DashboardPage() {
               <PeriodSelector periods={['all', '7j', '1m', '3m', '6m']} value={chartPeriod} onChange={setChartPeriod} />
             </div>
           )}
-
-          <div className="flex items-center justify-end">
-            <PeriodSelector periods={['all', '7j', '1m', '3m', '6m']} value={chartPeriod} onChange={setChartPeriod} />
-          </div>
 
           <div
             className="rounded-2xl p-6 flex flex-col items-center gap-5 text-center"
@@ -819,6 +821,25 @@ export default function DashboardPage() {
                           )}
                           <span className="text-[10px] text-white/30">{video.date}</span>
                         </div>
+                        {video.campaign && (
+                          <div
+                            className="inline-flex items-center gap-1.5 mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold max-w-full"
+                            style={{
+                              background: 'rgba(255,120,42,0.1)',
+                              border: '1px solid rgba(255,120,42,0.25)',
+                              color: '#FFB488',
+                            }}
+                          >
+                            {video.campaign.campaignPhoto && (
+                              <img
+                                src={video.campaign.campaignPhoto}
+                                alt=""
+                                className="w-3 h-3 rounded-sm object-cover shrink-0"
+                              />
+                            )}
+                            <span className="truncate">{video.campaign.campaignName || video.campaign.brand || 'Campagne'}</span>
+                          </div>
+                        )}
                       </div>
 
                       <div className="shrink-0">
@@ -911,6 +932,53 @@ export default function DashboardPage() {
                     </span>
                   )}
                 </div>
+
+                {v.campaign ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedVideoId(null);
+                      navigate(`/campagne/${v.campaign!.campaignId}`);
+                    }}
+                    className="w-full rounded-xl px-4 py-3 flex items-center gap-3 transition-all duration-200 hover:brightness-110 active:scale-[0.99] text-left"
+                    style={{
+                      background: 'rgba(255,120,42,0.08)',
+                      border: '1px solid rgba(255,120,42,0.25)',
+                    }}
+                  >
+                    {v.campaign.campaignPhoto ? (
+                      <img
+                        src={v.campaign.campaignPhoto}
+                        alt=""
+                        className="w-10 h-10 rounded-lg object-cover shrink-0"
+                      />
+                    ) : (
+                      <div
+                        className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                      >
+                        <Play className="w-4 h-4 text-white/40" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#FFB488' }}>
+                        Campagne associée
+                      </p>
+                      <p className="text-sm font-bold text-white truncate">{v.campaign.campaignName || 'Campagne'}</p>
+                      {v.campaign.brand && (
+                        <p className="text-xs text-white/50 truncate">{v.campaign.brand}</p>
+                      )}
+                    </div>
+                    <ExternalLink className="w-4 h-4 text-white/40 shrink-0" />
+                  </button>
+                ) : (
+                  <div
+                    className="rounded-xl px-4 py-2.5 text-[11px] text-white/35 text-center"
+                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.08)' }}
+                  >
+                    Aucune campagne Graply associée à cette vidéo.
+                  </div>
+                )}
 
                 <a
                   href={v.permalink}
