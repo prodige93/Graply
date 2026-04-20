@@ -27,7 +27,7 @@ const BUDGET_MAX = 10000;
 export default function MyCampaignsPage() {
   const navigate = useEnterpriseNavigate();
   const { savedIds, toggle } = useSavedCampaigns();
-  const { campaigns, pausedCampaigns, completedCampaigns, drafts, loading, deleteDraft, deleteActiveCampaign } = useMyCampaigns();
+  const { campaigns, pendingCheckout, pausedCampaigns, completedCampaigns, drafts, loading, deleteDraft, deleteActiveCampaign } = useMyCampaigns();
   const [dbSavedCampaigns, setDbSavedCampaigns] = useState<CampaignData[]>([]);
   const { tab: activeTab, setTab: setActiveTab } = useCampaignTab();
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -105,6 +105,11 @@ export default function MyCampaignsPage() {
 
   const filteredDrafts = useMemo(() => drafts.filter(filterCampaign), [drafts, searchQuery, selectedCategory, selectedContent, budgetMin, budgetMax, selectedPlatforms]);
 
+  const filteredPending = useMemo(
+    () => pendingCheckout.filter(filterCampaign),
+    [pendingCheckout, searchQuery, selectedCategory, selectedContent, budgetMin, budgetMax, selectedPlatforms],
+  );
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -150,7 +155,7 @@ export default function MyCampaignsPage() {
     setOpenDropdown(null);
   };
 
-  const hasCampaigns = campaigns.length > 0 || pausedCampaigns.length > 0 || completedCampaigns.length > 0 || drafts.length > 0;
+  const hasCampaigns = campaigns.length > 0 || pendingCheckout.length > 0 || pausedCampaigns.length > 0 || completedCampaigns.length > 0 || drafts.length > 0;
 
   const handleDeleteDraft = async (draftId: string) => {
     const { error } = await supabase

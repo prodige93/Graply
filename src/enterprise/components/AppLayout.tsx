@@ -1,8 +1,10 @@
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
+import { supabase } from '@/shared/infrastructure/supabase';
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
 import GrapeLoader from './GrapeLoader';
+import EnterpriseRegistrationModal from './EnterpriseRegistrationModal';
 
 type ActivePage = 'home' | 'mes-campagnes' | 'validation-videos' | 'dashboard' | 'messagerie' | 'mon-compte' | 'parametres' | 'enregistre';
 

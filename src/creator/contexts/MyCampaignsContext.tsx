@@ -67,7 +67,7 @@ export function MyCampaignsProvider({ children }: { children: ReactNode }) {
 
     type JoinRow = { id: string; created_at?: string; campaigns: SupabaseCampaign | null };
 
-    const acceptedRows = ((acceptedRes.data ?? []) as JoinRow[]).filter((r) => r.campaigns);
+    const acceptedRows = ((acceptedRes.data ?? []) as unknown as JoinRow[]).filter((r) => r.campaigns);
     const seenCampaign = new Set<string>();
     const acceptedCampaignsRaw: SupabaseCampaign[] = [];
     for (const row of acceptedRows) {
@@ -86,7 +86,7 @@ export function MyCampaignsProvider({ children }: { children: ReactNode }) {
     setPausedCampaigns(paused.map(mapSupabaseCampaign));
     setCompletedCampaigns(completed.map(mapSupabaseCampaign));
 
-    const pendingRows = ((pendingRes.data ?? []) as JoinRow[]).filter((r) => r.campaigns);
+    const pendingRows = ((pendingRes.data ?? []) as unknown as JoinRow[]).filter((r) => r.campaigns);
     const pendingCampaignsRaw = pendingRows.map((r) => r.campaigns!);
     const uniquePendingById = [...new Map(pendingCampaignsRaw.map((c) => [c.id, c])).values()];
     const enrichedPending = await enrichCampaignsWithProfiles(uniquePendingById);

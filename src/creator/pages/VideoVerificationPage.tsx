@@ -36,25 +36,25 @@ export default function VideoVerificationPage() {
   useEffect(() => {
     if (staticCampaign || !id) return;
     setLoading(true);
-    supabase
-      .from('campaigns')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle()
-      .then(async ({ data, error }) => {
-        if (error || !data) {
-          setLoading(false);
-          return;
-        }
-        try {
-          const [enriched] = await enrichCampaignsWithProfiles([data]);
-          setCampaign(mapSupabaseCampaign(enriched as SupabaseCampaign));
-        } catch {
-          setCampaign(null);
-        }
+    let cancelled = false;
+    void (async () => {
+      const { data, error } = await supabase.from('campaigns').select('*').eq('id', id).maybeSingle();
+      if (cancelled) return;
+      if (error || !data) {
         setLoading(false);
-      })
-      .catch(() => setLoading(false));
+        return;
+      }
+      try {
+        const [enriched] = await enrichCampaignsWithProfiles([data]);
+        setCampaign(mapSupabaseCampaign(enriched as SupabaseCampaign));
+      } catch {
+        setCampaign(null);
+      }
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [id, staticCampaign]);
 
   if (!campaign) {

@@ -10,7 +10,15 @@ import Sidebar from '../components/Sidebar';
 import instagramIcon from '@/shared/assets/instagram-logo.svg';
 import youtubeIcon from '@/shared/assets/youtube-symbol.svg';
 import tiktokIcon from '@/shared/assets/tiktok-color.svg';
-import { type SocialPlatform, getSocialOAuthUrl } from '@/shared/lib/socialOAuth';
+import { type SocialPlatform, getSocialOAuthUrl, INSTAGRAM_PRO_ACCOUNT_CONNECT_HINT } from '@/shared/lib/socialOAuth';
+import { useHeroFeaturedSlides } from '@/shared/lib/useHeroFeaturedSlides';
+import { useSocialConnections, type DashboardSocialPlatform } from '@/shared/lib/useSocialConnections';
+import TikTokConnectModal from '@/shared/components/TikTokConnectModal';
+import {
+  profileUsernameDisplayLabel,
+  profileUsernameSaveErrorMessage,
+} from '@/shared/lib/profileUsername';
+import type { HeroFeaturedSlide } from '@/shared/lib/homeHeroFeatured';
 
 const SOCIAL_PLATFORMS = [
   { key: 'instagram' as SocialPlatform, label: 'Instagram', icon: instagramIcon },
@@ -158,8 +166,7 @@ export default function MyAccountPage() {
   async function saveBio() {
     if (!profile?.id) return;
     setSavingBio(true);
-    await supabase.from('profiles').update({ bio: newBio.trim(), updated_at: new Date().toISOString() }).eq('id', profile.id);
-    updateProfile({ bio: newBio.trim() });
+    const { error } = await supabase.from('profiles').update({ bio: newBio.trim(), updated_at: new Date().toISOString() }).eq('id', profile.id);
     setSavingBio(false);
     if (error) {
       alert(`Impossible d’enregistrer la description : ${error.message}`);
@@ -177,14 +184,14 @@ export default function MyAccountPage() {
     }
     if (!profile?.id) return;
     setSavingUsername(true);
-    await supabase.from('profiles').update({ username: newUsername.trim(), updated_at: new Date().toISOString() }).eq('id', profile.id);
-    updateProfile({ username: newUsername.trim() });
+    const trimmed = newUsername.trim();
+    const { error } = await supabase.from('profiles').update({ username: trimmed, updated_at: new Date().toISOString() }).eq('id', profile.id);
     setSavingUsername(false);
     if (error) {
       alert(profileUsernameSaveErrorMessage(error));
       return;
     }
-    updateProfile({ username: next });
+    updateProfile({ username: trimmed });
     setEditingUsername(false);
   }
 
@@ -514,7 +521,7 @@ export default function MyAccountPage() {
         <div className="hidden lg:flex w-[340px] shrink-0 sticky top-8 self-start flex-col items-center gap-4 ml-auto">
           <h3 className="text-sm font-bold text-white uppercase tracking-widest text-center w-full">Top campagne</h3>
           <div className="w-full rounded-2xl overflow-hidden relative" style={{ height: '240px' }}>
-            {slides.map((slide, index) => (
+            {slides.map((slide: HeroFeaturedSlide, index: number) => (
               <div
                 key={slide.key}
                 className="absolute inset-0 transition-all duration-500"
@@ -528,7 +535,7 @@ export default function MyAccountPage() {
                     <p className="text-white/60 text-xs mt-0.5">{slide.line2}</p>
                   </div>
                   <div className="flex items-center gap-1">
-                    {slides.map((_, i) => (
+                    {slides.map((_: HeroFeaturedSlide, i: number) => (
                       <button
                         key={i}
                         onClick={(e) => { e.stopPropagation(); setCurrentSlide(i); }}

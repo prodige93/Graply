@@ -4,6 +4,8 @@ import { ArrowLeft, MessageCircle, User, MoreVertical, Flag, ShieldBan, X, Video
 import Sidebar from '../components/Sidebar';
 import GrapeLoader from '../components/GrapeLoader';
 import { fetchCreatorProfilePreview, type CreatorProfilePreview } from '@/shared/lib/creatorProfilePreview';
+
+type SocialHandleKey = 'instagram_handle' | 'tiktok_handle' | 'youtube_handle';
 import verifiedIcon from '@/shared/assets/badge-creator-verified.png';
 import instagramIcon from '@/shared/assets/instagram-logo.svg';
 import youtubeIcon from '@/shared/assets/youtube-color.svg';
@@ -16,22 +18,6 @@ const socialPlatforms = [
   { key: 'tiktok', icon: tiktokIcon, label: 'TikTok', baseUrl: 'https://tiktok.com/@' },
   { key: 'youtube', icon: youtubeIcon, label: 'YouTube', baseUrl: 'https://youtube.com/@' },
 ] as const;
-
-interface UserProfile {
-  id: string;
-  username: string;
-  display_name: string;
-  bio: string;
-  avatar_url: string | null;
-  banner_url: string | null;
-  content_tags: string[];
-  website: string;
-  created_at: string;
-  instagram_handle: string;
-  tiktok_handle: string;
-  youtube_handle: string;
-  hidden_stats: string[] | null;
-}
 
 function normalizeHiddenStats(raw: unknown): string[] {
   if (Array.isArray(raw)) {
@@ -71,16 +57,10 @@ export default function UserProfilePage() {
     if (!username) return;
     setLoading(true);
     setProfile(null);
-    supabase
-      .from('profiles')
-      .select('id, username, display_name, bio, avatar_url, banner_url, content_tags, website, created_at, instagram_handle, tiktok_handle, youtube_handle, hidden_stats')
-      .eq('username', username)
-      .eq('is_public', true)
-      .maybeSingle()
-      .then(({ data }) => {
-        setProfile(data);
-        setLoading(false);
-      });
+    void fetchCreatorProfilePreview(username).then((res) => {
+      setProfile(res.found ? res : null);
+      setLoading(false);
+    });
   }, [username]);
 
   if (!profile) {
@@ -109,9 +89,11 @@ export default function UserProfilePage() {
 
   const joinedDate = new Date(profile.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
   const hiddenStats = normalizeHiddenStats(profile.hidden_stats);
+  const isPrivateVisitor = !profile.is_public;
+  const canMessage = profile.messaging_enabled && profile.is_public;
 
   const visibleSocialPlatforms = socialPlatforms.filter((p) => {
-    const handle = (profile[`${p.key}_handle` as keyof UserProfile] as string) || '';
+    const handle = (profile[`${p.key}_handle` as SocialHandleKey] as string) || '';
     if (!handle) return false;
     if (hiddenStats.includes(`platform_${p.key}`)) return false;
     return true;
@@ -262,10 +244,10 @@ export default function UserProfilePage() {
         </div>
         ) : null}
 
-        {visibleSocialPlatforms.length > 0 && (
+        {visibleSocialPlatforms.length > 0 ? (
           <div className="flex items-center gap-2.5 mb-6">
             {visibleSocialPlatforms.map((p) => {
-              const handle = (profile[`${p.key}_handle` as keyof UserProfile] as string) || '';
+              const handle = (profile[`${p.key}_handle` as SocialHandleKey] as string) || '';
               const clean = handle.replace(/^@/, '');
               const url = `${p.baseUrl}${clean}`;
               return (

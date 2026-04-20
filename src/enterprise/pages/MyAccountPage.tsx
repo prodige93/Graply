@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useEnterpriseNavigate } from '@/enterprise/lib/useEnterpriseNavigate';
-import { Camera, Pencil, Check, Shield, ChevronLeft, ChevronRight, Unlink, Loader2 } from 'lucide-react';
+import { Camera, Pencil, Check, Shield, ChevronLeft, ChevronRight, Unlink, Loader2, FileText, ExternalLink, Trash2 } from 'lucide-react';
 import ttIcon from '@/shared/assets/tiktok-color.svg';
 import instaIcon from '@/shared/assets/instagram-logo.svg';
 import symbolIcon from '@/shared/assets/youtube-symbol.svg';
@@ -22,6 +22,7 @@ import {
   profileUsernameDisplayLabel,
   profileUsernameSaveErrorMessage,
 } from '@/shared/lib/profileUsername';
+import { useSocialConnections, type DashboardSocialPlatform } from '@/shared/lib/useSocialConnections';
 
 const SOCIAL_PLATFORMS = [
   { key: 'instagram' as SocialPlatform, label: 'Instagram', icon: instaIcon },
@@ -196,8 +197,7 @@ export default function MyAccountPage() {
   async function saveBio() {
     if (!profile?.id) return;
     setSavingBio(true);
-    await supabase.from('profiles').update({ bio: newBio.trim(), updated_at: new Date().toISOString() }).eq('id', profile.id);
-    updateProfile({ bio: newBio.trim() });
+    const { error } = await supabase.from('profiles').update({ bio: newBio.trim(), updated_at: new Date().toISOString() }).eq('id', profile.id);
     setSavingBio(false);
     if (error) {
       alert(`Impossible d’enregistrer la description : ${error.message}`);
@@ -215,14 +215,14 @@ export default function MyAccountPage() {
     }
     if (!profile?.id) return;
     setSavingUsername(true);
-    await supabase.from('profiles').update({ username: newUsername.trim(), updated_at: new Date().toISOString() }).eq('id', profile.id);
-    updateProfile({ username: newUsername.trim() });
+    const trimmed = newUsername.trim();
+    const { error } = await supabase.from('profiles').update({ username: trimmed, updated_at: new Date().toISOString() }).eq('id', profile.id);
     setSavingUsername(false);
     if (error) {
       alert(profileUsernameSaveErrorMessage(error));
       return;
     }
-    updateProfile({ username: next });
+    updateProfile({ username: trimmed });
     setEditingUsername(false);
   }
 

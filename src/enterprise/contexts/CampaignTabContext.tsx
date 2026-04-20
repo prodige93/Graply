@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 
-export type EnterpriseCampaignTab = 'active' | 'paused' | 'completed' | 'saved' | 'drafts';
+export type EnterpriseCampaignTab = 'active' | 'pending_payment' | 'paused' | 'completed' | 'saved' | 'drafts';
 
 const CampaignTabContext = createContext<{
   tab: EnterpriseCampaignTab;

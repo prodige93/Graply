@@ -11,6 +11,7 @@ import type { CreatorCampaign, PendingApplication } from '@/shared/lib/useCreato
 import { useMyCampaigns } from '@/creator/contexts/MyCampaignsContext';
 import { resolveSavedCampaignsList } from '@/shared/lib/resolveSavedCampaignsList';
 import { HIDE_ALL_RECENT_CAMPAIGNS_PUBLIC_KEY } from '@/shared/lib/hiddenProfileKeys';
+import { profileUsernameDisplayLabel } from '@/shared/lib/profileUsername';
 import type { CampaignData } from '../components/CampaignCard';
 import CampaignCard from '../components/CampaignCard';
 import SavedCampaignCard from '../components/campaign-cards/SavedCampaignCard';

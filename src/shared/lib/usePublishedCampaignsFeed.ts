@@ -45,7 +45,7 @@ export function usePublishedCampaignsFeed(): CampaignData[] {
         return;
       }
 
-      const raw = payload.new as SupabaseCampaign | null;
+      const raw = payload.new as unknown as SupabaseCampaign | null;
       if (!raw?.id) return;
 
       if (raw.status !== 'published') {

@@ -180,11 +180,16 @@ export default function CreatorVerificationsPage() {
     (async () => {
       setLoading(true);
       setDecisions({});
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) {
+        setLoading(false);
+        return;
+      }
       const { data, error } = await supabase
         .from('campaigns')
         .select('id, name, photo_url, platforms, content_type')
         .eq('id', id)
-        .eq('user_id', user.id)
+        .eq('user_id', authUser.id)
         .maybeSingle();
       if (cancelled) return;
       if (!error && data) setCampaign(data);

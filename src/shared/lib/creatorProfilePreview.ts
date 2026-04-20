@@ -20,6 +20,8 @@ export type CreatorProfilePreview = {
   instagram_handle: string;
   tiktok_handle: string;
   youtube_handle: string;
+  /** Préférences de masquage côté créateur (visibilité stats / plateformes). */
+  hidden_stats: string[];
   clip_views_total: number;
   stats: CreatorProfilePreviewStats;
 };
@@ -33,6 +35,10 @@ function parsePreview(data: unknown): CreatorProfilePreviewResult {
   const tags = o.content_tags;
   const content_tags = Array.isArray(tags) ? tags.map(String) : [];
   const stats = (o.stats && typeof o.stats === 'object' ? o.stats : {}) as Record<string, unknown>;
+  const rawHidden = o.hidden_stats;
+  const hidden_stats = Array.isArray(rawHidden)
+    ? rawHidden.filter((x): x is string => typeof x === 'string')
+    : [];
   return {
     found: true,
     is_public: Boolean(o.is_public),
@@ -48,6 +54,7 @@ function parsePreview(data: unknown): CreatorProfilePreviewResult {
     instagram_handle: String(o.instagram_handle ?? ''),
     tiktok_handle: String(o.tiktok_handle ?? ''),
     youtube_handle: String(o.youtube_handle ?? ''),
+    hidden_stats,
     clip_views_total: Number(o.clip_views_total) || 0,
     stats: {
       approved_videos: Number(stats.approved_videos) || 0,

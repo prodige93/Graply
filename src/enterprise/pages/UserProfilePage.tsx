@@ -24,20 +24,10 @@ const platformBaseUrls: Record<string, string> = {
   youtube: 'https://youtube.com/@',
 };
 
-interface UserProfile {
-  id: string;
-  username: string;
-  display_name: string;
-  bio: string;
-  avatar_url: string | null;
-  banner_url: string | null;
-  content_tags: string[];
-  website: string;
-  created_at: string;
-  instagram_handle: string;
-  tiktok_handle: string;
-  youtube_handle: string;
-  hidden_stats: string[] | null;
+type SocialHandleKey = 'instagram_handle' | 'tiktok_handle' | 'youtube_handle';
+
+function formatInt(n: number): string {
+  return n.toLocaleString('fr-FR');
 }
 
 function normalizeHiddenStats(raw: unknown): string[] {
@@ -73,16 +63,10 @@ export default function UserProfilePage() {
   useEffect(() => {
     if (!username) return;
     setLoading(true);
-    supabase
-      .from('profiles')
-      .select('id, username, display_name, bio, avatar_url, banner_url, content_tags, website, created_at, instagram_handle, tiktok_handle, youtube_handle, hidden_stats')
-      .eq('username', username)
-      .eq('is_public', true)
-      .maybeSingle()
-      .then(({ data }) => {
-        setProfile(data);
-        setLoading(false);
-      });
+    void fetchCreatorProfilePreview(username).then((res) => {
+      setProfile(res.found ? res : null);
+      setLoading(false);
+    });
   }, [username]);
 
   if (loading) {
@@ -118,9 +102,14 @@ export default function UserProfilePage() {
 
   const joinedDate = new Date(profile.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
   const hiddenStats = normalizeHiddenStats(profile.hidden_stats);
+  const isPrivateVisitor = !profile.is_public;
+  const canMessage = profile.messaging_enabled && profile.is_public;
+  const viewsGraply = profile.clip_views_total;
+  const videosApproved = profile.stats.approved_videos;
+  const campaignsDone = profile.stats.campaigns_with_approved_video;
 
   const visibleSocialKeys = socialPlatformKeys.filter((key) => {
-    const handleKey = `${key}_handle` as keyof UserProfile;
+    const handleKey = `${key}_handle` as SocialHandleKey;
     const handle = (profile[handleKey] as string) || '';
     if (!handle) return false;
     if (hiddenStats.includes(`platform_${key}`)) return false;
@@ -231,10 +220,10 @@ export default function UserProfilePage() {
           <p className="text-sm text-white leading-relaxed max-w-2xl mb-6">{profile.bio}</p>
         ) : null}
 
-        {visibleSocialKeys.length > 0 && (
+        {visibleSocialKeys.length > 0 ? (
           <div className="flex items-center gap-2.5 mb-5">
             {visibleSocialKeys.map((key) => {
-              const handleKey = `${key}_handle` as keyof UserProfile;
+              const handleKey = `${key}_handle` as SocialHandleKey;
               const handle = (profile[handleKey] as string) || '';
               const clean = handle.replace(/^@/, '');
               const url = `${platformBaseUrls[key]}${clean}`;

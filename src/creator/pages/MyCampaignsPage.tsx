@@ -15,6 +15,7 @@ import { useSavedCampaigns } from '@/creator/contexts/SavedCampaignsContext';
 import { useCampaignTab, type CampaignTab } from '@/creator/contexts/CampaignTabContext';
 import { useMyCampaigns } from '@/creator/contexts/MyCampaignsContext';
 import { resolveSavedCampaignsList } from '@/shared/lib/resolveSavedCampaignsList';
+import { supabase } from '@/shared/infrastructure/supabase';
 
 const campaignTabs: { key: CampaignTab; label: string }[] = [
   { key: 'active', label: 'Campagne en cours' },

@@ -1,6 +1,11 @@
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { DollarSign, TrendingUp, ArrowUpRight, Play, X, ArrowDownLeft, ExternalLink, Loader2, CalendarDays } from 'lucide-react';
+import { supabase } from '@/shared/infrastructure/supabase';
+import { useLinkedPlatformVideos, type LinkedVideo } from '@/shared/lib/useLinkedPlatformVideos';
+import { useSocialConnections, type DashboardSocialPlatform } from '@/shared/lib/useSocialConnections';
+import { getSocialOAuthUrl, type SocialPlatform } from '@/shared/lib/socialOAuth';
+import { MIN_CLIP_VIEWS_FOR_PAYOUT, canWithdrawThisWeek, nextWithdrawalAvailableAt } from '@/shared/lib/creatorPayoutRules';
 import StatsChart from '../components/StatsChart';
 import Sidebar from '../components/Sidebar';
 import instagramIcon from '@/shared/assets/instagram-card.svg';
@@ -218,7 +223,18 @@ export default function DashboardPage() {
   const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [tablePlatform, setTablePlatform] = useState<string | null>(null);
   const [tableSort, setTableSort] = useState<{ key: 'date'; dir: 'desc' | 'asc' } | null>(null);
+  const [filterPlatform, setFilterPlatform] = useState<string | null>(null);
   const chartRef = useRef<HTMLDivElement>(null);
+
+  const videosForChart = useMemo(
+    () => (filterPlatform ? linkedVideos.filter((v) => v.platform === filterPlatform) : linkedVideos),
+    [linkedVideos, filterPlatform],
+  );
+
+  const availablePlatforms = useMemo(() => {
+    const withVideos = allPlatforms.filter((p) => (countsByPlatform[p as keyof typeof countsByPlatform] ?? 0) > 0);
+    return withVideos.length > 0 ? withVideos : allPlatforms;
+  }, [countsByPlatform]);
 
   async function handleWithdraw() {
     if (withdrawBalance <= 0 || withdrawLoading) return;
@@ -292,7 +308,8 @@ export default function DashboardPage() {
   const connectedSocialCount = allPlatforms.filter((p) => isSocialConnected(p as DashboardSocialPlatform)).length;
 
   const dashboardVideos: DashboardVideo[] = useMemo(() => {
-    return linkedVideos.map((v) => ({
+    const base = filterPlatform ? linkedVideos.filter((v) => v.platform === filterPlatform) : linkedVideos;
+    return base.map((v: LinkedVideo) => ({
       id: `${v.platform}-${v.id}`,
       title: v.title,
       platform: v.platform,
@@ -302,15 +319,15 @@ export default function DashboardPage() {
       publishedAt: v.publishedAt,
       viewCount: v.viewCount,
     }));
-  }, [linkedVideos]);
+  }, [linkedVideos, filterPlatform]);
 
   const chartData = useMemo(() => {
-    return buildActivityChartPoints(chartPeriod, linkedVideos);
-  }, [chartPeriod, linkedVideos]);
+    return buildActivityChartPoints(chartPeriod, videosForChart);
+  }, [chartPeriod, videosForChart]);
 
   const totalPeriodVideoCount = chartData.reduce((s, d) => s + d.views, 0);
   const totalPeriodEarned = chartData.reduce((s, d) => s + d.earned, 0);
-  const totalSyncedVideos = linkedVideos.length;
+  const totalSyncedVideos = videosForChart.length;
 
   const filteredVideos = useMemo(() => {
     let vids = tablePlatform ? dashboardVideos.filter((v) => v.platform === tablePlatform) : dashboardVideos;
@@ -868,7 +885,7 @@ function PeriodSelector({ periods, value, onChange, color = '#FF782A' }: { perio
 function MetricCard({
   icon, label, value, change, positive,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: string;
   change: string;

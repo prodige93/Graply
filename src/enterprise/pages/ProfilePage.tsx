@@ -17,6 +17,7 @@ import jentrepriseIcon from '@/shared/assets/badge-enterprise-verified.png';
 import instagramIcon from '@/shared/assets/instagram-logo.svg';
 import youtubeIcon from '@/shared/assets/youtube-symbol.svg';
 import tiktokIcon from '@/shared/assets/tiktok-color.svg';
+import { profileUsernameDisplayLabel } from '@/shared/lib/profileUsername';
 
 const DEFAULT_BANNER = 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=1200';
 
@@ -54,7 +55,7 @@ async function uploadFile(file: File, folder: string): Promise<string | null> {
 export default function ProfilePage() {
   const navigate = useEnterpriseNavigate();
   const { savedIds, toggle } = useSavedCampaigns();
-  const { campaigns, pausedCampaigns, completedCampaigns, drafts, loading, deleteDraft, deleteActiveCampaign } = useMyCampaigns();
+  const { campaigns, pendingCheckout, pausedCampaigns, completedCampaigns, drafts, loading, deleteDraft, deleteActiveCampaign } = useMyCampaigns();
   const [dbSavedCampaigns, setDbSavedCampaigns] = useState<CampaignData[]>([]);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);

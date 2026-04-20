@@ -10,23 +10,8 @@ import { campaigns as staticCampaigns, sponsoredCampaigns, enterprises } from '@
 import verifiedIcon from '@/shared/assets/badge-enterprise-verified.png';
 import Sidebar from '../components/Sidebar';
 import { usePublishedCampaignsFeed } from '@/shared/lib/usePublishedCampaignsFeed';
-
-const slides = [
-  {
-    id: 1,
-    title: 'iPhone 17',
-    image: iphone17Img,
-    subtitle: 'Nouvelle collection',
-    campaignId: 'apple-iphone-17',
-  },
-  {
-    id: 2,
-    title: 'Black Ops 7',
-    image: bo7Img,
-    subtitle: 'Campagne exclusive',
-    campaignId: 'activision-cod-bo7',
-  },
-];
+import { useHeroFeaturedSlides } from '@/shared/lib/useHeroFeaturedSlides';
+import type { HeroFeaturedSlide } from '@/shared/lib/homeHeroFeatured';
 
 const categoryOptions = ['UGC', 'Clipping'];
 const categoryColors: Record<string, string> = {
@@ -455,7 +440,7 @@ export default function CampaignsPage() {
         >
           <ArrowLeft className="w-5 h-5 text-white" />
         </button>
-        {slides.map((slide, index) => (
+        {slides.map((slide: HeroFeaturedSlide, index: number) => (
           <div
             key={slide.key}
             className={`absolute inset-0 overflow-hidden transition-opacity duration-1000 ${
@@ -493,7 +478,7 @@ export default function CampaignsPage() {
         </div>
 
         <div className="absolute bottom-6 right-6 flex gap-1 z-10">
-          {slides.map((_, index) => (
+          {slides.map((_: HeroFeaturedSlide, index: number) => (
             <button
               key={index}
               onClick={(e) => { e.stopPropagation(); setCurrentSlide(index); }}

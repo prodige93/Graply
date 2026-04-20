@@ -139,20 +139,22 @@ export default function CampaignDetailPage() {
       .select('*')
       .eq('id', id)
       .maybeSingle()
-      .then(async ({ data, error }) => {
-        if (error || !data) {
+      .then(
+        async ({ data, error }) => {
+          if (error || !data) {
+            setLoading(false);
+            return;
+          }
+          try {
+            const [enriched] = await enrichCampaignsWithProfiles([data]);
+            setCampaign(mapSupabaseCampaign(enriched as SupabaseCampaign));
+          } catch {
+            setCampaign(null);
+          }
           setLoading(false);
-          return;
-        }
-        try {
-          const [enriched] = await enrichCampaignsWithProfiles([data]);
-          setCampaign(mapSupabaseCampaign(enriched as SupabaseCampaign));
-        } catch {
-          setCampaign(null);
-        }
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+        },
+        () => setLoading(false),
+      );
   }, [id, staticCampaign]);
 
   useEffect(() => {
@@ -569,17 +571,6 @@ export default function CampaignDetailPage() {
             >
               <Send className="w-3.5 h-3.5" />
               Postuler
-            </button>
-          ) : (
-            <button
-              onClick={() => navigate(`/campagne/${campaign.id}/verification`, { state: { from: location.pathname } })}
-              className="group relative flex items-center justify-center py-2.5 px-4 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] overflow-hidden"
-              style={{
-                background: '#FFA672',
-              }}
-            >
-              <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: 'rgba(255,255,255,0.1)' }} />
-              <span className="font-bold text-base relative z-10 text-white flex items-center gap-2"><img src={chCircleIcon} alt="" className="w-4 h-4" />Vérifier ma vidéo</span>
             </button>
           )}
 

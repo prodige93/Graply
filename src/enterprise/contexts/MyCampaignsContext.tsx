@@ -56,7 +56,7 @@ export function MyCampaignsProvider({ children }: { children: ReactNode }) {
       return fetchCampaigns(user.id);
     }
     setLoading(true);
-    const [pubResult, pausedResult, completedResult, draftResult] = await Promise.all([
+    const [pubResult, pendingCheckoutResult, pausedResult, completedResult, draftResult] = await Promise.all([
       supabase.from('campaigns').select('*').eq('status', 'published').eq('user_id', effectiveUid).order('created_at', { ascending: false }),
       supabase.from('campaigns').select('*').eq('status', 'pending_checkout').eq('user_id', effectiveUid).order('created_at', { ascending: false }),
       supabase.from('campaigns').select('*').eq('status', 'paused').eq('user_id', effectiveUid).order('created_at', { ascending: false }),
@@ -68,6 +68,7 @@ export function MyCampaignsProvider({ children }: { children: ReactNode }) {
     const tempCompleted = allPub.filter((c) => c.id === TEMP_COMPLETED_ID);
     const realPub = allPub.filter((c) => c.id !== TEMP_COMPLETED_ID);
     setCampaigns(realPub);
+    setPendingCheckout(pendingCheckoutResult.data ?? []);
     setPausedCampaigns(pausedResult.data ?? []);
     setCompletedCampaigns([...tempCompleted.map((c) => ({ ...c, status: 'completed' })), ...(completedResult.data ?? [])]);
     if (draftResult.data) setDrafts(draftResult.data);
@@ -151,7 +152,7 @@ export function MyCampaignsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <MyCampaignsContext.Provider value={{ campaigns, pausedCampaigns, completedCampaigns, drafts, loading, refresh: fetchCampaigns, deleteDraft, deleteActiveCampaign, updateCampaignStatus }}>
+    <MyCampaignsContext.Provider value={{ campaigns, pendingCheckout, pausedCampaigns, completedCampaigns, drafts, loading, refresh: fetchCampaigns, deleteDraft, deleteActiveCampaign, updateCampaignStatus }}>
       {children}
     </MyCampaignsContext.Provider>
   );

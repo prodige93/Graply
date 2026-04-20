@@ -33,16 +33,11 @@ function notifyListeners(p: Profile | null) {
   listeners.forEach((fn) => fn(p));
 }
 
-async function loadProfile(): Promise<Profile | null> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    cachedProfile = null;
-    return null;
-  }
-  const { data } = await supabase
+async function loadProfileForUser(userId: string): Promise<Profile | null> {
+  let { data } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', user.id)
+    .eq('id', userId)
     .maybeSingle();
 
   if (!data) {
@@ -61,9 +56,9 @@ async function loadProfile(): Promise<Profile | null> {
     }
   }
 
-  cachedProfile = data ?? null;
+  cachedProfile = (data as Profile | null) ?? null;
   cachedUserId = userId;
-  return data ?? null;
+  return (data as Profile | null) ?? null;
 }
 
 async function loadProfile(): Promise<Profile | null> {
