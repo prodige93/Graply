@@ -665,7 +665,7 @@ export default function DashboardPage() {
                 )}
               </div>
 
-              <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+              <div>
                 <div className="px-5 py-3" style={{ background: 'rgba(255,255,255,0.02)' }}>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-white/35">Comptes liés</p>
                   <p className="text-[11px] text-white/25 mt-0.5">Synchronise tes vidéos en connectant chaque réseau</p>
