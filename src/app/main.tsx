@@ -39,6 +39,7 @@ const CreatorHomePage = lazy(() => import('@/creator/pages/CreatorHomePage.tsx')
 const EnterpriseAppPage = lazy(() => import('@/app/EnterpriseAppPage.tsx'));
 const StripeCallbackPage = lazy(() => import('@/shared/pages/StripeCallbackPage.tsx'));
 const SocialCallbackPage = lazy(() => import('@/shared/pages/SocialCallbackPage.tsx'));
+const DataDeletionStatusPage = lazy(() => import('@/shared/pages/DataDeletionStatusPage.tsx'));
 
 function RouteFallback() {
   return <AppShellFallback />;
@@ -55,6 +56,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/connexion" element={<LoginPage />} />
                 <Route path="/lp" element={<Navigate to="/" replace />} />
+                <Route path="/data-deletion-status" element={<DataDeletionStatusPage />} />
                 <Route element={<AuthGuard />}>
                   <Route path="/stripe-callback" element={<StripeCallbackPage />} />
                   <Route path="/social-callback" element={<SocialCallbackPage />} />

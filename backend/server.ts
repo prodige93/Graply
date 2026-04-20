@@ -9,6 +9,8 @@ import {
   getMetaInstagramWebhook,
   postMetaInstagramWebhook,
 } from "./routes/metaInstagramWebhook";
+import { postMetaDeauth } from "./routes/metaDataDeauth";
+import { postMetaDataDelete } from "./routes/metaDataDelete";
 
 const app = express();
 
@@ -34,6 +36,21 @@ app.post(
   "/api/webhooks/meta",
   express.raw({ type: "application/json" }),
   postMetaInstagramWebhook,
+);
+
+/**
+ * Meta — Deauthorize & Data Deletion callbacks (App Review).
+ * Meta poste `signed_request` en `application/x-www-form-urlencoded`.
+ */
+app.post(
+  "/api/webhooks/meta/deauth",
+  express.urlencoded({ extended: false }),
+  postMetaDeauth,
+);
+app.post(
+  "/api/webhooks/meta/delete",
+  express.urlencoded({ extended: false }),
+  postMetaDataDelete,
 );
 
 app.use(express.json());
