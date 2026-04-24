@@ -1,0 +1,43 @@
+# Graply — variables d’environnement (hors Git)
+# Créer les fichiers .env localement ; ne jamais les committer.
+# Les valeurs viennent des dashboards (Supabase, Stripe, Meta, TikTok, Google, etc.).
+
+## Racine du repo (.env)
+VITE_OAUTH_REDIRECT_URI
+VITE_TIKTOK_OAUTH_REDIRECT_URI
+VITE_SUPABASE_URL
+VITE_SUPABASE_ANON_KEY
+VITE_STRIPE_CONNECT_CLIENT_ID
+VITE_INSTAGRAM_CLIENT_ID
+VITE_INSTAGRAM_OAUTH_SCOPES (optionnel)
+VITE_TIKTOK_CLIENT_KEY
+VITE_TIKTOK_OAUTH_SCOPE (optionnel)
+VITE_YOUTUBE_CLIENT_ID
+VITE_BACKEND_URL
+BACKEND_PUBLIC_URL (build Netlify / CI — proxy /api vers Express)
+
+## backend/.env
+PORT
+FRONTEND_URL
+CORS_ORIGINS
+STRIPE_SECRET_KEY
+STRIPE_WEBHOOK_SECRET
+SUPABASE_URL
+SUPABASE_SERVICE_ROLE_KEY
+INSTAGRAM_WEBHOOK_VERIFY_TOKEN
+META_APP_SECRET
+
+## ugc-tracking-service/.env
+DATABASE_URL
+REDIS_HOST
+REDIS_PORT
+YOUTUBE_API_KEY
+TIKTOK_RAPIDAPI_KEY
+TIKTOK_RAPIDAPI_HOST
+INSTAGRAM_RAPIDAPI_KEY
+INSTAGRAM_RAPIDAPI_HOST
+
+## Supabase Vault (SQL Editor, pas dans Git)
+instagram_client_id
+instagram_client_secret
+(+ autres secrets vault selon migrations)

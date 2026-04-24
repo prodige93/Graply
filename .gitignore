@@ -26,18 +26,28 @@ build
 coverage
 .nyc_output
 
-# Environment (ne pas versionner les secrets — garder .env.example)
+# Environment — ne rien versionner (clés, tokens, URLs projet réelles)
 .env
 .env.*
-!.env.example
+.env.local
+.env.*.local
+backend/.env
+ugc-tracking-service/.env
+**/.env
 render-env-values.local.txt
 
-# SQL one-shot Vault (secrets) — ne jamais committer
+# Anciens exemples retirés du dépôt ; ne pas re-committer par erreur
+.env.example
+**/.env.example
+
+# SQL one-shot Vault / secrets locaux — ne jamais committer
 **/*.vault.local.sql
 
-# Supabase CLI (secrets locaux)
+# Supabase CLI (artefacts & secrets locaux — pas les migrations)
 .branches
 .temp
+supabase/.temp/
+supabase/.branches/
 
 # Deploy / hosting
 .vercel
