@@ -1,44 +1,99 @@
-# Graply
+<div align="center">
 
-**Site :** [https://graply.io](https://graply.io)
+<img src=".github/assets/readme-hero.svg" alt="Graply — bannière" width="100%" />
 
-Plateforme de mise en relation **marques** et **créateurs** (UGC, campagnes, suivi des performances). Ce dépôt contient l’application web (React + Vite), l’API Express (paiements Stripe, webhooks Meta/Instagram), les migrations **Supabase** et un service optionnel de suivi UGC.
+<br/>
+
+<a href="https://graply.io"><img src="https://img.shields.io/badge/Site-graply.io-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="graply.io" /></a>
+<img src="https://img.shields.io/badge/Statut-En%20d%C3%A9veloppement-f59e0b?style=for-the-badge" alt="En développement" />
+<img src="https://img.shields.io/badge/Licence-Priv%C3%A9e-64748b?style=for-the-badge" alt="Privé" />
+
+<br/><br/>
+
+<img src="public/graply-app-icon.jpg" alt="Icône Graply" width="120" />
+
+<br/>
+
+**Plateforme de mise en relation entre marques et créateurs** — campagnes UGC, candidatures, suivi des contenus et des performances sur les réseaux.
+
+[Site](https://graply.io) · [Dépôt](https://github.com/prodige93/Graply)
+
+</div>
+
+---
+
+> **Projet en développement actif.** L’interface, les intégrations (Stripe, Meta / Instagram, TikTok, YouTube) et les parcours métier évoluent. L’URL publique **graply.io** peut pointer vers une préproduction ou une page d’hébergement selon la phase de déploiement.
+
+---
+
+## À quoi sert Graply ?
+
+Graply aide les **marques** à lancer et piloter des **campagnes** avec des **créateurs** (Instagram, TikTok, YouTube), et aide les **créateurs** à **postuler**, suivre leurs **candidatures** et **synchroniser** leurs comptes pour afficher stats et vidéos sur un **dashboard**.
+
+| Côté | Fonctions typiques |
+|------|---------------------|
+| **Entreprise** | Création de campagnes, budget, validation de contenus, checkout (Stripe), suivi |
+| **Créateur** | Profil, candidatures, messagerie liée aux campagnes, connexion des réseaux (OAuth), vidéos & indicateurs |
+| **Technique** | Auth Supabase, RLS, API Express (webhooks, paiements), optionnel service UGC de suivi |
+
+### Schéma simplifié du flux
+
+```mermaid
+flowchart LR
+  subgraph Marques
+    M[Entreprise]
+  end
+  subgraph Plateforme
+    G[Graply]
+    DB[(Supabase)]
+    API[API Express]
+  end
+  subgraph Créateurs
+    C[Créateur]
+  end
+  M -->|Campagnes & budget| G
+  C -->|Candidatures & profil| G
+  G --> DB
+  G --> API
+  API -->|Stripe| P[Paiements]
+  API -->|Webhooks| W[Métadonnées réseaux]
+```
+
+---
+
+## Aperçu visuel
+
+Les captures d’écran **live** dépendent de l’environnement déployé. Tu peux :
+
+1. Ouvrir **[graply.io](https://graply.io)** (ou l’URL de préproduction) une fois l’app servie.
+2. Ajouter des captures dans **`.github/assets/screenshots/`** et les référencer ici, par ex. :
+   `![Dashboard](.github/assets/screenshots/dashboard.png)`
+
+En attendant, le dépôt inclut une **bannière vectorielle** (`.github/assets/readme-hero.svg`) et l’**icône** applicative (`public/graply-app-icon.jpg`) pour un rendu soigné sur la page GitHub du dépôt.
+
+---
+
+## Stack technique
+
+<p align="center">
+  <img src="https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=black" alt="React" />
+  <img src="https://img.shields.io/badge/Vite-5-646cff?logo=vite&logoColor=white" alt="Vite" />
+  <img src="https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Supabase-PostgreSQL-3ecf8e?logo=supabase&logoColor=black" alt="Supabase" />
+  <img src="https://img.shields.io/badge/Stripe-Paiements-635bff?logo=stripe&logoColor=white" alt="Stripe" />
+  <img src="https://img.shields.io/badge/Node.js-Express-339933?logo=node.js&logoColor=white" alt="Node" />
+</p>
 
 ---
 
 ## Sommaire
 
-- [Prérequis](#prérequis)
-- [Structure du dépôt](#structure-du-dépôt)
 - [Installation](#installation)
 - [Variables d’environnement](#variables-denvironnement)
 - [Développement local](#développement-local)
-- [Build & déploiement front (Netlify)](#build--déploiement-front-netlify)
+- [Build & déploiement (Netlify)](#build--déploiement-netlify)
 - [Base de données (Supabase)](#base-de-données-supabase)
 - [Sécurité](#sécurité)
-
----
-
-## Prérequis
-
-- **Node.js** 20+ (recommandé)
-- **npm**
-- Un projet **[Supabase](https://supabase.com)** (URL + clé anon + `service_role` pour le backend)
-- Comptes **Stripe**, **Meta / Instagram**, **TikTok**, **Google (YouTube)** selon les fonctionnalités activées
-
----
-
-## Structure du dépôt
-
-| Dossier | Rôle |
-|--------|------|
-| `src/` | Front React (parcours créateur & entreprise, dashboard, OAuth callback) |
-| `public/` | Assets statiques, `oauth-redirect.html` pour les retours OAuth |
-| `backend/` | API **Express** : checkout entreprise, webhooks Stripe, webhooks Meta/Instagram |
-| `supabase/migrations/` | Schéma SQL et RPC (auth, campagnes, connexions sociales, etc.) |
-| `ugc-tracking-service/` | Service optionnel (scraping / stats vidéos) |
-| `scripts/patch-netlify-redirects.mjs` | Après `vite build`, génère `dist/_redirects` (proxy `/api` → backend) |
-| `ENV_SETUP.txt` | Liste des **noms** de variables d’environnement (sans secrets) |
 
 ---
 
@@ -55,67 +110,45 @@ npm run backend:install
 
 ## Variables d’environnement
 
-Les fichiers **`.env`** ne sont **pas** versionnés. Crée-les localement à partir de la liste dans **`ENV_SETUP.txt`** (racine, `backend/`, `ugc-tracking-service/`).
-
-Les secrets OAuth côté Supabase (ex. Instagram) se configurent dans le **Vault** du projet Supabase (voir commentaires dans les migrations concernées).
+Les **`.env`** ne sont pas versionnés. Liste des clés attendues : **`ENV_SETUP.txt`**.  
+Secrets OAuth Instagram côté base : **Vault Supabase** (voir migrations associées).
 
 ---
 
 ## Développement local
 
-**1. Front (Vite)** — [http://localhost:5173](http://localhost:5173)
-
-```bash
-npm run dev
-```
-
-Le fichier `vite.config.ts` proxifie **`/api`** vers **`http://localhost:3300`** pour coller au backend local.
-
-**2. Backend (Express)**
-
-```bash
-npm run backend:dev
-```
-
-Ou : `cd backend && npm install && npm run dev`
-
-Crée **`backend/.env`** (voir `ENV_SETUP.txt`) : Stripe, Supabase `service_role`, `META_APP_SECRET` / `INSTAGRAM_WEBHOOK_VERIFY_TOKEN` si tu testes les webhooks Meta.
-
-**3. Qualité**
-
-```bash
-npm run lint
-npm run typecheck
-```
+| Commande | Rôle |
+|----------|------|
+| `npm run dev` | Front Vite → [http://localhost:5173](http://localhost:5173) |
+| `npm run backend:dev` | API Express → port **3300** (proxy `/api` depuis Vite) |
+| `npm run lint` / `npm run typecheck` | Qualité du code |
 
 ---
 
-## Build & déploiement front (Netlify)
+## Build & déploiement (Netlify)
 
 ```bash
 npm run build
 ```
 
-- Publie le dossier **`dist/`** (voir `netlify.toml`).
-- **`BACKEND_PUBLIC_URL`** (variable Netlify au build) : URL HTTPS publique du backend Node **sans** slash final (ex. `https://api.graply.io` ou ton URL Render). Elle sert à générer le proxy **`/api/*`** dans `_redirects`.
-- Si la variable est absente, le script utilise par défaut **`https://api.graply.io`** : adapte DNS + déploiement ou la variable.
+- Publication du dossier **`dist/`** (`netlify.toml`).
+- Variable **`BACKEND_PUBLIC_URL`** (build Netlify) : URL HTTPS du backend **sans** slash final — utilisée pour le proxy **`/api/*`** (`scripts/patch-netlify-redirects.mjs`). Défaut documenté : `https://api.graply.io`.
 
 ---
 
 ## Base de données (Supabase)
 
-1. Lier le projet : `supabase link` (CLI) ou appliquer les migrations depuis le **SQL Editor** / **Migrations** du dashboard.
-2. Les fichiers sous **`supabase/migrations/`** décrivent le schéma attendu par l’app (RLS, RPC, stockage, OAuth, etc.).
+Migrations dans **`supabase/migrations/`** : schéma, RLS, RPC, stockage, OAuth, etc.  
+Lier le projet avec la **CLI Supabase** ou appliquer les scripts depuis le dashboard.
 
 ---
 
 ## Sécurité
 
-- Ne **jamais** committer de `.env`, clés API, jetons ou fichiers `*.vault.local.sql`.
-- Le dépôt suit une politique stricte dans **`.gitignore`** ; les détails des variables sont listés dans **`ENV_SETUP.txt`** sans valeurs sensibles.
+Ne pas committer de `.env`, clés, jetons ni fichiers **`*.vault.local.sql`**. Voir **`.gitignore`**.
 
 ---
 
-## Licence & contact
+## Licence
 
-Projet **privé** — droits réservés. Pour toute question sur le déploiement ou l’accès aux environnements **graply.io**, contacte l’équipe propriétaire du dépôt.
+Projet **privé** — droits réservés.
