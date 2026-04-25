@@ -23,7 +23,7 @@
 
 ## Statut du projet et graply.io
 
-Le **nom de domaine** (DNS, hébergement du site) est encore en **évolution** : tant qu’il n’est pas définitivement relié au déploiement du front, **graply.io** peut afficher une page provisoire ou un autre hébergeur — ce n’est **pas** l’application Graply telle qu’elle tourne en local ou sur la préproduction. **En parallèle**, le dépôt est un **projet en développement actif** (interface et intégrations qui changent), d’où le badge « En développement » : même une fois le domaine bien pointé, le produit restera perfectible tant que cette phase n’est pas close.
+Le **nom de domaine** (**graply.io**) est encore en **réglage** (DNS, hébergement) : tant que cette configuration n’est pas stabilisée et reliée au déploiement du front, l’URL **n’affiche pas** l’application — souvent une page provisoire à la place. **En plus**, le dépôt est en **développement actif** (interface et intégrations qui bougent), d’où le badge « En développement » et une app encore perfectible même après la bascule du domaine.
 
 ---
 
