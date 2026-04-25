@@ -6,7 +6,7 @@
 
 <a href="https://graply.io"><img src="https://img.shields.io/badge/Site-graply.io-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="graply.io" /></a>
 <img src="https://img.shields.io/badge/Statut-En%20d%C3%A9veloppement-f59e0b?style=for-the-badge" alt="En développement" />
-<img src="https://img.shields.io/badge/Licence-MIT-22c55e?style=for-the-badge" alt="MIT" />
+<img src="https://img.shields.io/badge/Licence-Priv%C3%A9e-64748b?style=for-the-badge" alt="Privée" />
 
 <br/><br/>
 
@@ -129,4 +129,4 @@ Les migrations SQL se trouvent dans **`supabase/migrations/`**. Appliquez-les av
 
 ## Licence
 
-Ce projet est sous licence **MIT** — voir le fichier [`LICENSE`](LICENSE).
+Projet **privé** — pas de licence publique affichée pour le moment.

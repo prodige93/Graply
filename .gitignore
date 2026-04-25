@@ -70,3 +70,6 @@ Thumbs.db
 # Debug & misc
 *.pem
 *.orig
+
+# Fichier de licence à la racine : non versionné pour l’instant (republier : retirer cette ligne puis git add LICENSE)
+/LICENSE
