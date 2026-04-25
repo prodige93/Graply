@@ -1,6 +1,7 @@
 <div align="center">
 
-<img src=".github/assets/readme-hero.svg" alt="Graply — bannière" width="100%" />
+<!-- Bannière en PNG : GitHub n’affiche en général pas les SVG dans <img> du README (politique de sécurité). La source éditable reste `.github/assets/readme-hero.svg`. -->
+<img src=".github/assets/readme-hero.png" alt="Graply — bannière" width="100%" />
 
 <br/>
 
@@ -21,7 +22,13 @@
 
 ---
 
-> **Projet en développement actif.** L’interface et les parcours métier évoluent.
+## Statut du projet et graply.io
+
+Ce dépôt est un **projet en développement actif** : l’interface, les parcours métier et les intégrations **changent encore** (bugs possibles, régressions temporaires, fonctionnalités inachevées). Le badge **« En développement »** en tête du README rappelle exactement cela : **ne pas attendre un produit figé** comme en production stable.
+
+**Ce que tu vois sur graply.io** (page d’accueil, message du fournisseur d’hébergement, « site en construction », etc.) ne vient **pas** de ce fichier README ni du code seul : cela dépend du **domaine** (DNS, nameservers) et de **l’hébergeur auquel ce nom pointe**. Tant que le domaine n’est pas relié au **déploiement réel du front** (build `dist/` sur l’outil d’hébergement que tu utilises), le navigateur affichera ce que ce DNS indique — souvent une **page par défaut** chez le registrar ou l’hébergeur où la zone DNS est gérée. Mettre à jour le dépôt ou le badge « en développement » **ne remplace pas** cette étape réseau / infra.
+
+En résumé : **développement actif** = état du produit dans le code ; **URL publique** = configuration DNS + hébergement du site.
 
 ---
 
@@ -75,6 +82,7 @@ flowchart LR
 
 ## Sommaire
 
+- [Statut du projet et graply.io](#statut-du-projet-et-graplyio)
 - [Installation](#installation)
 - [Variables d’environnement](#variables-denvironnement)
 - [Développement local](#développement-local)
