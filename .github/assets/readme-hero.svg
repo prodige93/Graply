@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="320" viewBox="0 0 1200 320">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -14,7 +15,7 @@
   <circle cx="980" cy="80" r="120" fill="#7c3aed" opacity="0.12"/>
   <circle cx="200" cy="280" r="90" fill="#a78bfa" opacity="0.08"/>
   <text x="80" y="120" fill="#f4f4f5" font-family="ui-sans-serif, system-ui, sans-serif" font-size="56" font-weight="700">Graply</text>
-  <text x="80" y="175" fill="#a1a1aa" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22">Marques × créateurs · UGC &amp; campagnes</text>
+  <text x="80" y="175" fill="#a1a1aa" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22">Marques &#215; cr&#233;ateurs &#183; UGC &amp; campagnes</text>
   <rect x="80" y="210" width="280" height="6" rx="3" fill="url(#accent)"/>
-  <text x="80" y="270" fill="#71717a" font-family="ui-sans-serif, system-ui, sans-serif" font-size="15">Plateforme web · React · Supabase · Stripe</text>
+  <text x="80" y="270" fill="#71717a" font-family="ui-sans-serif, system-ui, sans-serif" font-size="15">Plateforme web &#183; React &#183; Supabase &#183; Stripe</text>
 </svg>
