@@ -1,9 +1,5 @@
 <div align="center">
 
-![Graply — bannière](.github/assets/readme-hero.png)
-
-<br/>
-
 <a href="https://graply.io"><img src="https://img.shields.io/badge/Site-graply.io-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="graply.io" /></a>
 <img src="https://img.shields.io/badge/Statut-En%20d%C3%A9veloppement-f59e0b?style=for-the-badge" alt="En développement" />
 
@@ -21,9 +17,9 @@
 
 ---
 
-## Statut du projet et graply.io
+## Statut
 
-Le **nom de domaine** (**graply.io**) est encore en **réglage** (DNS, hébergement) : tant que cette configuration n’est pas stabilisée et reliée au déploiement du front, l’URL **n’affiche pas** l’application — souvent une page provisoire à la place. **En plus**, le dépôt est en **développement actif** (interface et intégrations qui bougent), d’où le badge « En développement » et une app encore perfectible même après la bascule du domaine.
+**graply.io** s’affiche encore via **Hostinger** le temps que le **DNS** et l’**hébergement** du domaine soient configurés pour pointer vers le déploiement du front — l’application n’y est pas encore servie. **(Projet en développement.)**
 
 ---
 
@@ -77,7 +73,7 @@ flowchart LR
 
 ## Sommaire
 
-- [Statut du projet et graply.io](#statut-du-projet-et-graplyio)
+- [Statut](#statut)
 - [Installation](#installation)
 - [Variables d’environnement](#variables-denvironnement)
 - [Développement local](#développement-local)
