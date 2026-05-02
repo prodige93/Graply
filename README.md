@@ -1,7 +1,8 @@
 <div align="center">
 
-<a href="https://graply.io"><img src="https://img.shields.io/badge/Site-graply.io-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="graply.io" /></a>
+<a href="https://graply.netlify.app/"><img src="https://img.shields.io/badge/Site-graply.netlify.app-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="graply.netlify.app" /></a>
 <img src="https://img.shields.io/badge/Statut-En%20d%C3%A9veloppement-f59e0b?style=for-the-badge" alt="En développement" />
+<img src="https://img.shields.io/badge/Licence-MIT-22c55e?style=for-the-badge" alt="Licence MIT" />
 
 <br/><br/>
 
@@ -11,7 +12,7 @@
 
 **Plateforme de mise en relation entre marques et créateurs** — campagnes UGC, candidatures, suivi des contenus et des performances sur les réseaux.
 
-[Site](https://graply.io) · [Dépôt](https://github.com/prodige93/Graply)
+[Site](https://graply.netlify.app/) · [Dépôt](https://github.com/prodige93/Graply)
 
 </div>
 
@@ -19,7 +20,7 @@
 
 ## Statut
 
-**graply.io** s’affiche encore via **Hostinger** le temps que le **DNS** et l’**hébergement** du domaine soient configurés pour pointer vers le déploiement du front — l’application n’y est pas encore servie. **(Projet en développement.)**
+L’application est disponible sur **https://graply.netlify.app/**. **(Projet en développement.)**
 
 ---
 
@@ -79,6 +80,7 @@ flowchart LR
 - [Développement local](#développement-local)
 - [Build et déploiement](#build-et-déploiement)
 - [Base de données](#base-de-données)
+- [Licence et propriété intellectuelle](#licence-et-propriété-intellectuelle)
 
 ---
 
@@ -122,3 +124,14 @@ Le front est émis dans **`dist/`**. La configuration d’hébergement (fichiers
 ## Base de données
 
 Les migrations SQL se trouvent dans **`supabase/migrations/`**. Appliquez-les avec l’outil de votre choix (CLI du fournisseur ou interface du service).
+
+
+---
+
+## Licence et propriété intellectuelle
+
+Le code source est distribué sous licence **MIT** (voir `LICENSE`), au nom de **Eliass Rachid**.
+
+Toute application, plateforme ou service reprenant la même logique métier, même sous un autre nom, dans un autre langage, ou avec une architecture différente, sans autorisation écrite préalable, s’expose à des poursuites.
+
+Projet créé en un mois — état au **2026-05-02** — fait par **Eliass Rachid**.
